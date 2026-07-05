@@ -1,7 +1,7 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
 #
 # Author:       Mike Clements, Competitive Edge
-# Version:      0.3-20260705
+# Version:      0.4-20260705
 # File:         rpi-sdinfo.py
 # License:      GNU GPL v3
 # Language:     Python 3.6 or later
@@ -11,9 +11,16 @@
 #   Performance test SD cards and MMC, and try (perhaps in vain) to help people to spot fake MMC/SD cards by comapring the cards registers to it branding.
 #   I'm using gigabyte (GB) for storage and mebibyte (MiB) for memory because thats what I see they industry typically using in product branding and marketing
 #
+# Platforms:
+#   Linux (Raspberry Pi)  - full detail: reads the SD/MMC CID/CSD registers from sysfs to identify make, model
+#                           and branding, plus filesystem and IO statistics. Designed on a Raspberry Pi 3 Model B
+#                           and a Pi Zero W running Raspberry Pi OS Lite 12 (bookworm).
+#   macOS                 - limited: macOS does not expose the SD CID/CSD registers, so identity is whatever the
+#                           card reader reports (capacity, media name, bus) via diskutil. The performance test
+#                           and grading still work.
+#
 # Pre-requisite:
-#   Designed and tested on a Raspberry Pi 3 Model B Rev 1.2 and a Raspberry Pi Zero W Rev 1.1, both running Raspberry Pi OS Lite 12 (bookworm).
-#   Requires the fio package be installed for performance testing of the SD card.
+#   Performance testing is now native Python (see sdbench.py) - no external fio dependency. Nothing to install.
 #
 # References:
 #
@@ -32,8 +39,8 @@
 # Import the libraries
 #--------------------------------------
 
-# Package manager
-import apt
+# Command line arguments
+import argparse
 
 # Time delta
 import datetime
@@ -41,13 +48,10 @@ import datetime
 # Hash encoding
 import hashlib
 
-# JSON handler
-import json
-
 # Locale relevant feedback
 import locale
 
-#
+# Floor for the best-half median
 import math
 
 # Read files
@@ -56,32 +60,38 @@ import os
 # Platform info like OS kernel
 import platform
 
+# Parse macOS diskutil -plist output
+import plistlib
+
 # Regular expression matching
 import re
 
 # Advanced math
 import statistics
 
-# Run external commands
+# Run external commands (dumpe2fs on Linux, diskutil on macOS)
 import subprocess
 
 # For the exit call
 import sys
 
+# Benchmark target directory default
+import tempfile
+
+# Native, dependency-free performance benchmark (replaces fio). Ships alongside this script
+import sdbench
+
 #======================================
 # Declare the constants
 #--------------------------------------
 
-# The Linux device for the MMC or SD card
+# The default Linux device for the MMC or SD card (overridable with --device; the partition defaults to <device>p2)
 block_device = 'mmcblk0'
-block_partition = 'mmcblk0p2'
 
-# The total number of performance tests to run to ensure a consistent result
+# The total number of performance tests to run to ensure a consistent result (overridable with --runs)
 max_runs = 6
-# Number of jobs per performance test
-max_jobs = 4
-# File used for performance testing
-test_file = '/var/tmp/sd.test.file'
+# Name of the file created (and removed) during performance testing
+test_file_name = 'sd.test.file'
 
 # Set the locale
 locale.setlocale(locale.LC_ALL, '')
@@ -499,290 +509,379 @@ def best_median(values, higher_is_better=True):
   return statistics.median(ordered[:half] or ordered)
 
 #======================================
-# Execute the script
+# Gather - Linux (Raspberry Pi)
 #--------------------------------------
 
-# Loading the files here instead of in sys_info to save reading the same file multiple times and ensure the data read is consistent i.e. doesn't change between reads
-# Filesystem info, parsed by attribute label rather than line number
-fs_info = parse_kv(subprocess.run(['/sbin/dumpe2fs', '-h', '/dev/' + block_partition], capture_output=True, encoding='utf-8', text=True, timeout=3).stdout.split('\n'))
-# CPU load averages
-load_avg = read_file('/proc/loadavg').split()
-# Memory utilisation info, parsed by attribute label rather than line number
-mem_info = parse_kv(read_file('/proc/meminfo').split('\n'))
-# Disk statistics for the MMC/SD card
-disk_stats = read_file('/proc/diskstats', ' ' + block_device + ' ', 'regex').split()
-# Fixed application salt so the anonymised device uuid is stable across runs (a random salt would produce a new uuid every run, making it useless as an identifier for the shared results database). See ROADMAP for a stronger anonymisation scheme
-salt = b'rpi-sdinfo/device-uuid/v1'
+def gather_linux(args):
+  # Read everything the Linux kernel exposes about the Pi and its SD/MMC card, then derive the friendly fields.
+  # sysfs paths are Linux-only; on any other platform gather_macos() is used instead.
+  device = args.device or block_device
+  partition = args.partition or (device + 'p2')
 
-sys_info = {
-  'hardware' : {
-    'model' : read_file('/sys/firmware/devicetree/base/model', '\x00'),
-    'serial_number' : read_file('/sys/firmware/devicetree/base/serial-number', '\x00'),
-    'uuid' : hashlib.pbkdf2_hmac('sha256', read_file('/sys/firmware/devicetree/base/serial-number', '\x00').encode('utf-8'), salt, 1000).hex(),
-    'mac_eth0' : read_file('/sys/class/net/eth0/address', '\n') or 'n/a',
-    'mac_wlan0' : read_file('/sys/class/net/wlan0/address', '\n') or 'n/a',
-    'mac_bt0' : read_file('/sys/kernel/debug/bluetooth/hci0/identity')[0:17] or 'n/a'
-  },
-  'software' : {
-    'os_release' : platform.freedesktop_os_release().get('PRETTY_NAME', 'Linux'),
-    'os_kernel' : platform.release()
-  },
-  'storage' : {
-    'type' : read_file('/sys/block/' + block_device + '/device/type', '\n'),
-    'read_only' : read_file('/sys/block/' + block_device + '/ro', '\n'),                   # Hardware boolean to force read only, on SD cards thats controlled by a switch on its side
-    'force_read_only' : read_file('/sys/block/' + block_device + '/force_ro', '\n'),       # Software boolean to force read only
-    'removable' : read_file('/sys/block/' + block_device + '/removable', '\n'),
-    'blocks' : int(read_file('/sys/block/' + block_device + '/size', '\n')),
-    'block_size' : int(read_file('/sys/block/' + block_device + '/device/erase_size', '\n')),
-    'ocr' : read_file('/sys/block/' + block_device + '/device/ocr', '\n'),                 # Operation Conditions Register
-    'cid' : read_file('/sys/block/' + block_device + '/device/cid', '\n'),                 # Card Identification register is 16 bytes (128 bits) code that contains information that uniquely identifies the MMC/SD card
-    'cid_mid' : read_file('/sys/block/' + block_device + '/device/manfid', '\n'),          # Manufacturer ID (from CID Register). 8-bit number that identifies the manufacturer, assigned by SD-3C
-    'cid_oid' : read_file('/sys/block/' + block_device + '/device/oemid', '\n'),           # OEM/Application ID (from CID Register). 2-character ASCII string that identifies the card OEM and/or the card contents, assigned by SD-3C
-    'cid_pnm' : read_file('/sys/block/' + block_device + '/device/name', '\n'),            # Product Name (from CID Register). 5-character ASCII string
-    'cid_prv_hw' : read_file('/sys/block/' + block_device + '/device/hwrev', '\n'),        # Hardware/Product Revision (from CID Register) (SD and MMCv1 only). PRV is composed of two Binary Coded Decimal (BCD) digits, four bits each, representing an “n.m” revision number
-    'cid_prv_fw' : read_file('/sys/block/' + block_device + '/device/fwrev', '\n'),        # Firmware/Product Revision (from CID Register) (SD and MMCv1 only). PRV is composed of two Binary Coded Decimal (BCD) digits, four bits each, representing an “n.m” revision number
-    'cid_psn' : read_file('/sys/block/' + block_device + '/device/serial', '\n'),          # Product serial number is 32 bits ordinary number
-    'cid_mdt' : read_file('/sys/block/' + block_device + '/device/date', '\n'),            # Manufacturing Date (from CID Register), composed of 12 bits in YYM format, (offset from 2000)
-    'csd' : read_file('/sys/block/' + block_device + '/device/csd', '\n'),                 # Card Specific Data register
-    'rca' : read_file('/sys/block/' + block_device + '/device/rca', '\n'),                 # Relative Card Address register
-    'dsr' : read_file('/sys/block/' + block_device + '/device/dsr', '\n'),                 # Driver Stage Register
-    'scr' : read_file('/sys/block/' + block_device + '/device/scr', '\n'),                 # SD Card Configuration Register (SD only)
-    'ssr' : read_file('/sys/block/' + block_device + '/device/ssr', '\n')                  # SD Status Register
-  },
-  'filesystem' : {
-    'state' : fs_info.get('Filesystem state', 'unknown'),
-    'created' : fs_info.get('Filesystem created', 'unknown'),
-    'last_checked' : fs_info.get('Last checked', 'unknown'),
-    'mount_count' : int(fs_info.get('Mount count', 0)),
-    'last_mount' : fs_info.get('Last mount time', 'unknown')
-  },
-  'stats' : {
-    'cpu' : {
-      'load_1m' : float(load_avg[0]),
-      'load_5m' : float(load_avg[1]),
-      'load_15m' : float(load_avg[2]),
-      'threads' : load_avg[3]
+  # Load the source files once, up front, so the data is internally consistent and not read twice
+  fs_info = parse_kv(subprocess.run(['/sbin/dumpe2fs', '-h', '/dev/' + partition], capture_output=True, encoding='utf-8', text=True, timeout=5).stdout.split('\n'))
+  load_avg = read_file('/proc/loadavg').split()
+  mem_info = parse_kv(read_file('/proc/meminfo').split('\n'))
+  disk_stats = read_file('/proc/diskstats', ' ' + device + ' ', 'regex').split()
+  # Fixed application salt so the anonymised device uuid is stable across runs (a random salt would make it useless as a shared-database identifier). See ROADMAP for a stronger scheme
+  salt = b'rpi-sdinfo/device-uuid/v1'
+  serial = read_file('/sys/firmware/devicetree/base/serial-number', '\x00')
+
+  sys_info = {
+    'platform' : 'linux',
+    'device' : device,
+    'partition' : partition,
+    'hardware' : {
+      'model' : read_file('/sys/firmware/devicetree/base/model', '\x00') or 'unknown',
+      'serial_number' : serial,
+      'uuid' : hashlib.pbkdf2_hmac('sha256', serial.encode('utf-8'), salt, 1000).hex() if serial else '',
+      'mac_eth0' : read_file('/sys/class/net/eth0/address', '\n') or 'n/a',
+      'mac_wlan0' : read_file('/sys/class/net/wlan0/address', '\n') or 'n/a',
+      'mac_bt0' : read_file('/sys/kernel/debug/bluetooth/hci0/identity')[0:17] or 'n/a'
     },
-    'memory' : {
-      'total' : mib(mem_info.get('MemTotal', '0')),
-      'free' : mib(mem_info.get('MemFree', '0')),
-      'available' : mib(mem_info.get('MemAvailable', '0')),
-      'buffers' : mib(mem_info.get('Buffers', '0')),
-      'cached' : mib(mem_info.get('Cached', '0')),
-      'swap_total' : mib(mem_info.get('SwapTotal', '0')),
-      'swap_free' : mib(mem_info.get('SwapFree', '0')),
-      'vm_alloc_total' : mib(mem_info.get('VmallocTotal', '0')),
-      'vm_alloc_used' : mib(mem_info.get('VmallocUsed', '0'))
+    'software' : {
+      'os_release' : platform.freedesktop_os_release().get('PRETTY_NAME', 'Linux') if hasattr(platform, 'freedesktop_os_release') else 'Linux',
+      'os_kernel' : platform.release()
     },
-    'disk' : {
-      'major_number' : int(disk_stats[0]),
-      'minor_number' : int(disk_stats[1]),
-      'read_completed' : int(disk_stats[3]),
-      'read_merged' : int(disk_stats[4]),
-      'read_sectors' : int(disk_stats[5]),
-      'read_time' : int(disk_stats[6]),
-      'write_completed' : int(disk_stats[7]),
-      'write_merged' : int(disk_stats[8]),
-      'write_sectors' : int(disk_stats[9]),
-      'write_time' : int(disk_stats[10]),
-      'io_in_progress' : int(disk_stats[11]),
-      'io_time' : int(disk_stats[12]),
-      'io_weighted_time' : int(disk_stats[13]),
-      'discard_completed' : int(disk_stats[14]),
-      'discard_merged' : int(disk_stats[15]),
-      'discard_sectors' : int(disk_stats[16]),
-      'discard_time' : int(disk_stats[17]),
-      'flush_completed' : int(disk_stats[18]),
-      'flush_time' : int(disk_stats[19])
-    }
-  },
-  'fio' : {
-    'write' : {
-      'seq_mbps' : [],
-      'seq_iops' : [],
-      'seq_latency' : [],
-      'rand_4kb_mbps' : [],
-      'rand_4kb_iops' : [],
-      'rand_4kb_latency' : []
+    'storage' : {
+      'type' : read_file('/sys/block/' + device + '/device/type', '\n'),
+      'read_only' : read_file('/sys/block/' + device + '/ro', '\n'),                   # Hardware boolean to force read only, on SD cards thats controlled by a switch on its side
+      'force_read_only' : read_file('/sys/block/' + device + '/force_ro', '\n'),       # Software boolean to force read only
+      'removable' : read_file('/sys/block/' + device + '/removable', '\n'),
+      'blocks' : int(read_file('/sys/block/' + device + '/size', '\n') or 0),
+      'block_size' : int(read_file('/sys/block/' + device + '/device/erase_size', '\n') or 0),
+      'ocr' : read_file('/sys/block/' + device + '/device/ocr', '\n'),                 # Operation Conditions Register
+      'cid' : read_file('/sys/block/' + device + '/device/cid', '\n'),                 # Card Identification register, 16 bytes uniquely identifying the card
+      'cid_mid' : read_file('/sys/block/' + device + '/device/manfid', '\n'),          # Manufacturer ID (from CID). 8-bit, assigned by SD-3C
+      'cid_oid' : read_file('/sys/block/' + device + '/device/oemid', '\n'),           # OEM/Application ID (from CID). 2-char ASCII, assigned by SD-3C
+      'cid_pnm' : read_file('/sys/block/' + device + '/device/name', '\n'),            # Product Name (from CID). 5-char ASCII
+      'cid_prv_hw' : read_file('/sys/block/' + device + '/device/hwrev', '\n'),        # Hardware/Product Revision (from CID)
+      'cid_prv_fw' : read_file('/sys/block/' + device + '/device/fwrev', '\n'),        # Firmware/Product Revision (from CID)
+      'cid_psn' : read_file('/sys/block/' + device + '/device/serial', '\n'),          # Product serial number, 32-bit
+      'cid_mdt' : read_file('/sys/block/' + device + '/device/date', '\n'),            # Manufacturing Date (from CID), YYM offset from 2000
+      'csd' : read_file('/sys/block/' + device + '/device/csd', '\n'),                 # Card Specific Data register
+      'rca' : read_file('/sys/block/' + device + '/device/rca', '\n'),                 # Relative Card Address register
+      'dsr' : read_file('/sys/block/' + device + '/device/dsr', '\n'),                 # Driver Stage Register
+      'scr' : read_file('/sys/block/' + device + '/device/scr', '\n'),                 # SD Card Configuration Register (SD only)
+      'ssr' : read_file('/sys/block/' + device + '/device/ssr', '\n')                  # SD Status Register
     },
-    'read' : {
-      'rand_4kb_mbps' : [],
-      'rand_4kb_iops' : [],
-      'rand_4kb_latency' : []
+    'filesystem' : {
+      'state' : fs_info.get('Filesystem state', 'unknown'),
+      'created' : fs_info.get('Filesystem created', 'unknown'),
+      'last_checked' : fs_info.get('Last checked', 'unknown'),
+      'mount_count' : int(fs_info.get('Mount count', 0)),
+      'last_mount' : fs_info.get('Last mount time', 'unknown')
+    },
+    'stats' : {
+      'cpu' : {
+        'load_1m' : float(load_avg[0]) if load_avg else 0.0,
+        'load_5m' : float(load_avg[1]) if len(load_avg) > 1 else 0.0,
+        'load_15m' : float(load_avg[2]) if len(load_avg) > 2 else 0.0,
+        'threads' : load_avg[3] if len(load_avg) > 3 else 'n/a'
+      },
+      'memory' : {
+        'total' : mib(mem_info.get('MemTotal', '0')),
+        'free' : mib(mem_info.get('MemFree', '0')),
+        'available' : mib(mem_info.get('MemAvailable', '0')),
+        'swap_total' : mib(mem_info.get('SwapTotal', '0')),
+        'swap_free' : mib(mem_info.get('SwapFree', '0'))
+      },
+      'disk' : {
+        'read_completed' : int(disk_stats[3]) if len(disk_stats) > 13 else 0,
+        'read_sectors' : int(disk_stats[5]) if len(disk_stats) > 13 else 0,
+        'read_time' : int(disk_stats[6]) if len(disk_stats) > 13 else 0,
+        'write_completed' : int(disk_stats[7]) if len(disk_stats) > 13 else 0,
+        'write_sectors' : int(disk_stats[9]) if len(disk_stats) > 13 else 0,
+        'write_time' : int(disk_stats[10]) if len(disk_stats) > 13 else 0
+      }
     }
   }
-}
 
-## Linux kernel dictates that for SD, erase_size is 512 if the card is block-addressed, 0 otherwise. This does not handle a zero value
-sys_info['storage']['bytes'] = sys_info['storage']['blocks'] * sys_info['storage']['block_size']
-sys_info['storage']['GB'] = sys_info['storage']['bytes'] / 1000000000
-sys_info['storage']['GiB'] = sys_info['storage']['bytes'] / 1024 / 1024 / 1024
+  # Analyse - capacity. Linux kernel dictates erase_size is 512 for a block-addressed card, 0 otherwise (see ROADMAP for the 0 case)
+  block_size = sys_info['storage']['block_size'] or 512
+  sys_info['storage']['bytes'] = sys_info['storage']['blocks'] * block_size
+  sys_info['storage']['GB'] = sys_info['storage']['bytes'] / 1000000000
+  sys_info['storage']['GiB'] = sys_info['storage']['bytes'] / 1024 / 1024 / 1024
 
-# Look up the make and model of storage
-try:
-  sys_info['storage']['manufacturer'] = manufacturer[sys_info['storage']['type']][sys_info['storage']['cid_mid']]['manufacturer']
-except KeyError:
-  sys_info['storage']['manufacturer'] = 'unknown'
+  # Analyse - look up make, brand, model and rated speed class from the crowd-sourced CID database
+  card_type, mid, oid, pnm, hwrev = (sys_info['storage'][k] for k in ('type', 'cid_mid', 'cid_oid', 'cid_pnm', 'cid_prv_hw'))
+  try:
+    sys_info['storage']['manufacturer'] = manufacturer[card_type][mid]['manufacturer']
+  except KeyError:
+    sys_info['storage']['manufacturer'] = 'unknown'
+  try:
+    sys_info['storage']['oem'] = manufacturer[card_type][mid][oid]['oem']
+  except KeyError:
+    sys_info['storage']['oem'] = sys_info['storage']['manufacturer']
+  try:
+    sys_info['storage']['label'] = manufacturer[card_type][mid][oid][pnm][hwrev]['label']
+  except KeyError:
+    sys_info['storage']['label'] = sys_info['storage']['oem']
+  try:
+    sys_info['storage']['speed_class'] = manufacturer[card_type][mid][oid][pnm][hwrev]['speed_class']
+  except KeyError:
+    sys_info['storage']['speed_class'] = []
 
-try:
-  sys_info['storage']['oem'] = manufacturer[sys_info['storage']['type']][sys_info['storage']['cid_mid']][sys_info['storage']['cid_oid']]['oem']
-except KeyError:
-  sys_info['storage']['oem'] = sys_info['storage']['manufacturer']
+  # Analyse - card read/write and removable state
+  read_only, force_ro = sys_info['storage']['read_only'], sys_info['storage']['force_read_only']
+  if read_only == '1' and force_ro == '1':
+    sys_info['storage']['state'] = 'read only (hardware+software)'
+  elif read_only == '1':
+    sys_info['storage']['state'] = 'read only (hardware)'
+  elif force_ro == '1':
+    sys_info['storage']['state'] = 'read only (software)'
+  else:
+    sys_info['storage']['state'] = 'read/write'
+  sys_info['storage']['removable_label'] = 'removable' if sys_info['storage']['removable'] == '1' else 'not removable'
 
-try:
-  sys_info['storage']['label'] = manufacturer[sys_info['storage']['type']][sys_info['storage']['cid_mid']][sys_info['storage']['cid_oid']][sys_info['storage']['cid_pnm']][sys_info['storage']['cid_prv_hw']]['label']
-except KeyError:
-  sys_info['storage']['label'] = sys_info['storage']['oem']
+  # Analyse - flag a recent history of high CPU load that could skew the performance test
+  cpu = sys_info['stats']['cpu']
+  if cpu['load_1m'] >= 1.0 or (cpu['load_1m'] >= 0.5 and cpu['load_5m'] >= 0.7 and cpu['load_15m'] >= 0.7):
+    cpu['warning'] = '    Warning high CPU load!!'
+  else:
+    cpu['warning'] = ''
 
-# The speed class(es) the card's branding claims, used later to grade the measured performance. Empty when unknown, in which case we grade against A1 (the Raspberry Pi baseline)
-try:
-  sys_info['storage']['speed_class'] = manufacturer[sys_info['storage']['type']][sys_info['storage']['cid_mid']][sys_info['storage']['cid_oid']][sys_info['storage']['cid_pnm']][sys_info['storage']['cid_prv_hw']]['speed_class']
-except KeyError:
-  sys_info['storage']['speed_class'] = []
-
-# Card state
-if ((sys_info['storage']['read_only'] == '0') and (sys_info['storage']['force_read_only'] == '0')):
-  sys_info['storage']['state'] = 'read/write'
-elif ((sys_info['storage']['read_only'] == '1') and (sys_info['storage']['force_read_only'] == '1')):
-  sys_info['storage']['state'] = 'read only (hardware+software)'
-elif (sys_info['storage']['read_only'] == '1'):
-  sys_info['storage']['state'] = 'read only (hardware)'
-elif (sys_info['storage']['force_read_only'] == '1'):
-  sys_info['storage']['state'] = 'read only (software)'
-
-if (sys_info['storage']['removable'] == '1'):
-  sys_info['storage']['removable_label'] = 'removable'
-elif (sys_info['storage']['removable'] == '0'):
-  sys_info['storage']['removable_label'] = 'not removable'
-
-# Look for a recent history of high CPU utilisation that may affect performance testing
-if ((sys_info['stats']['cpu']['load_1m'] >= 1.0) or ((sys_info['stats']['cpu']['load_1m'] >= 0.5) and (sys_info['stats']['cpu']['load_5m'] >= 0.7) and (sys_info['stats']['cpu']['load_15m'] >= 0.7))):
-  sys_info['stats']['cpu']['warning'] = '    Warning high CPU load!!'
-else:
-  sys_info['stats']['cpu']['warning'] = ''
-
-# Analyse the disk stats for real world throughput and IO per second (safe_div guards a card idle since boot)
-sys_info['stats']['disk']['read_avg_mbps'] = safe_div((sys_info['stats']['disk']['read_sectors'] * sys_info['storage']['block_size']) / 1000000, sys_info['stats']['disk']['read_time'] / 1000)
-sys_info['stats']['disk']['read_avg_mibps'] = safe_div((sys_info['stats']['disk']['read_sectors'] * sys_info['storage']['block_size']) / 1024 / 1024, sys_info['stats']['disk']['read_time'] / 1000)
-sys_info['stats']['disk']['read_avg_iops'] = safe_div(sys_info['stats']['disk']['read_completed'], sys_info['stats']['disk']['read_time'] / 1000)
-sys_info['stats']['disk']['write_avg_mbps'] = safe_div((sys_info['stats']['disk']['write_sectors'] * sys_info['storage']['block_size']) / 1000000, sys_info['stats']['disk']['write_time'] / 1000)
-sys_info['stats']['disk']['write_avg_mibps'] = safe_div((sys_info['stats']['disk']['write_sectors'] * sys_info['storage']['block_size']) / 1024 / 1024, sys_info['stats']['disk']['write_time'] / 1000)
-sys_info['stats']['disk']['write_avg_iops'] = safe_div(sys_info['stats']['disk']['write_completed'], sys_info['stats']['disk']['write_time'] / 1000)
-
-# System info
-print('\n' + sys_info['hardware']['model'] + ' (serial: ' + sys_info['hardware']['serial_number'] + ')\n   Has been up for ' + str(datetime.timedelta(seconds = float(read_file('/proc/uptime', '\n').split()[0]))) + ' running ' + sys_info['software']['os_release'] + ' with kernel ' + sys_info['software']['os_kernel'])
-print('   Ethernet MAC:  ' + sys_info['hardware']['mac_eth0'] + '\n   WiFi MAC:      ' + sys_info['hardware']['mac_wlan0'] + '\n   Bluetooth MAC: ' + sys_info['hardware']['mac_bt0'])
-# Storage info
-print('\nThe ' + sys_info['storage']['type'] + ' storage is a ' + sys_info['storage']['label'])
-print('   Capacity reported:           ' + f_num(sys_info['storage']['GB'], 1) + ' GB (' + f_num(sys_info['storage']['GiB'], 1) + ' GiB, ' + f_num(sys_info['storage']['blocks']) + ' blocks of ' + f_num(sys_info['storage']['block_size']) + ' bytes)\n   Manufacturers serial number: ' + sys_info['storage']['cid_psn'] + '\n   Manufacture date (mm/yyyy):  ' + sys_info['storage']['cid_mdt'])
-print('   The ' + sys_info['storage']['manufacturer'] + ' storage controller is running firmware revision ' + sys_info['storage']['cid_prv_fw'] + '\n   The card is ' + sys_info['storage']['state'] + ' and is ' + sys_info['storage']['removable_label'])
-print('\n' + sys_info['storage']['type'] + ' Registers:\n   OCR: ' + sys_info['storage']['ocr'] + '\n   CID: ' + sys_info['storage']['cid'] + '\n   CSD: ' + sys_info['storage']['csd'] + '\n   RCA: ' + sys_info['storage']['rca'] + '\n   DSR: ' + sys_info['storage']['dsr'] + '\n   SCR: ' + sys_info['storage']['scr'] + '\n   SSR: ' + sys_info['storage']['ssr'])
-print('\nThe Filesystem of ' + block_partition + ' is ' + sys_info['filesystem']['state'] + '\n   Created:      ' + sys_info['filesystem']['created'] + '\n   Last checked: ' + sys_info['filesystem']['last_checked'] + '\n   Mounted:      ' + f_num(sys_info['filesystem']['mount_count']) + ' times since the filesystem was created\n   Last mounted: ' + sys_info['filesystem']['last_mount'])
-# System load info
-print('\n CPU load average (1m): ' + f_num(sys_info['stats']['cpu']['load_1m'], 2) + sys_info['stats']['cpu']['warning'] + '\n                  (5m): ' + f_num(sys_info['stats']['cpu']['load_5m'], 2) + '\n                 (15m): ' + f_num(sys_info['stats']['cpu']['load_15m'], 2) + '\nThreads (active/total): ' + sys_info['stats']['cpu']['threads'])
-print('                Memory: ' + f_num(sys_info['stats']['memory']['free']) + ' MiB free of ' + f_num(sys_info['stats']['memory']['total']) + ' MiB total\n                  Swap: ' + f_num(sys_info['stats']['memory']['swap_free']) + ' MiB free of ' + f_num(sys_info['stats']['memory']['swap_total']) + ' MiB total')
-print(' Storage ' + block_device + ' reads: ' + f_num(sys_info['stats']['disk']['read_completed']) + ' from ' + f_num(sys_info['stats']['disk']['read_sectors']) + ' sectors in ' + f_num(sys_info['stats']['disk']['read_time']) + ' ms\n                        ' + f_num(sys_info['stats']['disk']['read_avg_mbps'], 1) + ' MBps (' + f_num(sys_info['stats']['disk']['read_avg_mibps'], 1) + ' MiBps) using ' + f_num(sys_info['stats']['disk']['read_avg_iops']) + ' IOPS\n                writes: ' + f_num(sys_info['stats']['disk']['write_completed']) + ' to ' + f_num(sys_info['stats']['disk']['write_sectors']) + ' sectors in ' + f_num(sys_info['stats']['disk']['write_time']) + ' ms\n                        ' + f_num(sys_info['stats']['disk']['write_avg_mbps'], 1) + ' MBps (' + f_num(sys_info['stats']['disk']['write_avg_mibps'], 1) + ' MiBps) using ' + f_num(sys_info['stats']['disk']['write_avg_iops']) + ' IOPS\n              discards: ' + f_num(sys_info['stats']['disk']['discard_completed']) + ' from ' + f_num(sys_info['stats']['disk']['discard_sectors']) + ' sectors in ' + f_num(sys_info['stats']['disk']['discard_time']) + ' ms\n               flushes: ' + f_num(sys_info['stats']['disk']['flush_completed']) + ' in ' + f_num(sys_info['stats']['disk']['flush_time']) + ' ms\n            Active I/O: ' + f_num(sys_info['stats']['disk']['io_in_progress']) + ' in ' + f_num(sys_info['stats']['disk']['io_time']) + ' ms (weighted ' + f_num(sys_info['stats']['disk']['io_weighted_time']) + ' ms)')
-
-# Ensure fio is installed for storage speed testing
-cache = apt.Cache()
-try:
-  if cache['fio'].is_installed:
-    print('\nPerformance testing ' + block_device + ', this is non-destructive so it will not mess with your data. This does create a test file (' + test_file + ') which will be removed after the tests are completed')
-except KeyError:
-  print('\n\nYou need to install fio to run performance testing on your ' + sys_info['storage']['type'] + ' storage\nsudo apt -y install fio\n\n')
-  sys.exit(1)
-
-# Create fio job file with job details
-if os.path.isfile('/usr/share/fio/sd_bench.fio') == False:
-  with open('/usr/share/fio/sd_bench.fio', 'w') as file_pointer:
-    file_pointer.write('# Use FIO to emulate the Apps Class A1 performance test.\n# This is not an exact benchmark as the card is not in the state required by the\n# specification, but is good enough as a sniff test.\n#\n[global]\nioengine=libaio\niodepth=4\nsize=64m\ndirect=1\nend_fsync=1\ndirectory=' + os.path.split(test_file)[0] + '\nfilename=' + os.path.split(test_file)[1] + '\n\n[prepare-file]\nrw=write\nbs=512k\nstonewall\n\n[seq-write]\nrw=write\nbs=512k\nstonewall\n\n[rand-4k-write]\nrw=randwrite\nbs=4k\nruntime=10\nstonewall\n\n[rand-4k-read]\nrw=randread\nbs=4k\nruntime=10\nstonewall\n\n# execute with command $ fio --output-format=terse sd_bench.fio | cut -f 3,7,8,48,49 -d";" -\n# testname, read bandwidth, read iops, write bandwidth, write iops')
-
-# Run performance testing
-print('                   Sequential Writes            Random 4 KB writes            Random 4 KB reads')
-for run in range(1, max_runs + 1):
-  fio_results = json.loads(subprocess.run(['/usr/bin/fio', '--output-format=json', '--max-jobs=' + str(max_jobs), '/usr/share/fio/sd_bench.fio'], capture_output=True, encoding='utf-8', text=True, timeout=90).stdout)
-  ## Not sure if fio is reporting bw, random reads & writes in KB or KiB
-  # Dispatch by job name rather than by list index so the prepare-file job (and any re-ordering) can't skew the results
-  for job in fio_results['jobs']:
-    if job['jobname'] == 'seq-write':
-      sys_info['fio']['write']['seq_mbps'].append(job['write']['bw'] / 1000)
-      sys_info['fio']['write']['seq_iops'].append(job['write']['iops'])
-      sys_info['fio']['write']['seq_latency'].append(job['write']['lat_ns']['mean'] / 1000000)
-    elif job['jobname'] == 'rand-4k-write':
-      sys_info['fio']['write']['rand_4kb_mbps'].append(job['write']['bw'] / 1000)
-      sys_info['fio']['write']['rand_4kb_iops'].append(job['write']['iops'])
-      sys_info['fio']['write']['rand_4kb_latency'].append(job['write']['lat_ns']['mean'] / 1000000)
-    elif job['jobname'] == 'rand-4k-read':
-      sys_info['fio']['read']['rand_4kb_mbps'].append(job['read']['bw'] / 1000)
-      sys_info['fio']['read']['rand_4kb_iops'].append(job['read']['iops'])
-      sys_info['fio']['read']['rand_4kb_latency'].append(job['read']['lat_ns']['mean'] / 1000000)
-
-  # Report this run from the values just appended ([-1]); the lists grow by one per run so a fixed index would be wrong
-  print('   Run ' + str(run) + ' of ' + str(max_runs) + ': ' + f_num(sys_info['fio']['write']['seq_mbps'][-1], 1) + ' MBps, ' + f_num(sys_info['fio']['write']['seq_iops'][-1]) + ' IOPS, ' + f_num(sys_info['fio']['write']['seq_latency'][-1]) + ' ms    ' + f_num(sys_info['fio']['write']['rand_4kb_mbps'][-1], 1) + ' MBps, ' + f_num(sys_info['fio']['write']['rand_4kb_iops'][-1]) + ' IOPS, ' + f_num(sys_info['fio']['write']['rand_4kb_latency'][-1]) + ' ms    ' + f_num(sys_info['fio']['read']['rand_4kb_mbps'][-1], 1) + ' MBps, ' + f_num(sys_info['fio']['read']['rand_4kb_iops'][-1]) + ' IOPS, ' + f_num(sys_info['fio']['read']['rand_4kb_latency'][-1]) + ' ms')
-
-if os.path.isfile(test_file):
-  os.remove(test_file)
-
-# Sometimes something will negatively affect the performance results, so we take the median of the best half of
-# results (the slow-outlier free upper half for throughput/IOPS, lower half for latency) as a best guess of the
-# real world performance while still being applicable to the storage's rated speed
-sys_info['fio']['write']['seq_mbps_result'] = best_median(sys_info['fio']['write']['seq_mbps'])
-sys_info['fio']['write']['seq_iops_result'] = best_median(sys_info['fio']['write']['seq_iops'])
-sys_info['fio']['write']['seq_latency_result'] = best_median(sys_info['fio']['write']['seq_latency'], higher_is_better=False)
-sys_info['fio']['write']['rand_4kb_mbps_result'] = best_median(sys_info['fio']['write']['rand_4kb_mbps'])
-sys_info['fio']['write']['rand_4kb_iops_result'] = best_median(sys_info['fio']['write']['rand_4kb_iops'])
-sys_info['fio']['write']['rand_4kb_latency_result'] = best_median(sys_info['fio']['write']['rand_4kb_latency'], higher_is_better=False)
-sys_info['fio']['read']['rand_4kb_mbps_result'] = best_median(sys_info['fio']['read']['rand_4kb_mbps'])
-sys_info['fio']['read']['rand_4kb_iops_result'] = best_median(sys_info['fio']['read']['rand_4kb_iops'])
-sys_info['fio']['read']['rand_4kb_latency_result'] = best_median(sys_info['fio']['read']['rand_4kb_latency'], higher_is_better=False)
-
-print('\nBest-guess result (median of the best half) from ' + str(max_runs) + ' runs, standard deviation over all runs')
-print('   Sequential Writes:  ' + f_num(sys_info['fio']['write']['seq_mbps_result'], 1) + ' MBps (mean ' + f_num(statistics.mean(sys_info['fio']['write']['seq_mbps']), 1) + ', stdev ' + f_num(statistics.stdev(sys_info['fio']['write']['seq_mbps']), 1) + ')\n                       ' + f_num(sys_info['fio']['write']['seq_iops_result']) + ' IOPS (mean ' + f_num(statistics.mean(sys_info['fio']['write']['seq_iops'])) + ', stdev ' + f_num(statistics.stdev(sys_info['fio']['write']['seq_iops']), 1) + ')\n                       ' + f_num(sys_info['fio']['write']['seq_latency_result'], 2) + ' ms (mean ' + f_num(statistics.mean(sys_info['fio']['write']['seq_latency']), 2) + ', stdev ' + f_num(statistics.stdev(sys_info['fio']['write']['seq_latency']), 2) + ')')
-print('\n   Random 4 KB Writes: ' + f_num(sys_info['fio']['write']['rand_4kb_mbps_result'], 1) + ' MBps (mean ' + f_num(statistics.mean(sys_info['fio']['write']['rand_4kb_mbps']), 1) + ', stdev ' + f_num(statistics.stdev(sys_info['fio']['write']['rand_4kb_mbps']), 1) + ')\n                       ' + f_num(sys_info['fio']['write']['rand_4kb_iops_result']) + ' IOPS (mean ' + f_num(statistics.mean(sys_info['fio']['write']['rand_4kb_iops'])) + ', stdev ' + f_num(statistics.stdev(sys_info['fio']['write']['rand_4kb_iops']), 1) + ')\n                       ' + f_num(sys_info['fio']['write']['rand_4kb_latency_result'], 2) + ' ms (mean ' + f_num(statistics.mean(sys_info['fio']['write']['rand_4kb_latency']), 2) + ', stdev ' + f_num(statistics.stdev(sys_info['fio']['write']['rand_4kb_latency']), 2) + ')')
-print('\n   Random 4 KB Reads:  ' + f_num(sys_info['fio']['read']['rand_4kb_mbps_result'], 1) + ' MBps (mean ' + f_num(statistics.mean(sys_info['fio']['read']['rand_4kb_mbps']), 1) + ', stdev ' + f_num(statistics.stdev(sys_info['fio']['read']['rand_4kb_mbps']), 1) + ')\n                       ' + f_num(sys_info['fio']['read']['rand_4kb_iops_result']) + ' IOPS (mean ' + f_num(statistics.mean(sys_info['fio']['read']['rand_4kb_iops'])) + ', stdev ' + f_num(statistics.stdev(sys_info['fio']['read']['rand_4kb_iops']), 1) + ')\n                       ' + f_num(sys_info['fio']['read']['rand_4kb_latency_result'], 2) + ' ms (mean ' + f_num(statistics.mean(sys_info['fio']['read']['rand_4kb_latency']), 2) + ', stdev ' + f_num(statistics.stdev(sys_info['fio']['read']['rand_4kb_latency']), 2) + ')')
+  # Analyse - real world throughput and IOPS from the kernel's lifetime disk counters (safe_div guards an idle card)
+  disk = sys_info['stats']['disk']
+  disk['read_avg_mbps'] = safe_div(disk['read_sectors'] * block_size / 1000000, disk['read_time'] / 1000)
+  disk['read_avg_iops'] = safe_div(disk['read_completed'], disk['read_time'] / 1000)
+  disk['write_avg_mbps'] = safe_div(disk['write_sectors'] * block_size / 1000000, disk['write_time'] / 1000)
+  disk['write_avg_iops'] = safe_div(disk['write_completed'], disk['write_time'] / 1000)
+  return sys_info
 
 #======================================
-# Grade the results against the card's rated speed class
+# Gather - macOS
 #--------------------------------------
 
-# Derive the minimum performance the card should deliver. A card can declare several classes (e.g. C10 + U1 + A1),
-# so we take the toughest target of each metric. Where the card declares nothing measurable we fall back to
-# Application Performance Class 1 (A1), the class the Raspberry Pi Foundation recommends as a baseline
-declared_classes = sys_info['storage']['speed_class']
-target = {'seq_write': 0, 'rand_read': 0, 'rand_write': 0}
-for card_class in declared_classes:
-  class_spec = speed_class.get(card_class, {})
+def diskutil_info(path):
+  # Return diskutil's info for a path or device as a dict, or {} on any failure. Accepts a mount path (e.g.
+  # /Volumes/CARD) or a device id (e.g. disk4); macOS resolves either to the underlying whole disk
+  try:
+    output = subprocess.run(['diskutil', 'info', '-plist', path], capture_output=True, timeout=10).stdout
+    return plistlib.loads(output)
+  except (subprocess.SubprocessError, OSError, plistlib.InvalidFileException, ValueError):
+    return {}
+
+def _device_for_path(path):
+  # Resolve the device that backs a directory path via df (diskutil info only accepts a mount point or device)
+  try:
+    lines = subprocess.run(['df', path], capture_output=True, encoding='utf-8', timeout=5).stdout.splitlines()
+    return lines[1].split()[0] if len(lines) > 1 else ''
+  except (subprocess.SubprocessError, OSError, IndexError):
+    return ''
+
+def gather_macos(args):
+  # macOS cannot read the SD CID/CSD registers, so identity is limited to what the card reader reports
+  target = args.device or args.dir or '/'
+  info = diskutil_info(target)
+  # An arbitrary subdirectory is neither a mount point nor a device (diskutil returns a null error plist), so
+  # fall back to the device that backs it
+  if not info.get('DeviceIdentifier'):
+    device = _device_for_path(target)
+    if device:
+      info = diskutil_info(device)
+  # Identity (media name, bus, removable, SMART, total capacity) lives on the whole-disk record, not the volume
+  whole = diskutil_info(info.get('ParentWholeDisk', '')) if info.get('ParentWholeDisk') else {}
+  if whole.get('DeviceIdentifier'):
+    info = whole
+  bus = info.get('BusProtocol', '')
+  total = info.get('TotalSize', 0)
+  block_size = info.get('DeviceBlockSize', 512) or 512
+  sys_info = {
+    'platform' : 'macos',
+    'device' : info.get('DeviceIdentifier', target),
+    'hardware' : {
+      'model' : _sysctl('hw.model') or 'Mac',
+      'serial_number' : '',
+      'uuid' : ''
+    },
+    'software' : {
+      'os_release' : 'macOS ' + (platform.mac_ver()[0] or ''),
+      'os_kernel' : platform.release()
+    },
+    'storage' : {
+      'type' : 'SD' if 'Secure Digital' in bus or 'SD' in bus else (bus or 'disk'),
+      'label' : info.get('MediaName', '').strip() or 'unknown',
+      'manufacturer' : 'unknown (macOS cannot read the SD CID registers)',
+      'oem' : 'unknown',
+      'speed_class' : [],
+      'bus' : bus or 'unknown',
+      'smart' : info.get('SMARTStatus', 'not available'),
+      'blocks' : (total // block_size) if total else 0,
+      'block_size' : block_size,
+      'bytes' : total,
+      'GB' : total / 1000000000,
+      'GiB' : total / 1024 / 1024 / 1024,
+      'state' : 'read only' if info.get('WritableMedia') is False else 'read/write',
+      'removable_label' : 'removable' if info.get('RemovableMediaOrExternalDevice') else 'not removable',
+      'cid_psn' : '', 'cid_mdt' : '', 'cid_prv_fw' : ''
+    }
+  }
+  return sys_info
+
+def _sysctl(name):
+  try:
+    return subprocess.run(['sysctl', '-n', name], capture_output=True, encoding='utf-8', timeout=5).stdout.strip()
+  except (subprocess.SubprocessError, OSError):
+    return ''
+
+#======================================
+# Report - print the gathered detail
+#--------------------------------------
+
+def print_report(sys_info):
+  storage = sys_info['storage']
+  hardware = sys_info['hardware']
+  software = sys_info['software']
+
+  # System
+  host = '\n' + hardware['model']
+  if hardware['serial_number']:
+    host += ' (serial: ' + hardware['serial_number'] + ')'
+  uptime = read_file('/proc/uptime', '\n')
+  if uptime:
+    host += '\n   Has been up for ' + str(datetime.timedelta(seconds=float(uptime.split()[0])))
+  host += '\n   Running ' + software['os_release'] + ' with kernel ' + software['os_kernel']
+  print(host)
+  if sys_info['platform'] == 'linux':
+    print('   Ethernet MAC:  ' + hardware['mac_eth0'] + '\n   WiFi MAC:      ' + hardware['mac_wlan0'] + '\n   Bluetooth MAC: ' + hardware['mac_bt0'])
+
+  # Storage identity
+  print('\nThe ' + storage['type'] + ' storage is a ' + storage['label'])
+  print('   Capacity reported:           ' + f_num(storage['GB'], 1) + ' GB (' + f_num(storage['GiB'], 1) + ' GiB, ' + f_num(storage['blocks']) + ' blocks of ' + f_num(storage['block_size']) + ' bytes)')
+  if sys_info['platform'] == 'linux':
+    print('   Manufacturers serial number: ' + storage['cid_psn'] + '\n   Manufacture date (mm/yyyy):  ' + storage['cid_mdt'])
+    print('   The ' + storage['manufacturer'] + ' storage controller is running firmware revision ' + storage['cid_prv_fw'])
+    print('   The card is ' + storage['state'] + ' and is ' + storage['removable_label'])
+    print('\n' + storage['type'] + ' Registers:\n   OCR: ' + storage['ocr'] + '\n   CID: ' + storage['cid'] + '\n   CSD: ' + storage['csd'] + '\n   RCA: ' + storage['rca'] + '\n   DSR: ' + storage['dsr'] + '\n   SCR: ' + storage['scr'] + '\n   SSR: ' + storage['ssr'])
+    fs = sys_info['filesystem']
+    print('\nThe Filesystem of ' + sys_info['partition'] + ' is ' + fs['state'] + '\n   Created:      ' + fs['created'] + '\n   Last checked: ' + fs['last_checked'] + '\n   Mounted:      ' + f_num(fs['mount_count']) + ' times since the filesystem was created\n   Last mounted: ' + fs['last_mount'])
+    _print_linux_stats(sys_info)
+  else:
+    print('   Bus: ' + storage['bus'] + '    SMART: ' + storage['smart'] + '\n   The card is ' + storage['state'] + ' and is ' + storage['removable_label'])
+    print('   (macOS cannot read the SD CID/CSD registers, so make/model and the rated speed class are unknown - run on a Raspberry Pi for those)')
+
+def _print_linux_stats(sys_info):
+  cpu = sys_info['stats']['cpu']
+  memory = sys_info['stats']['memory']
+  disk = sys_info['stats']['disk']
+  device = sys_info['device']
+  print('\n CPU load average (1m): ' + f_num(cpu['load_1m'], 2) + cpu['warning'] + '\n                  (5m): ' + f_num(cpu['load_5m'], 2) + '\n                 (15m): ' + f_num(cpu['load_15m'], 2) + '\nThreads (active/total): ' + cpu['threads'])
+  print('                Memory: ' + f_num(memory['free']) + ' MiB free of ' + f_num(memory['total']) + ' MiB total\n                  Swap: ' + f_num(memory['swap_free']) + ' MiB free of ' + f_num(memory['swap_total']) + ' MiB total')
+  print(' Storage ' + device + ' reads: ' + f_num(disk['read_completed']) + ' completing ' + f_num(disk['read_avg_mbps'], 1) + ' MBps using ' + f_num(disk['read_avg_iops']) + ' IOPS\n                writes: ' + f_num(disk['write_completed']) + ' completing ' + f_num(disk['write_avg_mbps'], 1) + ' MBps using ' + f_num(disk['write_avg_iops']) + ' IOPS')
+
+#======================================
+# Performance test (native, see sdbench.py)
+#--------------------------------------
+
+def run_perf(sys_info, args):
+  # Decide where to write the test file: an explicit --dir, else the Linux default, else the system temp dir
+  bench_dir = args.dir or ('/var/tmp' if sys_info['platform'] == 'linux' else tempfile.gettempdir())
+  test_file = os.path.join(bench_dir, test_file_name)
+  size_bytes = args.size_mb * 1024 * 1024
+
+  print('\nPerformance testing (native, non-destructive) in ' + bench_dir + '. A ' + str(args.size_mb) + ' MiB test file is created and removed afterwards.')
+  print('                   Sequential write            Random 4 KiB write           Random 4 KiB read')
+
+  def show(run_number, metrics):
+    sw, rw, rr = metrics['seq_write'], metrics['rand_write'], metrics['rand_read']
+    print('   Run ' + str(run_number) + ' of ' + str(args.runs) + ': ' + f_num(sw['mbps'], 1) + ' MBps, ' + f_num(sw['iops']) + ' IOPS, ' + f_num(sw['lat_ms'], 2) + ' ms    ' + f_num(rw['mbps'], 1) + ' MBps, ' + f_num(rw['iops']) + ' IOPS, ' + f_num(rw['lat_ms'], 2) + ' ms    ' + f_num(rr['mbps'], 1) + ' MBps, ' + f_num(rr['iops']) + ' IOPS, ' + f_num(rr['lat_ms'], 2) + ' ms')
+
+  try:
+    perf = sdbench.run(test_file, args.runs, size_bytes, args.seconds, on_run=show)
+  finally:
+    if os.path.isfile(test_file):
+      os.remove(test_file)
+  sys_info['perf'] = perf
+
+  # Best guess of real world performance: median of the best half of runs (drops slow outliers), stdev over all runs
+  perf['write']['seq_mbps_result'] = best_median(perf['write']['seq_mbps'])
+  perf['write']['rand_4kb_iops_result'] = best_median(perf['write']['rand_4kb_iops'])
+  perf['read']['rand_4kb_iops_result'] = best_median(perf['read']['rand_4kb_iops'])
+
+  print('\nBest-guess result (median of the best half) from ' + str(args.runs) + ' runs, standard deviation over all runs')
+  _print_metric('Sequential write ', perf['write']['seq_mbps'], 'MBps', 1)
+  _print_metric('Random 4KB write ', perf['write']['rand_4kb_iops'], 'IOPS', 0)
+  _print_metric('Random 4KB read  ', perf['read']['rand_4kb_iops'], 'IOPS', 0)
+  return perf
+
+def _print_metric(label, samples, units, dec):
+  print('   ' + label + ': ' + f_num(best_median(samples), dec) + ' ' + units + ' (mean ' + f_num(statistics.mean(samples), dec) + ', stdev ' + f_num(statistics.stdev(samples) if len(samples) > 1 else 0, dec) + ')')
+
+#======================================
+# Grade the results against the rated speed class
+#--------------------------------------
+
+def grade(sys_info):
+  perf = sys_info['perf']
+  declared_classes = sys_info['storage'].get('speed_class', [])
+
+  # A card can declare several classes (e.g. C10 + U1 + A1), so take the toughest target for each metric. Where
+  # nothing measurable is declared (or on macOS, which can't read it) fall back to A1, the Raspberry Pi baseline
+  target = {'seq_write': 0, 'rand_read': 0, 'rand_write': 0}
+  for card_class in declared_classes:
+    class_spec = speed_class.get(card_class, {})
+    for metric in target:
+      target[metric] = max(target[metric], class_spec.get(metric, 0))
   for metric in target:
-    target[metric] = max(target[metric], class_spec.get(metric, 0))
-for metric in target:
-  if target[metric] == 0:
-    target[metric] = speed_class['A1'][metric]
+    if target[metric] == 0:
+      target[metric] = speed_class['A1'][metric]
 
-graded_against = ', '.join(declared_classes) if declared_classes else 'A1 (assumed, no rated class found for this card)'
+  graded_against = ', '.join(declared_classes) if declared_classes else 'A1 (assumed - no rated class known for this card)'
+  print('\nGrading measured performance against ' + graded_against)
+  seq_write_pass = _grade_line('Sequential write ', perf['write']['seq_mbps_result'], target['seq_write'], 'MBps')
+  rand_write_pass = _grade_line('Random write     ', perf['write']['rand_4kb_iops_result'], target['rand_write'], 'IOPS')
+  rand_read_pass = _grade_line('Random read      ', perf['read']['rand_4kb_iops_result'], target['rand_read'], 'IOPS')
+  if not seq_write_pass:
+    print('   Note: sequential write speed declines over time as a card is used - your card may require reformatting')
 
-def grade(label, measured, required, units):
-  # Print a single PASS/FAIL line comparing a measured result against its target
+  all_pass = seq_write_pass and rand_write_pass and rand_read_pass
+  if all_pass:
+    print('\nResult: PASS - the card meets its rated ' + graded_against + ' performance')
+  else:
+    print('\nResult: FAIL - the card is slower than its rated ' + graded_against + ' performance (a worn, misbranded, or counterfeit card)')
+  return all_pass
+
+def _grade_line(label, measured, required, units):
   verdict = 'PASS' if measured >= required else 'FAIL'
   print('   ' + label + ': ' + f_num(measured, 1) + ' ' + units + ' (target ' + f_num(required, 1) + ' ' + units + ') - ' + verdict)
   return measured >= required
 
-print('\nGrading measured performance against ' + graded_against)
-seq_write_pass = grade('Sequential write ', sys_info['fio']['write']['seq_mbps_result'], target['seq_write'], 'MBps')
-rand_write_pass = grade('Random write     ', sys_info['fio']['write']['rand_4kb_iops_result'], target['rand_write'], 'IOPS')
-rand_read_pass = grade('Random read      ', sys_info['fio']['read']['rand_4kb_iops_result'], target['rand_read'], 'IOPS')
-
-if not seq_write_pass:
-  print('   Note: sequential write speed declines over time as a card is used - your card may require reformatting')
-
-all_pass = seq_write_pass and rand_write_pass and rand_read_pass
-if all_pass:
-  print('\nResult: PASS - the card meets its rated ' + graded_against + ' performance')
-else:
-  print('\nResult: FAIL - the card is slower than its rated ' + graded_against + ' performance (a worn, misbranded, or counterfeit card)')
-
 #======================================
-# Exit the script
+# Main
 #--------------------------------------
 
-# Exit 0 when the card meets its rated performance, 1 when it falls short, so the script is usable in automation
-sys.exit(0 if all_pass else 1)
+def parse_args(argv=None):
+  parser = argparse.ArgumentParser(description='Identify, benchmark, and grade an SD/MMC card (Raspberry Pi Linux or macOS).')
+  parser.add_argument('--device', help='Storage device to inspect. Linux: block device name (default: ' + block_device + '). macOS: disk id or mount path (e.g. disk4 or /Volumes/CARD)')
+  parser.add_argument('--partition', help='Linux filesystem partition to inspect (default: <device>p2)')
+  parser.add_argument('--dir', help='Directory on the card to run the benchmark in (default: /var/tmp on Linux, system temp dir on macOS). Point this at the mounted card.')
+  parser.add_argument('--runs', type=int, default=max_runs, help='Number of benchmark runs to average (default: %(default)s)')
+  parser.add_argument('--size-mb', type=int, default=sdbench.DEFAULT_SIZE_MB, help='Test file size in MiB (default: %(default)s)')
+  parser.add_argument('--seconds', type=int, default=sdbench.DEFAULT_SECONDS, help='Duration of each random IO test (default: %(default)s)')
+  parser.add_argument('--no-benchmark', action='store_true', help='Only gather and print card detail, skip the performance test')
+  return parser.parse_args(argv)
+
+def main(argv=None):
+  args = parse_args(argv)
+  # Set the locale for number formatting once we are actually running (not at import)
+  locale.setlocale(locale.LC_ALL, '')
+
+  if sys.platform == 'darwin':
+    sys_info = gather_macos(args)
+  elif sys.platform.startswith('linux'):
+    sys_info = gather_linux(args)
+  else:
+    print('Unsupported platform: ' + sys.platform + '. This tool supports Linux (Raspberry Pi) and macOS.')
+    return 2
+
+  print_report(sys_info)
+  if args.no_benchmark:
+    return 0
+
+  run_perf(sys_info, args)
+  # Exit 0 when the card meets its rated performance, 1 when it falls short, so the script is usable in automation
+  return 0 if grade(sys_info) else 1
+
+if __name__ == '__main__':
+  sys.exit(main())
