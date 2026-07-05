@@ -105,6 +105,15 @@ The bash original (`archive/rpi-sdinfo.sh`) is kept for reference only and is no
 
 ## Done in 0.9
 
+- **Packaged for distribution.** The four flat scripts became an installable `src/`-layout `rpi_sdinfo` package
+  with a `pyproject.toml` (setuptools, **zero runtime dependencies**) exposing three console scripts —
+  `rpi-sdinfo`, `rpi-sdbench`, `rpi-sdverify` — plus `python -m rpi_sdinfo`. Installs with `pipx install` /
+  `pip install`; verified end-to-end with `pip install -e .` in a clean venv. Version scheme moved to PEP 440
+  semver (`0.9.0`). This is what makes the tool usable by people anywhere, not just clone-and-run.
+- **Repo hygiene for contributors and users.** Added a man page (`docs/rpi-sdinfo.1`), `CHANGELOG.md`,
+  `CONTRIBUTING.md`, a README **Install** section, and **GitHub Actions CI** (`.github/workflows/ci.yml`) running
+  the suite on Linux/macOS/Windows × Python 3.8–3.13. CI validates cross-platform import + logic + CLI; it does
+  **not** exercise the Pi sysfs reads (no SD card in CI) — that still needs real hardware.
 - **Automated regression tests — the first in the project.** A stdlib-`unittest` suite under `tests/` (no new
   dependencies, runs on macOS/Linux/Windows with `python3 -m unittest discover -s tests`) locks in the
   hardware-independent logic that until now was only asserted in prose: the CSD decode round-trips against
@@ -169,6 +178,18 @@ The bash original (`archive/rpi-sdinfo.sh`) is kept for reference only and is no
   low-entropy serial is brute-forceable) — decide what is safe to share before any upload ships.
 - **Grow the CID database.** The MID/OID → product table is crowd-sourced and incomplete; every verified
   `CID → real product + measured performance` mapping makes fake-detection stronger.
+
+## Documentation & release polish (post-0.9)
+
+- **Docstrings (documentation-as-code).** The package and `__init__` have docstrings and the code is heavily
+  `#`-commented, but the ~116 functions use leading `#` comments rather than `"""docstrings"""`, so `pydoc` /
+  `help()` / any API-doc generator shows only signatures. Convert the lead comment of each public function to a
+  docstring so the inline documentation is machine-extractable.
+- **License inconsistency to resolve (blocking a clean public release).** `LICENSE` is GPL **v2** and
+  `pyproject.toml` follows it (`GPL-2.0-or-later`), but the per-file header comments say "GNU GPL **v3**". Pick
+  one and make all three agree — a legal/ownership call for Mike, not a silent code cleanup.
+- **Tag and publish.** Once the above is settled: tag `v0.9.0`, and decide whether to publish to PyPI (would make
+  `pipx install rpi-sdinfo` work without the git URL) — gated on the same "safe to share" review as the upload.
 
 ## Smaller cleanups
 

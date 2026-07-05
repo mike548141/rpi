@@ -1,0 +1,55 @@
+# Contributing to rpi-sdinfo
+
+Thanks for your interest. This is a small, dependency-free tool with a deliberately
+low barrier to hacking on it.
+
+## Ground rules
+
+- **Standard library only.** The tool has zero runtime dependencies and that is a
+  feature, not an accident — it must run on a stock Raspberry Pi OS, macOS or Windows
+  Python with nothing to `pip install`. Please don't add a runtime dependency; reach
+  for the stdlib first.
+- **Stay cross-platform.** Code runs on Linux (the full path), macOS and Windows.
+  Platform-specific code lives behind a `sys.platform` check and degrades gracefully
+  (e.g. macOS cannot read the SD CID/CSD registers, so identity is limited there — that
+  is expected, not a bug).
+- **Target Python 3.6+.** Avoid features newer than 3.6 (for instance, the benchmark's
+  percentile helper is hand-rolled rather than using `statistics.quantiles`).
+- **Keep the docs in sync.** A change that alters behaviour should update `README.md`,
+  `ROADMAP.md`, the man page (`docs/rpi-sdinfo.1`) and `CHANGELOG.md` in the same commit.
+
+## Development setup
+
+```bash
+git clone https://github.com/mike548141/rpi && cd rpi
+python3 -m venv .venv && source .venv/bin/activate
+pip install -e .            # installs the rpi-sdinfo / rpi-sdbench / rpi-sdverify commands
+```
+
+You don't have to install to run it — `PYTHONPATH=src python3 -m rpi_sdinfo --help` works
+straight from a clone.
+
+## Running the tests
+
+```bash
+python3 -m unittest discover -s tests          # everything (~3 s, no SD card needed)
+cd tests && python3 -m unittest test_csd       # a single module
+```
+
+The suite covers all hardware-independent logic. What it **cannot** cover is the Linux
+sysfs / `dumpe2fs` / `diskstats` reads in `gather_linux()` — those need a real Raspberry
+Pi. If you have Pi hardware, runs of `sudo rpi-sdinfo --raw` against known-genuine and
+known-fake cards are especially valuable (see `ROADMAP.md`).
+
+## Pull requests
+
+1. Branch off `main`.
+2. Add or update tests for the behaviour you change; keep the suite green.
+3. Update the relevant docs and add a `CHANGELOG.md` entry under `[Unreleased]`.
+4. Keep commits focused and their messages descriptive.
+
+## Growing the card database
+
+The CID → real-product table (make / model / speed class) is crowd-sourced and incomplete.
+A verified `CID → product + measured performance` mapping is a genuinely useful contribution
+and makes the fake-detection stronger for everyone.

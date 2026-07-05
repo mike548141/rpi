@@ -1,0 +1,179 @@
+.\" Manpage for rpi-sdinfo.
+.\" Render with:  man ./docs/rpi-sdinfo.1     or     mandoc docs/rpi-sdinfo.1
+.TH RPI-SDINFO 1 "2026-07-06" "rpi-sdinfo 0.9.0" "User Commands"
+.SH NAME
+rpi-sdinfo \- identify, benchmark and fake-check SD/MMC cards
+.SH SYNOPSIS
+.B rpi-sdinfo
+.RI [ options ]
+.br
+.B rpi-sdbench
+.RI [ options ]
+.br
+.B rpi-sdverify
+.RI [ options ]
+.SH DESCRIPTION
+.B rpi-sdinfo
+tests the performance and integrity of SD/MMC cards and tries to distinguish genuine
+cards from counterfeits by comparing what a card reports about itself against how it
+actually behaves. It uses only the Python standard library \(em there are no runtime
+dependencies \(em and runs on Raspberry Pi Linux, macOS and Windows.
+.PP
+It performs up to four kinds of check:
+.TP
+.B Identity
+Capacity, and on a Raspberry Pi the make / model / branding decoded from the CID and CSD
+registers, plus filesystem and IO statistics. On macOS and Windows identity is limited to
+what the OS exposes, because those platforms do not surface the SD registers.
+.TP
+.B Benchmark
+A native, dependency-free engine (also available standalone as
+.BR rpi-sdbench )
+measures sequential write throughput and random 4 KiB read/write IOPS, then grades the
+result against the card's rated speed class, falling back to A1 when the class is unknown.
+.TP
+.B Capacity-fraud sweep
+An opt-in write-then-verify sweep (also available standalone as
+.BR rpi-sdverify ,
+the pure-Python cousin of
+.BR f3 (1)
+and h2testw) fills free space with offset-stamped data and reads it back; a card that lies
+about its size fails verification at its true capacity.
+.TP
+.B Metadata cross-checks
+On a Raspberry Pi, the CSD register is decoded and checked for internal contradictions \(em
+above all a Standard-Capacity CSD on a card claiming tens of GB, which is impossible per the
+SD specification and the signature of a small card reflashed to lie about its size.
+.SH OPTIONS
+.TP
+.BI \-\-device " DEV"
+Storage device to inspect. Linux: block device name (default
+.IR mmcblk0 ).
+macOS: disk id or mount path (e.g.
+.I disk4
+or
+.IR /Volumes/CARD ).
+Windows: a drive (e.g.
+.IR E: ).
+.TP
+.BI \-\-partition " PART"
+Linux filesystem partition to inspect (default
+.IR <device>p2 ).
+.TP
+.BI \-\-dir " DIR"
+Directory on the card to benchmark. Point this at the mounted card, e.g.
+.I /Volumes/CARD
+or
+.IR E:\e .
+.TP
+.BI \-\-runs " N"
+Number of benchmark runs to average.
+.TP
+.BI \-\-size\-mb " N"
+Test file size in MiB.
+.TP
+.BI \-\-seconds " N"
+Duration of each random IO test.
+.TP
+.B \-\-no\-benchmark
+Only gather and print card detail; skip the performance test.
+.TP
+.B \-\-capacity\-check
+Also run the capacity-fraud sweep (fills free space, writes and verifies to unmask fakes).
+Slow, and adds a little flash wear.
+.TP
+.BI \-\-capacity\-mb " N"
+Cap the capacity sweep to N MiB instead of filling all free space (a quick partial check).
+.TP
+.B \-\-yes
+Skip the confirmation prompt for the capacity sweep (required when non-interactive, e.g. with
+.B \-\-json
+or
+.BR \-\-quiet ).
+.TP
+.BI \-\-format " text|json"
+Output format. In
+.I json
+mode the full result is the only thing written to stdout, so it pipes cleanly to
+.BR jq (1);
+all progress goes to stderr.
+.TP
+.B \-\-json
+Shortcut for
+.BR "\-\-format json" .
+.TP
+.B \-\-quiet
+Suppress the report; the exit code still reflects PASS/FAIL.
+.TP
+.B \-\-raw
+Also dump the verbatim sources (full
+.BR dumpe2fs (8)
+/ registers / diskutil, decoded CSD, raw benchmark samples) for debugging.
+.TP
+.BI \-\-save\-db " [PATH]"
+Append this run to a local SQLite database (default
+.IR ~/.rpi-sdinfo/results.db ),
+building a queryable history of every card tested. Local-only.
+.TP
+.BI \-\-db\-query " [PATH]"
+Summarise the saved run history and exit instead of testing a card. Honours
+.BR \-\-json .
+.TP
+.BR \-\-color ", " \-\-no\-color
+Force or disable colour output. Colour also honours the
+.B NO_COLOR
+and
+.B CLICOLOR_FORCE
+environment conventions and switches off when output is piped.
+.TP
+.B \-\-version
+Print the version and exit.
+.TP
+.B \-h ", " \-\-help
+Print a full option summary and exit.
+.SH EXIT STATUS
+.TP
+.B 0
+Pass \(em all checks that ran succeeded.
+.TP
+.B 1
+Fail \(em a benchmark grade, capacity sweep or metadata cross-check failed (a likely fake or
+under-performing card).
+.TP
+.B 2
+Usage or IO error.
+.SH EXAMPLES
+.TP
+Full detail on a Raspberry Pi (root reads the registers):
+.B sudo rpi-sdinfo
+.TP
+Benchmark a card mounted on macOS, machine-readable:
+.B rpi-sdinfo \-\-json \-\-dir /Volumes/CARD | jq .grade.pass
+.TP
+Unmask a fake by filling and verifying the whole card:
+.B rpi-sdinfo \-\-dir /Volumes/CARD \-\-capacity\-check
+.TP
+Fast, destructive raw-device fake sniff (unmount first):
+.B rpi-sdverify \-\-device /dev/disk4 \-\-yes
+.SH FILES
+.TP
+.I ~/.rpi-sdinfo/results.db
+Default SQLite history database written by
+.BR \-\-save\-db .
+.SH ENVIRONMENT
+.TP
+.B NO_COLOR
+If set, disables colour output.
+.TP
+.B CLICOLOR_FORCE
+If set, forces colour output even when not writing to a terminal.
+.SH SEE ALSO
+.BR f3write (1),
+.BR f3read (1),
+.BR fio (1),
+.BR jq (1),
+.BR dumpe2fs (8)
+.SH AUTHOR
+Mike Clements, Competitive Edge.
+.PP
+Project: https://github.com/mike548141/rpi
