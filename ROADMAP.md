@@ -63,6 +63,20 @@ The bash original (`archive/rpi-sdinfo.sh`) is kept for reference only and is no
 - Verified end-to-end on macOS: genuine cards pass, an injected corruption is caught at the exact byte offset,
   and text / JSON / quiet / confirmation-gate paths all behave.
 
+## Done in 0.7
+
+- **CSD register decode + CID/CSD cross-checks — instant, non-destructive fake detection.** `decode_csd()` parses
+  the 128-bit CSD register (v1.0 SDSC / v2.0 SDHC-SDXC / v3.0 SDUC): capacity from the C_SIZE family, max bus
+  speed from TRAN_SPEED, command classes, read block length. `cross_check()` then flags internal contradictions,
+  the strongest being a **Standard-Capacity (v1.0) CSD on a card that claims more than 2–4 GB** — physically
+  impossible per the SD spec, the classic signature of a small card reflashed to lie about its size. Also warns
+  on a CSD-vs-reported capacity mismatch and a future CID manufacturing date. A `fail` finding fails the overall
+  exit code; a new `CONSISTENCY` report section and a `consistency` block in the JSON. Complements the write-based
+  sweep: the sweep proves real size by writing, this catches a liar from its own metadata in milliseconds.
+- Decode verified by round-trip encode/decode across all three CSD versions and TRAN_SPEED codes; cross-checks
+  verified to fail a reflashed-fake vector and pass a genuine card. No-op (and silent) on macOS / Windows, which
+  cannot read the register.
+
 ## Next up (v1.0 blockers)
 
 - **Not yet hardware-tested on a Pi.** The macOS path is exercised end-to-end; the Linux `gather_linux()` path
@@ -93,10 +107,12 @@ The bash original (`archive/rpi-sdinfo.sh`) is kept for reference only and is no
     device must not ship untested on hardware.
   - Raw-device *full* sweep (not just corners) where we have the device and privileges, so a nearly-full card
     can still be exhaustively tested without needing free space.
-- **CID/CSD cross-checks.** Flag cards whose CID branding, declared capacity, and rated speed class are mutually
-  inconsistent (e.g. a MID that never ships the branded make, an A2 label that can't hit A1, a future MDT).
-- **Decode the CSD register** (stubbed in the bash version): structure version → SDSC/SDHC/SDXC, command
-  classes, rated bus/write-speed factors, to compare against the branding.
+- **CID/CSD cross-checks.** ✅ Shipped in 0.7 (`cross_check()`): flags a Standard-Capacity CSD claiming a
+  high/extended capacity (impossible), a CSD-vs-reported capacity mismatch, and a future manufacturing date.
+  Still to add: MID that never ships the branded make, and a rated speed class the CSD's TRAN_SPEED can't
+  support (e.g. an A2/U3 label on a card whose CSD only advertises legacy 25 Mbit/s).
+- **Decode the CSD register.** ✅ Shipped in 0.7 (`decode_csd()`): structure version → SDSC/SDHC/SDXC/SDUC,
+  capacity, TRAN_SPEED bus speed, command classes, read block length - compared against the branding above.
 
 ## Data capture & sharing (the "build a public database" idea)
 

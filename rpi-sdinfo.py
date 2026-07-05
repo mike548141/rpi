@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 #
 # Author:       Mike Clements, Competitive Edge
-# Version:      0.5-20260705
+# Version:      0.7-20260705
 # File:         rpi-sdinfo.py
 # License:      GNU GPL v3
 # Language:     Python 3.6 or later
@@ -106,7 +106,7 @@ import ui
 
 # Tool version and the version of the JSON document shape emitted by --format json. Bump SCHEMA only on a
 # breaking change to the JSON structure so downstream consumers can rely on it
-VERSION = '0.6-20260705'
+VERSION = '0.7-20260705'
 SCHEMA = 'rpi-sdinfo/1'
 
 # The default Linux device for the MMC or SD card (overridable with --device; the partition defaults to <device>p2)
@@ -533,6 +533,120 @@ def best_median(values, higher_is_better=True):
   return statistics.median(ordered[:half] or ordered)
 
 #======================================
+# CSD register decode + CID/CSD cross-checks (fake detection from metadata alone)
+#--------------------------------------
+#
+# The capacity sweep (sdverify.py) proves a card's real size by writing to it. This does the complementary,
+# instant, non-destructive check: decode what the card *claims* about itself in the CSD register and flag
+# internal contradictions. The strongest tell is a Standard-Capacity (v1.0) CSD that claims a High/eXtended
+# capacity - physically impossible per the SD spec, so a dead giveaway that a small card's firmware was
+# reflashed to lie about its size.
+
+def _bits(value, hi, lo):
+  # Extract CSD bits [hi:lo] inclusive from the 128-bit register value (bit 127 is the MSB)
+  return (value >> lo) & ((1 << (hi - lo + 1)) - 1)
+
+# TRAN_SPEED time-value mantissa table (index -> multiplier), from the SD Physical Layer spec
+_TRAN_SPEED_VALUE = [0, 1.0, 1.2, 1.3, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5, 6.0, 7.0, 8.0]
+_TRAN_SPEED_UNIT = [0.1, 1.0, 10.0, 100.0]  # Mbit/s per unit code (0..3)
+
+def decode_csd(csd_hex):
+  # Decode the 128-bit CSD register (a 32-char hex string from sysfs) into the fields we cross-check against
+  # the branding. Returns None if the register is absent or malformed. Capacity maths follows the SD spec:
+  # v1.0 (SDSC) uses C_SIZE/C_SIZE_MULT/READ_BL_LEN; v2.0 (SDHC/SDXC) and v3.0 (SDUC) use the 512 KB C_SIZE form
+  text = (csd_hex or '').strip().replace(':', '').replace(' ', '')
+  if len(text) != 32:
+    return None
+  try:
+    value = int(text, 16)
+  except ValueError:
+    return None
+
+  structure = _bits(value, 127, 126)
+  tran_speed = _bits(value, 103, 96)
+  speed = _TRAN_SPEED_UNIT[tran_speed & 0x7] * _TRAN_SPEED_VALUE[(tran_speed >> 3) & 0xF]
+  result = {
+    'structure': structure,
+    'ccc': _bits(value, 95, 84),                       # Card Command Classes bitmap
+    'tran_speed_mbit': round(speed, 1),
+    'read_bl_len': None,
+    'capacity_bytes': None,
+    'capacity_type': 'unknown',
+  }
+
+  if structure == 0:                                    # CSD v1.0 - Standard Capacity
+    read_bl_len = _bits(value, 83, 80)
+    c_size = _bits(value, 73, 62)
+    c_size_mult = _bits(value, 49, 47)
+    result['read_bl_len'] = read_bl_len
+    result['capacity_bytes'] = (c_size + 1) * (1 << (c_size_mult + 2)) * (1 << read_bl_len)
+    result['capacity_type'] = 'SDSC'
+  elif structure == 1:                                  # CSD v2.0 - High / eXtended Capacity
+    c_size = _bits(value, 69, 48)
+    result['read_bl_len'] = 9
+    result['capacity_bytes'] = (c_size + 1) * 512 * 1024
+    result['capacity_type'] = 'SDXC' if result['capacity_bytes'] > 32 * 1000 ** 3 else 'SDHC'
+  elif structure == 2:                                  # CSD v3.0 - Ultra Capacity
+    c_size = _bits(value, 75, 48)
+    result['read_bl_len'] = 9
+    result['capacity_bytes'] = (c_size + 1) * 512 * 1024
+    result['capacity_type'] = 'SDUC'
+  return result
+
+def _parse_mdt(mdt):
+  # The kernel exposes the CID manufacturing date as 'MM/YYYY'. Return (year, month) or None if unparseable
+  try:
+    month, year = mdt.strip().split('/')
+    return int(year), int(month)
+  except (ValueError, AttributeError):
+    return None
+
+def cross_check(storage, now=None):
+  # Compare the card's self-declared facts (CSD capacity/structure, reported capacity, CID date, branding) for
+  # internal contradictions. Returns a list of findings, each {severity: fail|warn|info, message: str}. 'fail'
+  # means physically impossible per the spec (a strong counterfeit signal); 'warn'/'info' are softer hints
+  findings = []
+  decoded = storage.get('csd_decoded')
+  reported = storage.get('bytes') or 0
+
+  if decoded and decoded.get('capacity_bytes'):
+    csd_bytes = decoded['capacity_bytes']
+    # A Standard-Capacity CSD physically cannot describe more than 2 GB (4 GB with maxed fields). Claiming more
+    # is impossible - the classic reflashed-fake signature
+    if decoded['structure'] == 0 and reported > 4 * 1000 ** 3:
+      findings.append({'severity': 'fail', 'message': 'CSD is Standard-Capacity (v1.0) but the card claims %s GB - impossible per the SD spec; likely a reflashed fake' % f_num(reported / 1000 ** 3, 1)})
+    elif decoded['structure'] == 0 and reported > 2 * 1000 ** 3:
+      findings.append({'severity': 'warn', 'message': 'CSD is Standard-Capacity (v1.0) but the card claims over 2 GB (SDSC ceiling)'})
+    # The CSD's own capacity should match the block-count capacity the kernel reports; a big gap is suspicious
+    if reported and abs(csd_bytes - reported) > max(csd_bytes, reported) * 0.03:
+      findings.append({'severity': 'warn', 'message': 'CSD capacity %s disagrees with the reported %s' % (f_num(csd_bytes / 1000 ** 3, 1) + ' GB', f_num(reported / 1000 ** 3, 1) + ' GB')})
+
+  mdt = _parse_mdt(storage.get('cid_mdt', ''))
+  if mdt and now:
+    if (mdt[0], mdt[1]) > (now[0], now[1]):
+      findings.append({'severity': 'warn', 'message': 'CID manufacturing date %02d/%04d is in the future - a common counterfeit tell' % (mdt[1], mdt[0])})
+
+  # Branded product name but no manufacturer match usually just means the crowd-sourced DB is incomplete, not
+  # a fake - surface it as information so a gap in the table is visible, not alarming
+  if storage.get('cid_pnm') and storage.get('manufacturer') in (None, '', 'unknown'):
+    findings.append({'severity': 'info', 'message': "product '%s' is not in the CID database yet (unverified make)" % storage['cid_pnm']})
+
+  return findings
+
+def compute_consistency(sys_info):
+  # Decode the CSD (if present) and run the cross-checks, stashing both on sys_info. No-op on platforms that
+  # cannot read the register (macOS/Windows), so it is safe to call unconditionally
+  storage = sys_info.get('storage', {})
+  storage['csd_decoded'] = decode_csd(storage.get('csd', ''))
+  today = datetime.date.today()
+  findings = cross_check(storage, now=(today.year, today.month))
+  sys_info['consistency'] = {
+    'findings': findings,
+    'ok': not any(f['severity'] == 'fail' for f in findings),
+  }
+  return sys_info['consistency']
+
+#======================================
 # Gather - Linux (Raspberry Pi)
 #--------------------------------------
 
@@ -892,6 +1006,28 @@ def render_report(console, sys_info):
     console.line(console.style('Windows cannot read the SD CID/CSD registers - make/model and rated class are', 'grey'), indent=2)
     console.line(console.style('unknown here. Run on a Raspberry Pi for full identity.', 'grey'), indent=2)
 
+  render_consistency(console, sys_info)
+
+def render_consistency(console, sys_info):
+  # Show the decoded CSD summary and any cross-check findings. Self-skips when the CSD could not be read (macOS
+  # / Windows) and there is nothing to report, so it is safe to call on every platform
+  consistency = sys_info.get('consistency', {})
+  decoded = sys_info.get('storage', {}).get('csd_decoded')
+  findings = consistency.get('findings', [])
+  if not decoded and not findings:
+    return
+
+  console.section('Consistency', note='decoded from the CSD register ' + console.g['dot'] + ' cross-checked against the branding')
+  if decoded:
+    capacity = f_num(decoded['capacity_bytes'] / 1000 ** 3, 1) + ' GB' if decoded.get('capacity_bytes') else 'unknown'
+    console.kv('CSD says', decoded['capacity_type'] + ' ' + console.g['dot'] + ' ' + capacity,
+               note='max ' + f_num(decoded['tran_speed_mbit'], 0) + ' Mbit/s')
+  for finding in findings:
+    kind = {'fail': 'fail', 'warn': 'warn', 'info': 'info'}.get(finding['severity'], 'info')
+    console.line(console.badge(finding['severity'].upper(), kind) + ' ' + finding['message'])
+  if decoded and not findings:
+    console.line(console.badge('OK', 'pass') + ' CSD, capacity and branding are internally consistent')
+
 def _render_linux_stats(console, sys_info):
   cpu = sys_info['stats']['cpu']
   memory = sys_info['stats']['memory']
@@ -1117,6 +1253,8 @@ def build_json(sys_info):
     doc['grade'] = sys_info['grade']
   if 'capacity' in sys_info:
     doc['capacity'] = sys_info['capacity']
+  if 'consistency' in sys_info:
+    doc['consistency'] = sys_info['consistency']
   return doc
 
 #======================================
@@ -1180,6 +1318,9 @@ def main(argv=None):
     return 2
   sys_info['generated'] = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec='seconds').replace('+00:00', 'Z')
 
+  # Decode the CSD and cross-check the card's self-declared facts (instant, non-destructive; no-op off Linux)
+  compute_consistency(sys_info)
+
   if not json_mode and not args.quiet:
     out.banner('rpi-sdinfo ' + VERSION, 'SD/MMC identity ' + out.g['dot'] + ' benchmark ' + out.g['dot'] + ' grade')
     render_report(out, sys_info)
@@ -1218,12 +1359,15 @@ def main(argv=None):
   elif not args.quiet:
     out.out('')
 
-  # Exit non-zero if the card fails either test: slower than rated (grade) or smaller than reported (capacity)
+  # Exit non-zero if the card fails any test: slower than rated (grade), smaller than reported (capacity), or an
+  # impossible self-declaration in the CSD/CID (consistency)
   failed = False
   if not args.no_benchmark:
     failed = failed or not sys_info['grade']['pass']
   if 'capacity' in sys_info:
     failed = failed or not sys_info['capacity']['ok']
+  if 'consistency' in sys_info:
+    failed = failed or not sys_info['consistency']['ok']
   return 1 if failed else 0
 
 if __name__ == '__main__':

@@ -30,6 +30,11 @@ identifiers, performance, and failure rates.
     boundary, so block 0 and that boundary alias onto one physical cell — guaranteeing detection in ~log₂(N)
     probes (29 for a 512 GB card) instead of writing the whole card. Writes the raw device, so it is gated
     behind `--yes` and refuses a mounted device.
+- **Cross-checks the card's own story** (Raspberry Pi only, instant, no writes). Decodes the CSD register
+  (SDSC/SDHC/SDXC/SDUC capacity, bus speed, command classes) and flags internal contradictions — above all a
+  Standard-Capacity CSD on a card claiming tens of GB, which is impossible per the SD spec and the tell-tale of
+  a small card reflashed to lie. Also warns on a CSD-vs-reported capacity mismatch or a future manufacturing
+  date. Shown as a `CONSISTENCY` section; a hard contradiction fails the exit code.
 - **Reads nicely, scripts cleanly.** A colourful, sectioned terminal report for humans (with a live progress
   spinner during the benchmark), and `--format json` for other software — the JSON document is the *only* thing
   on stdout, so `rpi-sdinfo --json | jq` just works.
@@ -93,8 +98,8 @@ or `--quiet`). Cap it to a quick partial check with `--capacity-mb N`. A safety 
 left, so the filesystem is never wedged.
 
 **Exit codes** (so it drops into scripts and CI): `0` card passed every test it ran (or run with
-`--no-benchmark` and no `--capacity-check`), `1` card failed a test (too slow for its grade, or smaller than it
-reports), `2` usage error or unsupported platform.
+`--no-benchmark` and no `--capacity-check`), `1` card failed a test (too slow for its grade, smaller than it
+reports, or an impossible CSD/CID self-declaration), `2` usage error or unsupported platform.
 
 ### For other software (the JSON contract)
 
@@ -102,8 +107,9 @@ reports), `2` usage error or unsupported platform.
 ISO-8601), then `platform`, `device`, `hardware`, `software`, `storage`, and — on Linux — `filesystem` and
 `stats`; plus `benchmark` (every per-run sample) and `grade` (per-metric measured/target/pass and the overall
 `grade.pass`). With `--capacity-check --yes` it also carries `capacity` (swept/verified byte counts, the first
-bad offset if any, a usable-capacity estimate, and `capacity.ok`). Progress and any messages go to stderr, never
-stdout. `SCHEMA` is bumped only on a breaking change to the shape, so consumers can pin to it. `sdbench.py
+bad offset if any, a usable-capacity estimate, and `capacity.ok`). On a Raspberry Pi it carries `consistency`
+(`findings` with per-issue severity, and `consistency.ok`) plus the decoded CSD under `storage.csd_decoded`.
+Progress and any messages go to stderr, never stdout. `SCHEMA` is bumped only on a breaking change to the shape, so consumers can pin to it. `sdbench.py
 --json` and `sdverify.py --json` each emit their own standalone JSON.
 
 ### More
