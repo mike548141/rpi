@@ -21,10 +21,15 @@ identifiers, performance, and failure rates.
 - Grades the measured performance against the card's rated speed class, falling back to **A1** (the Raspberry Pi
   baseline) when the class is unknown. Prints PASS/FAIL per metric and exits non-zero on failure, so it is usable
   in scripts.
-- **Unmasks fake cards.** An opt-in capacity-fraud sweep (`--capacity-check`, native `sdverify.py`) fills the
-  card's free space with offset-stamped data and reads it all back — the pure-Python equivalent of `f3` /
-  `h2testw`. A counterfeit that reports a huge size but has a small chip fails verification at its true capacity.
-  Non-destructive to existing files; it only adds its own test files and deletes them again.
+- **Unmasks fake cards** two ways (native `sdverify.py`, the pure-Python cousin of `f3` / `h2testw`):
+  - **Thorough, non-destructive** (`--capacity-check`): fills the card's free space with offset-stamped data
+    and reads it all back. A counterfeit that reports a huge size but has a small chip fails verification at its
+    true capacity. Only adds its own test files and deletes them again.
+  - **Quick, destructive corners sweep** (`sdverify.py --device …`): probes block 0, every power-of-two offset,
+    and the last block of the *reported* capacity. A fake truncates the block address at a power-of-two
+    boundary, so block 0 and that boundary alias onto one physical cell — guaranteeing detection in ~log₂(N)
+    probes (29 for a 512 GB card) instead of writing the whole card. Writes the raw device, so it is gated
+    behind `--yes` and refuses a mounted device.
 - **Reads nicely, scripts cleanly.** A colourful, sectioned terminal report for humans (with a live progress
   spinner during the benchmark), and `--format json` for other software — the JSON document is the *only* thing
   on stdout, so `rpi-sdinfo --json | jq` just works.
@@ -69,8 +74,11 @@ python rpi-sdinfo.py --dir E:\
 # Just a native benchmark of a path, standalone
 ./sdbench.py --dir /Volumes/MYCARD
 
-# Just a native capacity-fraud sweep of a path, standalone
+# Just a native capacity-fraud sweep of a path, standalone (non-destructive, fills free space)
 ./sdverify.py --dir /Volumes/MYCARD
+
+# Quick fake sniff of a raw device (DESTRUCTIVE: overwrites the card; unmount it first)
+./sdverify.py --device /dev/disk4 --yes
 ```
 
 Useful options: `--device`, `--partition`, `--dir`, `--runs`, `--size-mb`, `--seconds`, `--no-benchmark`,

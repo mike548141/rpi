@@ -79,10 +79,20 @@ The bash original (`rpi-sdinfo.sh`) is kept for reference only and is not being 
 
 ## Fake / counterfeit card detection (the reason the tool exists)
 
-- **Capacity fraud test.** ✅ Shipped in 0.6 (`sdverify.py`, `--capacity-check`). Still to refine: sweep by raw
-  device/LBA (not just filesystem free space) where we have the device and privileges, so a nearly-full card can
-  still be fully tested; expose a fast "corners" mode (sample the start/middle/end of the address space) for a
-  quick fake sniff without writing the whole card.
+- **Capacity fraud test.** ✅ Shipped in 0.6 (`sdverify.py`, `--capacity-check`) and since extended with a
+  raw-device **corners sweep** (`sdverify.py --device`): probes block 0, every power-of-two offset, and the last
+  block of the reported capacity. Because a fake truncates the block address at a power-of-two boundary R, block
+  0 and block R alias onto one physical cell, so the (0, R) pair is always probed — a guaranteed catch for any
+  power-of-two address-truncation fake (the standard kind) in ~log₂(N) probes rather than a full-card write.
+  Destructive, so gated behind `--yes` and a mounted-device refusal. Still to refine:
+  - **Non-power-of-two wraps** can slip past the corners probes (a fake that wraps at, say, exactly 100 GB with
+    no power-of-two structure); the thorough free-space sweep still catches those, so corners is a fast
+    first-pass, not a replacement. Could add a few congruence-busting probes for common non-binary sizes.
+  - **Wire the corners sweep into `rpi-sdinfo`** (e.g. `--capacity-check --raw --device …`) once it can be tested
+    on a real removable card - deliberately not auto-wired yet, since a destructive raw write to the wrong
+    device must not ship untested on hardware.
+  - Raw-device *full* sweep (not just corners) where we have the device and privileges, so a nearly-full card
+    can still be exhaustively tested without needing free space.
 - **CID/CSD cross-checks.** Flag cards whose CID branding, declared capacity, and rated speed class are mutually
   inconsistent (e.g. a MID that never ships the branded make, an A2 label that can't hit A1, a future MDT).
 - **Decode the CSD register** (stubbed in the bash version): structure version → SDSC/SDHC/SDXC, command
