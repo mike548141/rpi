@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 #
 # Author:       Mike Clements, Competitive Edge
-# Version:      0.4-20260705
+# Version:      0.5-20260705
 # File:         rpi-sdinfo.py
 # License:      GNU GPL v3
 # Language:     Python 3.6 or later
@@ -18,6 +18,16 @@
 #   macOS                 - limited: macOS does not expose the SD CID/CSD registers, so identity is whatever the
 #                           card reader reports (capacity, media name, bus) via diskutil. The performance test
 #                           and grading still work.
+#   Windows               - limited: Windows does not expose the SD CID/CSD registers either, so identity is the
+#                           drive's capacity, volume label and removable flag. The performance test and grading
+#                           still work. Point --dir at the card's drive letter, e.g. --dir E:\
+#
+# Output:
+#   Human-readable by default; --format json emits the whole result as a JSON document on stdout (progress and
+#   messages go to stderr) so the tool can be driven by other software and scripts. Exit codes:
+#     0  success - card graded PASS, or run with --no-benchmark
+#     1  card graded FAIL (slower than its rated / assumed class)
+#     2  usage error or unsupported platform
 #
 # Pre-requisite:
 #   Performance testing is now native Python (see sdbench.py) - no external fio dependency. Nothing to install.
@@ -42,11 +52,14 @@
 # Command line arguments
 import argparse
 
-# Time delta
+# Time delta and ISO timestamps for the report
 import datetime
 
 # Hash encoding
 import hashlib
+
+# Machine-readable (--format json) output
+import json
 
 # Locale relevant feedback
 import locale
@@ -81,9 +94,17 @@ import tempfile
 # Native, dependency-free performance benchmark (replaces fio). Ships alongside this script
 import sdbench
 
+# Shared, dependency-free terminal styling (colour, sections, badges, spinner). Ships alongside this script
+import ui
+
 #======================================
 # Declare the constants
 #--------------------------------------
+
+# Tool version and the version of the JSON document shape emitted by --format json. Bump SCHEMA only on a
+# breaking change to the JSON structure so downstream consumers can rely on it
+VERSION = '0.5-20260705'
+SCHEMA = 'rpi-sdinfo/1'
 
 # The default Linux device for the MMC or SD card (overridable with --device; the partition defaults to <device>p2)
 block_device = 'mmcblk0'
@@ -634,12 +655,10 @@ def gather_linux(args):
     sys_info['storage']['state'] = 'read/write'
   sys_info['storage']['removable_label'] = 'removable' if sys_info['storage']['removable'] == '1' else 'not removable'
 
-  # Analyse - flag a recent history of high CPU load that could skew the performance test
+  # Analyse - flag a recent history of high CPU load that could skew the performance test (rendered as a warning
+  # by the reporter; kept here as a plain boolean so the JSON output stays clean)
   cpu = sys_info['stats']['cpu']
-  if cpu['load_1m'] >= 1.0 or (cpu['load_1m'] >= 0.5 and cpu['load_5m'] >= 0.7 and cpu['load_15m'] >= 0.7):
-    cpu['warning'] = '    Warning high CPU load!!'
-  else:
-    cpu['warning'] = ''
+  cpu['load_high'] = cpu['load_1m'] >= 1.0 or (cpu['load_1m'] >= 0.5 and cpu['load_5m'] >= 0.7 and cpu['load_15m'] >= 0.7)
 
   # Analyse - real world throughput and IOPS from the kernel's lifetime disk counters (safe_div guards an idle card)
   disk = sys_info['stats']['disk']
@@ -726,98 +745,230 @@ def _sysctl(name):
     return ''
 
 #======================================
+# Gather - Windows
+#--------------------------------------
+
+def _windows_volume(root):
+  # Query the Win32 API for a drive's volume label, filesystem and removable flag. Returns a dict; any field we
+  # cannot read is simply omitted. Windows exposes no SD CID/CSD registers, so make/model stay unknown here too
+  info = {}
+  try:
+    import ctypes
+    from ctypes import wintypes
+    kernel32 = ctypes.windll.kernel32
+    # DRIVE_REMOVABLE = 2 (a card reader / USB stick reports this)
+    info['removable'] = kernel32.GetDriveTypeW(root) == 2
+    label = ctypes.create_unicode_buffer(261)
+    fs = ctypes.create_unicode_buffer(261)
+    serial = wintypes.DWORD()
+    if kernel32.GetVolumeInformationW(root, label, 261, ctypes.byref(serial), None, None, fs, 261):
+      info['label'] = label.value
+      info['filesystem'] = fs.value
+      info['volume_serial'] = f'{serial.value:08X}'
+  except Exception:
+    pass
+  return info
+
+def gather_windows(args):
+  # Windows cannot read the SD CID/CSD registers, so identity is limited to the drive's capacity, volume label
+  # and removable state. Resolve the target down to its drive root (e.g. 'E:\\') for the Win32 queries
+  target = args.dir or args.device or os.getcwd()
+  drive = os.path.splitdrive(os.path.abspath(target))[0]        # 'E:' from 'E:\path'
+  root = (drive + os.sep) if drive else os.path.abspath(os.sep)
+  vol = _windows_volume(root)
+
+  try:
+    import shutil
+    total = shutil.disk_usage(root).total
+  except OSError:
+    total = 0
+  block_size = 512
+
+  sys_info = {
+    'platform' : 'windows',
+    'device' : drive or root,
+    'hardware' : {
+      'model' : platform.uname().machine or 'PC',
+      'serial_number' : '',
+      'uuid' : ''
+    },
+    'software' : {
+      'os_release' : platform.system() + ' ' + platform.release(),
+      'os_kernel' : platform.version()
+    },
+    'storage' : {
+      'type' : 'SD/removable' if vol.get('removable') else 'disk',
+      'label' : vol.get('label') or 'unknown',
+      'manufacturer' : 'unknown (Windows cannot read the SD CID registers)',
+      'oem' : 'unknown',
+      'speed_class' : [],
+      'filesystem_type' : vol.get('filesystem', ''),
+      'volume_serial' : vol.get('volume_serial', ''),
+      'blocks' : (total // block_size) if total else 0,
+      'block_size' : block_size,
+      'bytes' : total,
+      'GB' : total / 1000000000,
+      'GiB' : total / 1024 / 1024 / 1024,
+      'state' : 'read/write',
+      'removable_label' : 'removable' if vol.get('removable') else 'not removable',
+      'cid_psn' : '', 'cid_mdt' : '', 'cid_prv_fw' : ''
+    }
+  }
+  return sys_info
+
+#======================================
 # Report - print the gathered detail
 #--------------------------------------
 
-def print_report(sys_info):
+def render_report(console, sys_info):
   storage = sys_info['storage']
   hardware = sys_info['hardware']
   software = sys_info['software']
+  platform_name = sys_info['platform']
 
   # System
-  host = '\n' + hardware['model']
+  console.section('System')
+  console.kv('Model', hardware['model'], value_style='bold')
   if hardware['serial_number']:
-    host += ' (serial: ' + hardware['serial_number'] + ')'
-  uptime = read_file('/proc/uptime', '\n')
+    console.kv('Serial', hardware['serial_number'])
+  console.kv('OS', software['os_release'], note='kernel ' + software['os_kernel'])
+  uptime = read_file('/proc/uptime', '\n')                # Linux only; returns '' (skipped) elsewhere
   if uptime:
-    host += '\n   Has been up for ' + str(datetime.timedelta(seconds=float(uptime.split()[0])))
-  host += '\n   Running ' + software['os_release'] + ' with kernel ' + software['os_kernel']
-  print(host)
-  if sys_info['platform'] == 'linux':
-    print('   Ethernet MAC:  ' + hardware['mac_eth0'] + '\n   WiFi MAC:      ' + hardware['mac_wlan0'] + '\n   Bluetooth MAC: ' + hardware['mac_bt0'])
+    console.kv('Uptime', str(datetime.timedelta(seconds=int(float(uptime.split()[0])))))
+  if platform_name == 'linux':
+    console.kv('Ethernet MAC', hardware['mac_eth0'])
+    console.kv('Wi-Fi MAC', hardware['mac_wlan0'])
+    console.kv('Bluetooth MAC', hardware['mac_bt0'])
 
   # Storage identity
-  print('\nThe ' + storage['type'] + ' storage is a ' + storage['label'])
-  print('   Capacity reported:           ' + f_num(storage['GB'], 1) + ' GB (' + f_num(storage['GiB'], 1) + ' GiB, ' + f_num(storage['blocks']) + ' blocks of ' + f_num(storage['block_size']) + ' bytes)')
-  if sys_info['platform'] == 'linux':
-    print('   Manufacturers serial number: ' + storage['cid_psn'] + '\n   Manufacture date (mm/yyyy):  ' + storage['cid_mdt'])
-    print('   The ' + storage['manufacturer'] + ' storage controller is running firmware revision ' + storage['cid_prv_fw'])
-    print('   The card is ' + storage['state'] + ' and is ' + storage['removable_label'])
-    print('\n' + storage['type'] + ' Registers:\n   OCR: ' + storage['ocr'] + '\n   CID: ' + storage['cid'] + '\n   CSD: ' + storage['csd'] + '\n   RCA: ' + storage['rca'] + '\n   DSR: ' + storage['dsr'] + '\n   SCR: ' + storage['scr'] + '\n   SSR: ' + storage['ssr'])
-    fs = sys_info['filesystem']
-    print('\nThe Filesystem of ' + sys_info['partition'] + ' is ' + fs['state'] + '\n   Created:      ' + fs['created'] + '\n   Last checked: ' + fs['last_checked'] + '\n   Mounted:      ' + f_num(fs['mount_count']) + ' times since the filesystem was created\n   Last mounted: ' + fs['last_mount'])
-    _print_linux_stats(sys_info)
-  else:
-    print('   Bus: ' + storage['bus'] + '    SMART: ' + storage['smart'] + '\n   The card is ' + storage['state'] + ' and is ' + storage['removable_label'])
-    print('   (macOS cannot read the SD CID/CSD registers, so make/model and the rated speed class are unknown - run on a Raspberry Pi for those)')
+  console.section('Storage', note=storage['type'])
+  console.kv('Model', storage['label'], value_style='bold')
+  capacity_note = f_num(storage['GiB'], 1) + ' GiB ' + console.g['dot'] + ' ' + f_num(storage['blocks']) + ' × ' + f_num(storage['block_size']) + ' B'
+  console.kv('Capacity', f_num(storage['GB'], 1) + ' GB', note=capacity_note)
+  if storage.get('speed_class'):
+    console.kv('Rated class', ', '.join(storage['speed_class']), value_style='cyan')
 
-def _print_linux_stats(sys_info):
+  if platform_name == 'linux':
+    console.kv('Make', storage['manufacturer'])
+    if storage.get('oem') and storage['oem'] != storage['manufacturer']:
+      console.kv('OEM', storage['oem'])
+    console.kv('Serial (CID)', storage['cid_psn'] or 'n/a')
+    console.kv('Made (mm/yyyy)', storage['cid_mdt'] or 'n/a')
+    console.kv('Firmware rev', storage['cid_prv_fw'] or 'n/a')
+    console.kv('Access', storage['state'] + ' ' + console.g['dot'] + ' ' + storage['removable_label'])
+
+    # Registers - only show the ones the card actually populated
+    registers = [('OCR', 'ocr'), ('CID', 'cid'), ('CSD', 'csd'), ('RCA', 'rca'),
+                 ('DSR', 'dsr'), ('SCR', 'scr'), ('SSR', 'ssr')]
+    present = [(name, storage[key]) for name, key in registers if storage.get(key)]
+    if present:
+      console.section('Registers')
+      for name, value in present:
+        console.kv(name, value, width=6, value_style='grey')
+
+    # Filesystem
+    fs = sys_info['filesystem']
+    console.section('Filesystem', note=sys_info['partition'])
+    console.kv('State', fs['state'])
+    console.kv('Created', fs['created'])
+    console.kv('Last checked', fs['last_checked'])
+    console.kv('Mounted', f_num(fs['mount_count']) + ' times', note='last: ' + fs['last_mount'])
+    _render_linux_stats(console, sys_info)
+  elif platform_name == 'macos':
+    console.kv('Bus', storage.get('bus', 'unknown'))
+    console.kv('SMART', storage.get('smart', 'n/a'))
+    console.kv('Access', storage['state'] + ' ' + console.g['dot'] + ' ' + storage['removable_label'])
+    console.line(console.style('macOS cannot read the SD CID/CSD registers - make/model and rated class are', 'grey'), indent=2)
+    console.line(console.style('unknown here. Run on a Raspberry Pi for full identity.', 'grey'), indent=2)
+  else:  # windows
+    if storage.get('filesystem_type'):
+      console.kv('Filesystem', storage['filesystem_type'])
+    if storage.get('volume_serial'):
+      console.kv('Volume serial', storage['volume_serial'])
+    console.kv('Access', storage['state'] + ' ' + console.g['dot'] + ' ' + storage['removable_label'])
+    console.line(console.style('Windows cannot read the SD CID/CSD registers - make/model and rated class are', 'grey'), indent=2)
+    console.line(console.style('unknown here. Run on a Raspberry Pi for full identity.', 'grey'), indent=2)
+
+def _render_linux_stats(console, sys_info):
   cpu = sys_info['stats']['cpu']
   memory = sys_info['stats']['memory']
   disk = sys_info['stats']['disk']
   device = sys_info['device']
-  print('\n CPU load average (1m): ' + f_num(cpu['load_1m'], 2) + cpu['warning'] + '\n                  (5m): ' + f_num(cpu['load_5m'], 2) + '\n                 (15m): ' + f_num(cpu['load_15m'], 2) + '\nThreads (active/total): ' + cpu['threads'])
-  print('                Memory: ' + f_num(memory['free']) + ' MiB free of ' + f_num(memory['total']) + ' MiB total\n                  Swap: ' + f_num(memory['swap_free']) + ' MiB free of ' + f_num(memory['swap_total']) + ' MiB total')
-  print(' Storage ' + device + ' reads: ' + f_num(disk['read_completed']) + ' completing ' + f_num(disk['read_avg_mbps'], 1) + ' MBps using ' + f_num(disk['read_avg_iops']) + ' IOPS\n                writes: ' + f_num(disk['write_completed']) + ' completing ' + f_num(disk['write_avg_mbps'], 1) + ' MBps using ' + f_num(disk['write_avg_iops']) + ' IOPS')
+
+  console.section('Live stats')
+  load = f_num(cpu['load_1m'], 2) + '  ' + f_num(cpu['load_5m'], 2) + '  ' + f_num(cpu['load_15m'], 2)
+  console.kv('Load 1/5/15m', load,
+             value_style='yellow' if cpu['load_high'] else None,
+             note='high load may skew the benchmark' if cpu['load_high'] else '')
+  console.kv('Threads', cpu['threads'])
+  console.kv('Memory', f_num(memory['free']) + ' / ' + f_num(memory['total']) + ' MiB free')
+  console.kv('Swap', f_num(memory['swap_free']) + ' / ' + f_num(memory['swap_total']) + ' MiB free')
+  console.kv('Disk reads', f_num(disk['read_completed']) + ' ops ' + console.g['dot'] + ' ' + f_num(disk['read_avg_mbps'], 1) + ' MBps ' + console.g['dot'] + ' ' + f_num(disk['read_avg_iops']) + ' IOPS')
+  console.kv('Disk writes', f_num(disk['write_completed']) + ' ops ' + console.g['dot'] + ' ' + f_num(disk['write_avg_mbps'], 1) + ' MBps ' + console.g['dot'] + ' ' + f_num(disk['write_avg_iops']) + ' IOPS')
 
 #======================================
 # Performance test (native, see sdbench.py)
 #--------------------------------------
 
-def run_perf(sys_info, args):
-  # Decide where to write the test file: an explicit --dir, else the Linux default, else the system temp dir
+def compute_perf(sys_info, args, spinner, progress):
+  # Run the native benchmark, streaming per-run progress to `progress` (a Console), and stash the results plus
+  # the best-half medians on sys_info. No grading here - see compute_grade()
   bench_dir = args.dir or ('/var/tmp' if sys_info['platform'] == 'linux' else tempfile.gettempdir())
   test_file = os.path.join(bench_dir, test_file_name)
   size_bytes = args.size_mb * 1024 * 1024
 
-  print('\nPerformance testing (native, non-destructive) in ' + bench_dir + '. A ' + str(args.size_mb) + ' MiB test file is created and removed afterwards.')
-  print('                   Sequential write            Random 4 KiB write           Random 4 KiB read')
+  progress.section('Benchmark', note=str(args.size_mb) + ' MiB in ' + bench_dir + ' ' + progress.g['dot'] + ' ' + str(args.runs) + ' runs ' + progress.g['dot'] + ' non-destructive')
 
-  def show(run_number, metrics):
+  def on_phase(run_number, name):
+    spinner.update('Run ' + str(run_number) + '/' + str(args.runs) + '  ' + name + '…')
+
+  def on_run(run_number, metrics):
+    spinner.clear()
     sw, rw, rr = metrics['seq_write'], metrics['rand_write'], metrics['rand_read']
-    print('   Run ' + str(run_number) + ' of ' + str(args.runs) + ': ' + f_num(sw['mbps'], 1) + ' MBps, ' + f_num(sw['iops']) + ' IOPS, ' + f_num(sw['lat_ms'], 2) + ' ms    ' + f_num(rw['mbps'], 1) + ' MBps, ' + f_num(rw['iops']) + ' IOPS, ' + f_num(rw['lat_ms'], 2) + ' ms    ' + f_num(rr['mbps'], 1) + ' MBps, ' + f_num(rr['iops']) + ' IOPS, ' + f_num(rr['lat_ms'], 2) + ' ms')
+    progress.line('Run ' + str(run_number) + '/' + str(args.runs) + '   '
+                  + progress.style('seq', 'grey') + ' ' + ('%7.1f' % sw['mbps']) + ' MBps   '
+                  + progress.style('wr', 'grey') + ' ' + ('%6.0f' % rw['iops']) + ' IOPS   '
+                  + progress.style('rd', 'grey') + ' ' + ('%6.0f' % rr['iops']) + ' IOPS')
 
   try:
-    perf = sdbench.run(test_file, args.runs, size_bytes, args.seconds, on_run=show)
+    perf = sdbench.run(test_file, args.runs, size_bytes, args.seconds, on_run=on_run, on_phase=on_phase)
   finally:
+    spinner.stop()
     if os.path.isfile(test_file):
       os.remove(test_file)
   sys_info['perf'] = perf
 
-  # Best guess of real world performance: median of the best half of runs (drops slow outliers), stdev over all runs
+  # Best guess of real world performance: median of the best half of runs (drops slow outliers)
   perf['write']['seq_mbps_result'] = best_median(perf['write']['seq_mbps'])
   perf['write']['rand_4kb_iops_result'] = best_median(perf['write']['rand_4kb_iops'])
   perf['read']['rand_4kb_iops_result'] = best_median(perf['read']['rand_4kb_iops'])
-
-  print('\nBest-guess result (median of the best half) from ' + str(args.runs) + ' runs, standard deviation over all runs')
-  _print_metric('Sequential write ', perf['write']['seq_mbps'], 'MBps', 1)
-  _print_metric('Random 4KB write ', perf['write']['rand_4kb_iops'], 'IOPS', 0)
-  _print_metric('Random 4KB read  ', perf['read']['rand_4kb_iops'], 'IOPS', 0)
   return perf
 
-def _print_metric(label, samples, units, dec):
-  print('   ' + label + ': ' + f_num(best_median(samples), dec) + ' ' + units + ' (mean ' + f_num(statistics.mean(samples), dec) + ', stdev ' + f_num(statistics.stdev(samples) if len(samples) > 1 else 0, dec) + ')')
+def render_benchmark(console, sys_info):
+  # The headline result table: best-half median plus mean and standard deviation over all runs
+  perf = sys_info['perf']
+  console.section('Result', note='best-half median ' + console.g['dot'] + ' mean ' + console.g['dot'] + ' stdev over all runs')
+  _render_metric(console, 'Sequential write', perf['write']['seq_mbps'], 'MBps', 1)
+  _render_metric(console, 'Random 4K write', perf['write']['rand_4kb_iops'], 'IOPS', 0)
+  _render_metric(console, 'Random 4K read', perf['read']['rand_4kb_iops'], 'IOPS', 0)
+
+def _render_metric(console, label, samples, units, dec):
+  stdev = statistics.stdev(samples) if len(samples) > 1 else 0
+  value = f_num(best_median(samples), dec) + ' ' + units
+  note = 'mean ' + f_num(statistics.mean(samples), dec) + ' ' + console.g['dot'] + ' sd ' + f_num(stdev, dec)
+  console.kv(label, value, value_style='bold', note=note)
 
 #======================================
 # Grade the results against the rated speed class
 #--------------------------------------
 
-def grade(sys_info):
+def compute_grade(sys_info):
+  # Compare the measured medians against the toughest target implied by the card's declared speed class(es),
+  # falling back to A1 (the Raspberry Pi baseline) when no class is known. Returns a structured grade and stores
+  # it on sys_info - no printing here, so it is reused by both the text and JSON renderers
   perf = sys_info['perf']
   declared_classes = sys_info['storage'].get('speed_class', [])
 
-  # A card can declare several classes (e.g. C10 + U1 + A1), so take the toughest target for each metric. Where
-  # nothing measurable is declared (or on macOS, which can't read it) fall back to A1, the Raspberry Pi baseline
   target = {'seq_write': 0, 'rand_read': 0, 'rand_write': 0}
   for card_class in declared_classes:
     class_spec = speed_class.get(card_class, {})
@@ -827,61 +978,149 @@ def grade(sys_info):
     if target[metric] == 0:
       target[metric] = speed_class['A1'][metric]
 
-  graded_against = ', '.join(declared_classes) if declared_classes else 'A1 (assumed - no rated class known for this card)'
-  print('\nGrading measured performance against ' + graded_against)
-  seq_write_pass = _grade_line('Sequential write ', perf['write']['seq_mbps_result'], target['seq_write'], 'MBps')
-  rand_write_pass = _grade_line('Random write     ', perf['write']['rand_4kb_iops_result'], target['rand_write'], 'IOPS')
-  rand_read_pass = _grade_line('Random read      ', perf['read']['rand_4kb_iops_result'], target['rand_read'], 'IOPS')
-  if not seq_write_pass:
-    print('   Note: sequential write speed declines over time as a card is used - your card may require reformatting')
+  def metric(measured, want, units):
+    return {'measured': measured, 'target': want, 'units': units, 'pass': measured >= want}
 
-  all_pass = seq_write_pass and rand_write_pass and rand_read_pass
-  if all_pass:
-    print('\nResult: PASS - the card meets its rated ' + graded_against + ' performance')
+  metrics = {
+    'seq_write': metric(perf['write']['seq_mbps_result'], target['seq_write'], 'MBps'),
+    'rand_write': metric(perf['write']['rand_4kb_iops_result'], target['rand_write'], 'IOPS'),
+    'rand_read': metric(perf['read']['rand_4kb_iops_result'], target['rand_read'], 'IOPS'),
+  }
+  grade = {
+    'graded_against': ', '.join(declared_classes) if declared_classes else 'A1',
+    'assumed': not declared_classes,
+    'targets': target,
+    'metrics': metrics,
+    'pass': all(m['pass'] for m in metrics.values()),
+  }
+  sys_info['grade'] = grade
+  return grade
+
+def render_grade(console, sys_info):
+  grade = sys_info['grade']
+  note = 'vs ' + grade['graded_against'] + (' (assumed - no rated class known)' if grade['assumed'] else '')
+  console.section('Grade', note=note)
+
+  order = [('seq_write', 'Sequential write'), ('rand_write', 'Random 4K write'), ('rand_read', 'Random 4K read')]
+  for key, label in order:
+    m = grade['metrics'][key]
+    fraction = (m['measured'] / m['target']) if m['target'] else 1.0
+    bar = console.bar(fraction)
+    verdict = console.badge('PASS' if m['pass'] else 'FAIL', 'pass' if m['pass'] else 'fail')
+    value = (f_num(m['measured'], 1) + ' ' + m['units']).ljust(14)
+    goal = ('target ' + f_num(m['target'], 0) + ' ' + m['units']).ljust(20)
+    console.line(console.style((label + ':').ljust(18), 'grey') + value + bar + '  ' + console.style(goal, 'grey') + verdict)
+
+  if not grade['metrics']['seq_write']['pass']:
+    console.out('')
+    console.line(console.style('Note: sequential write slows as a card wears - a reformat may help.', 'grey'))
+
+  console.out('')
+  if grade['pass']:
+    console.box('PASS  ' + console.g['dot'] + '  meets its rated ' + grade['graded_against'] + ' performance', 'pass')
   else:
-    print('\nResult: FAIL - the card is slower than its rated ' + graded_against + ' performance (a worn, misbranded, or counterfeit card)')
-  return all_pass
+    console.box('FAIL  ' + console.g['dot'] + '  slower than rated ' + grade['graded_against'] + ' (worn, misbranded, or fake)', 'fail')
 
-def _grade_line(label, measured, required, units):
-  verdict = 'PASS' if measured >= required else 'FAIL'
-  print('   ' + label + ': ' + f_num(measured, 1) + ' ' + units + ' (target ' + f_num(required, 1) + ' ' + units + ') - ' + verdict)
-  return measured >= required
+#======================================
+# JSON (machine-readable) output
+#--------------------------------------
+
+def build_json(sys_info):
+  # Assemble the machine-readable document in a stable key order. --format json emits exactly this on stdout so
+  # other software and scripts can consume identity, benchmark samples, and the grade
+  doc = {'schema': SCHEMA, 'tool_version': VERSION, 'generated': sys_info['generated']}
+  for key in ('platform', 'device', 'partition', 'hardware', 'software', 'storage', 'filesystem', 'stats'):
+    if key in sys_info:
+      doc[key] = sys_info[key]
+  if 'perf' in sys_info:
+    doc['benchmark'] = sys_info['perf']
+  if 'grade' in sys_info:
+    doc['grade'] = sys_info['grade']
+  return doc
 
 #======================================
 # Main
 #--------------------------------------
 
 def parse_args(argv=None):
-  parser = argparse.ArgumentParser(description='Identify, benchmark, and grade an SD/MMC card (Raspberry Pi Linux or macOS).')
-  parser.add_argument('--device', help='Storage device to inspect. Linux: block device name (default: ' + block_device + '). macOS: disk id or mount path (e.g. disk4 or /Volumes/CARD)')
+  parser = argparse.ArgumentParser(description='Identify, benchmark, and grade an SD/MMC card (Raspberry Pi Linux, macOS, or Windows).')
+  parser.add_argument('--device', help='Storage device to inspect. Linux: block device name (default: ' + block_device + '). macOS: disk id or mount path (e.g. disk4 or /Volumes/CARD). Windows: a drive (e.g. E:)')
   parser.add_argument('--partition', help='Linux filesystem partition to inspect (default: <device>p2)')
-  parser.add_argument('--dir', help='Directory on the card to run the benchmark in (default: /var/tmp on Linux, system temp dir on macOS). Point this at the mounted card.')
+  parser.add_argument('--dir', help='Directory on the card to benchmark (default: /var/tmp on Linux, system temp dir on macOS/Windows). Point this at the mounted card, e.g. /Volumes/CARD or E:\\')
   parser.add_argument('--runs', type=int, default=max_runs, help='Number of benchmark runs to average (default: %(default)s)')
   parser.add_argument('--size-mb', type=int, default=sdbench.DEFAULT_SIZE_MB, help='Test file size in MiB (default: %(default)s)')
   parser.add_argument('--seconds', type=int, default=sdbench.DEFAULT_SECONDS, help='Duration of each random IO test (default: %(default)s)')
   parser.add_argument('--no-benchmark', action='store_true', help='Only gather and print card detail, skip the performance test')
+  parser.add_argument('--format', choices=['text', 'json'], default='text', help='Output format (default: %(default)s). json emits the full result on stdout for other tools')
+  parser.add_argument('--json', action='store_const', const='json', dest='format', help='Shortcut for --format json')
+  parser.add_argument('--quiet', action='store_true', help='Suppress the report; exit code still reflects PASS/FAIL (handy in scripts)')
+  color = parser.add_mutually_exclusive_group()
+  color.add_argument('--color', dest='color', action='store_const', const=True, help='Force colour output (also: CLICOLOR_FORCE=1)')
+  color.add_argument('--no-color', dest='color', action='store_const', const=False, help='Disable colour output (also: NO_COLOR=1)')
+  parser.set_defaults(color=None)
+  parser.add_argument('--version', action='version', version='rpi-sdinfo ' + VERSION)
   return parser.parse_args(argv)
+
+def gather(args):
+  # Dispatch to the right platform collector. Returns None on an unsupported platform
+  if sys.platform == 'darwin':
+    return gather_macos(args)
+  if sys.platform.startswith('linux'):
+    return gather_linux(args)
+  if sys.platform == 'win32':
+    return gather_windows(args)
+  return None
 
 def main(argv=None):
   args = parse_args(argv)
   # Set the locale for number formatting once we are actually running (not at import)
   locale.setlocale(locale.LC_ALL, '')
 
-  if sys.platform == 'darwin':
-    sys_info = gather_macos(args)
-  elif sys.platform.startswith('linux'):
-    sys_info = gather_linux(args)
+  json_mode = args.format == 'json'
+  # stdout carries the report (text) or the JSON document; progress and messages go to stderr in JSON mode so
+  # `--format json` stays pipe-clean. --quiet routes progress to the void but keeps the exit code meaningful
+  out = ui.Console(sys.stdout, color=args.color)
+  errs = ui.Console(sys.stderr, color=args.color)
+  if json_mode:
+    progress = errs
+  elif args.quiet:
+    progress = ui.Console(open(os.devnull, 'w'), color=False)
   else:
-    print('Unsupported platform: ' + sys.platform + '. This tool supports Linux (Raspberry Pi) and macOS.')
+    progress = out
+  spinner = ui.Spinner(progress)
+
+  sys_info = gather(args)
+  if sys_info is None:
+    errs.out(errs.badge('FAIL', 'fail') + ' Unsupported platform: ' + sys.platform
+             + '. This tool supports Linux (Raspberry Pi), macOS, and Windows.')
     return 2
+  sys_info['generated'] = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec='seconds').replace('+00:00', 'Z')
 
-  print_report(sys_info)
-  if args.no_benchmark:
-    return 0
+  if not json_mode and not args.quiet:
+    out.banner('rpi-sdinfo ' + VERSION, 'SD/MMC identity ' + out.g['dot'] + ' benchmark ' + out.g['dot'] + ' grade')
+    render_report(out, sys_info)
 
-  run_perf(sys_info, args)
-  # Exit 0 when the card meets its rated performance, 1 when it falls short, so the script is usable in automation
-  return 0 if grade(sys_info) else 1
+  if not args.no_benchmark:
+    try:
+      compute_perf(sys_info, args, spinner, progress)
+    except OSError as error:
+      errs.out('')
+      errs.out(errs.badge('FAIL', 'fail') + ' Could not benchmark ' + (args.dir or 'the default directory') + ': ' + str(error))
+      return 2
+    compute_grade(sys_info)
+
+  if json_mode:
+    print(json.dumps(build_json(sys_info), indent=2, default=str))
+  elif not args.quiet:
+    if not args.no_benchmark:
+      render_benchmark(out, sys_info)
+      render_grade(out, sys_info)
+    out.out('')
+
+  # Exit 0 when the card meets its rated performance (or no benchmark ran), 1 when it falls short
+  if not args.no_benchmark:
+    return 0 if sys_info['grade']['pass'] else 1
+  return 0
 
 if __name__ == '__main__':
   sys.exit(main())

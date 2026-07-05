@@ -31,6 +31,22 @@ The bash original (`rpi-sdinfo.sh`) is kept for reference only and is not being 
 - **`SD_CARDS.md`** reference added (CID fields, label symbols, class→performance tables, Pi bus ceilings,
   counterfeit tells).
 
+## Done in 0.5
+
+- **New CLI experience.** A shared, dependency-free `ui.py` renders a colourful, sectioned report (banner,
+  key/value rows, PASS/FAIL badges, proportion bars, a rounded verdict box) with a live progress spinner during
+  the benchmark. Colour auto-detects a TTY and honours `NO_COLOR` / `CLICOLOR_FORCE`, with `--color` / `--no-color`
+  overrides and an ASCII fallback for non-UTF terminals.
+- **Machine-readable output.** `--format json` (alias `--json`) emits the whole result as one JSON document on
+  stdout (`schema`, `tool_version`, `generated`, identity, `benchmark` samples, `grade`); all progress/messages
+  go to stderr so pipelines stay clean. `--quiet` prints nothing but still sets the exit code. Exit codes
+  documented (0 pass / 1 fail / 2 usage). `sdbench.py` gained `--json` too.
+- **Windows support.** New `gather_windows()` (capacity, volume label, removable flag via the Win32 API + a
+  drive-root `shutil.disk_usage`), on-the-fly ANSI enablement on Windows 10+ consoles, and `sdbench` made
+  Windows-safe (portable `pread`/`pwrite`, `O_BINARY`). Not yet run on real Windows hardware.
+- **Refactor.** Gather / compute / render are now separated (`compute_perf`, `compute_grade`, `render_*`,
+  `build_json`) so the same data drives both the text and JSON output.
+
 ## Next up (v1.0 blockers)
 
 - **Not yet hardware-tested on a Pi.** The macOS path is exercised end-to-end; the Linux `gather_linux()` path
@@ -57,7 +73,7 @@ The bash original (`rpi-sdinfo.sh`) is kept for reference only and is not being 
 
 ## Data capture & sharing (the "build a public database" idea)
 
-- **Structured output.** `--json` to emit the whole `sys_info` dict; optional persist to a local SQLite DB.
+- **Structured output.** ✅ `--format json` ships in 0.5. Still to do: optional persist to a local SQLite DB.
 - **Raw mode.** `--raw` to dump the full `dumpe2fs` / register / benchmark detail for debugging.
 - **Crowd-sourced upload.** Optional POST to an API / S3 bucket so results (CID, CSD, capacity, measured
   performance, pass/fail) build a shared database of card identifiers and real-world failure rates. Needs a

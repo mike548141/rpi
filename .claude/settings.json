@@ -18,7 +18,9 @@
       "Bash(chmod:*)",
       "Bash(diskutil info:*)",
       "Bash(diskutil list:*)",
-      "Bash(system_profiler:*)"
+      "Bash(system_profiler:*)",
+      "Bash(ping:*)",
+      "mcp__browser-fetch__browser_fetch"
     ]
   }
 }
