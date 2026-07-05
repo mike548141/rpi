@@ -21,6 +21,10 @@ identifiers, performance, and failure rates.
 - Grades the measured performance against the card's rated speed class, falling back to **A1** (the Raspberry Pi
   baseline) when the class is unknown. Prints PASS/FAIL per metric and exits non-zero on failure, so it is usable
   in scripts.
+- **Unmasks fake cards.** An opt-in capacity-fraud sweep (`--capacity-check`, native `sdverify.py`) fills the
+  card's free space with offset-stamped data and reads it all back — the pure-Python equivalent of `f3` /
+  `h2testw`. A counterfeit that reports a huge size but has a small chip fails verification at its true capacity.
+  Non-destructive to existing files; it only adds its own test files and deletes them again.
 - **Reads nicely, scripts cleanly.** A colourful, sectioned terminal report for humans (with a live progress
   spinner during the benchmark), and `--format json` for other software — the JSON document is the *only* thing
   on stdout, so `rpi-sdinfo --json | jq` just works.
@@ -59,25 +63,40 @@ python rpi-sdinfo.py --dir E:\
 # Just an exit code (0 = PASS, 1 = FAIL) for automation
 ./rpi-sdinfo.py --quiet --dir /Volumes/MYCARD; echo $?
 
+# Unmask a fake card: fill it, write + verify the whole capacity (slow; adds flash wear)
+./rpi-sdinfo.py --dir /Volumes/MYCARD --capacity-check
+
 # Just a native benchmark of a path, standalone
 ./sdbench.py --dir /Volumes/MYCARD
+
+# Just a native capacity-fraud sweep of a path, standalone
+./sdverify.py --dir /Volumes/MYCARD
 ```
 
 Useful options: `--device`, `--partition`, `--dir`, `--runs`, `--size-mb`, `--seconds`, `--no-benchmark`,
-`--format text|json` (or `--json`), `--quiet`, `--color`/`--no-color`, `--version` (`--help` for the full list).
-Colour follows the [`NO_COLOR`](https://no-color.org) and `CLICOLOR_FORCE` conventions and switches itself off
-when output is piped or redirected.
+`--capacity-check`, `--capacity-mb`, `--yes`, `--format text|json` (or `--json`), `--quiet`,
+`--color`/`--no-color`, `--version` (`--help` for the full list). Colour follows the
+[`NO_COLOR`](https://no-color.org) and `CLICOLOR_FORCE` conventions and switches itself off when output is piped
+or redirected.
 
-**Exit codes** (so it drops into scripts and CI): `0` card passed its grade (or run with `--no-benchmark`),
-`1` card failed its grade, `2` usage error or unsupported platform.
+The capacity sweep is **opt-in and gated**: it fills the card's free space and writes its whole capacity once,
+so it asks for confirmation first (or pass `--yes`; `--yes` is required when non-interactive, e.g. with `--json`
+or `--quiet`). Cap it to a quick partial check with `--capacity-mb N`. A safety margin of free space is always
+left, so the filesystem is never wedged.
+
+**Exit codes** (so it drops into scripts and CI): `0` card passed every test it ran (or run with
+`--no-benchmark` and no `--capacity-check`), `1` card failed a test (too slow for its grade, or smaller than it
+reports), `2` usage error or unsupported platform.
 
 ### For other software (the JSON contract)
 
 `--format json` emits one document on stdout: `schema` (`rpi-sdinfo/1`), `tool_version`, `generated` (UTC
 ISO-8601), then `platform`, `device`, `hardware`, `software`, `storage`, and — on Linux — `filesystem` and
 `stats`; plus `benchmark` (every per-run sample) and `grade` (per-metric measured/target/pass and the overall
-`grade.pass`). Progress and any messages go to stderr, never stdout. `SCHEMA` is bumped only on a breaking
-change to the shape, so consumers can pin to it. `sdbench.py --json` emits its own standalone benchmark JSON.
+`grade.pass`). With `--capacity-check --yes` it also carries `capacity` (swept/verified byte counts, the first
+bad offset if any, a usable-capacity estimate, and `capacity.ok`). Progress and any messages go to stderr, never
+stdout. `SCHEMA` is bumped only on a breaking change to the shape, so consumers can pin to it. `sdbench.py
+--json` and `sdverify.py --json` each emit their own standalone JSON.
 
 ### More
 

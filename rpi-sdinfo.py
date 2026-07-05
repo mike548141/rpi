@@ -94,6 +94,9 @@ import tempfile
 # Native, dependency-free performance benchmark (replaces fio). Ships alongside this script
 import sdbench
 
+# Native, dependency-free capacity-fraud sweep (f3/h2testw style). Ships alongside this script
+import sdverify
+
 # Shared, dependency-free terminal styling (colour, sections, badges, spinner). Ships alongside this script
 import ui
 
@@ -103,7 +106,7 @@ import ui
 
 # Tool version and the version of the JSON document shape emitted by --format json. Bump SCHEMA only on a
 # breaking change to the JSON structure so downstream consumers can rely on it
-VERSION = '0.5-20260705'
+VERSION = '0.6-20260705'
 SCHEMA = 'rpi-sdinfo/1'
 
 # The default Linux device for the MMC or SD card (overridable with --device; the partition defaults to <device>p2)
@@ -1022,6 +1025,82 @@ def render_grade(console, sys_info):
     console.box('FAIL  ' + console.g['dot'] + '  slower than rated ' + grade['graded_against'] + ' (worn, misbranded, or fake)', 'fail')
 
 #======================================
+# Capacity-fraud sweep (native, see sdverify.py)
+#--------------------------------------
+
+def _human_bytes(num_bytes):
+  # Base-10 sizes, matching how cards are branded (and sdverify's own formatting)
+  value = float(num_bytes)
+  for unit in ('B', 'kB', 'MB', 'GB', 'TB'):
+    if abs(value) < 1000 or unit == 'TB':
+      return ('%.0f %s' % (value, unit)) if unit == 'B' else ('%.2f %s' % (value, unit))
+    value /= 1000
+  return '%.2f TB' % value
+
+def confirm_capacity_sweep(args, sys_info, out, interactive):
+  # The sweep fills the card's free space and writes its full capacity once, so it is gated. Returns True to
+  # proceed. --yes always proceeds; when non-interactive (piped, --json, --quiet) we require --yes and refuse
+  # otherwise rather than block on a prompt that no one can answer
+  if args.yes:
+    return True
+  if not interactive:
+    out.out(out.badge('SKIP', 'warn') + ' Capacity sweep needs confirmation: re-run with --yes (it fills free space and adds flash wear).')
+    return False
+  target = _human_bytes(args.capacity_mb * 1024 * 1024) if args.capacity_mb else 'all free space'
+  out.out('')
+  out.line(out.style('Capacity sweep will WRITE ' + target + ' to ' + (args.dir or 'the card') + ', then read it back.', 'yellow'))
+  out.line(out.style('Existing files are untouched, but this takes time and adds flash wear.', 'grey'))
+  try:
+    answer = input('  Proceed? [y/N] ').strip().lower()
+  except (EOFError, KeyboardInterrupt):
+    answer = ''
+  return answer in ('y', 'yes')
+
+def compute_capacity(sys_info, args, spinner, progress):
+  # Run the write-then-verify sweep against the card, streaming progress, and stash the result on sys_info.
+  # Non-destructive to existing files; the sweep's own test files are always cleaned up
+  sweep_dir = args.dir or ('/var/tmp' if sys_info['platform'] == 'linux' else tempfile.gettempdir())
+  cap = args.capacity_mb * 1024 * 1024 if args.capacity_mb is not None else None
+
+  progress.section('Capacity sweep', note='write + verify in ' + sweep_dir + ' ' + progress.g['dot'] + ' unmasks fake cards')
+
+  def on_phase(name):
+    spinner.update({'plan': 'Planning sweep…', 'write': 'Writing test data across the card…',
+                    'verify': 'Reading it back and verifying…', 'cleanup': 'Cleaning up test files…'}.get(name, name))
+
+  def on_progress(phase, done, total):
+    if not total:
+      return
+    pct = 100.0 * done / total
+    spinner.update(('Writing' if phase == 'write' else 'Verifying') + ' '
+                   + ('%.0f%%' % pct) + '  ' + _human_bytes(done) + ' / ' + _human_bytes(total))
+
+  try:
+    capacity = sdverify.run(sweep_dir, cap, on_progress=on_progress, on_phase=on_phase)
+  finally:
+    spinner.stop()
+  sys_info['capacity'] = capacity
+  return capacity
+
+def render_capacity(console, sys_info):
+  cap = sys_info['capacity']
+  console.section('Capacity', note='write + verify sweep (fake-card test)')
+  console.kv('Reported capacity', _human_bytes(cap['reported_total_bytes']))
+  swept = _human_bytes(cap['swept_bytes']) + (' ' + console.g['dot'] + ' stopped early (filesystem full)' if cap['short'] else '')
+  console.kv('Swept free space', swept)
+  console.kv('Verified good', _human_bytes(cap['verified_bytes']))
+  if cap['first_bad_offset'] is not None:
+    console.kv('First bad offset', _human_bytes(cap['first_bad_offset']), value_style='red')
+    console.kv('Usable estimate', _human_bytes(cap['usable_estimate_bytes']), value_style='red')
+  console.out('')
+  if cap['ok']:
+    console.box('GENUINE  ' + console.g['dot'] + '  every written byte read back correctly', 'pass')
+  elif cap['swept_bytes'] == 0:
+    console.line(console.style('Sweep did not run: ' + cap['reason'], 'yellow'))
+  else:
+    console.box('FAKE  ' + console.g['dot'] + '  card is smaller than it reports (or failing)', 'fail')
+
+#======================================
 # JSON (machine-readable) output
 #--------------------------------------
 
@@ -1036,6 +1115,8 @@ def build_json(sys_info):
     doc['benchmark'] = sys_info['perf']
   if 'grade' in sys_info:
     doc['grade'] = sys_info['grade']
+  if 'capacity' in sys_info:
+    doc['capacity'] = sys_info['capacity']
   return doc
 
 #======================================
@@ -1051,6 +1132,9 @@ def parse_args(argv=None):
   parser.add_argument('--size-mb', type=int, default=sdbench.DEFAULT_SIZE_MB, help='Test file size in MiB (default: %(default)s)')
   parser.add_argument('--seconds', type=int, default=sdbench.DEFAULT_SECONDS, help='Duration of each random IO test (default: %(default)s)')
   parser.add_argument('--no-benchmark', action='store_true', help='Only gather and print card detail, skip the performance test')
+  parser.add_argument('--capacity-check', action='store_true', help='Also run a capacity-fraud sweep (fills free space, writes+verifies to unmask fake cards). Slow; adds flash wear')
+  parser.add_argument('--capacity-mb', type=int, default=None, help='Cap the capacity sweep to this many MiB instead of filling all free space (for a quick partial check)')
+  parser.add_argument('--yes', action='store_true', help='Skip the confirmation prompt for the capacity sweep (required when non-interactive, e.g. with --json or --quiet)')
   parser.add_argument('--format', choices=['text', 'json'], default='text', help='Output format (default: %(default)s). json emits the full result on stdout for other tools')
   parser.add_argument('--json', action='store_const', const='json', dest='format', help='Shortcut for --format json')
   parser.add_argument('--quiet', action='store_true', help='Suppress the report; exit code still reflects PASS/FAIL (handy in scripts)')
@@ -1100,6 +1184,10 @@ def main(argv=None):
     out.banner('rpi-sdinfo ' + VERSION, 'SD/MMC identity ' + out.g['dot'] + ' benchmark ' + out.g['dot'] + ' grade')
     render_report(out, sys_info)
 
+  # Each test computes (streaming live progress) then renders its result table straight after, so in text mode
+  # the progress and the result for one test stay grouped rather than all-progress-then-all-results
+  render = not json_mode and not args.quiet
+
   if not args.no_benchmark:
     try:
       compute_perf(sys_info, args, spinner, progress)
@@ -1108,19 +1196,35 @@ def main(argv=None):
       errs.out(errs.badge('FAIL', 'fail') + ' Could not benchmark ' + (args.dir or 'the default directory') + ': ' + str(error))
       return 2
     compute_grade(sys_info)
+    if render:
+      render_benchmark(out, sys_info)
+      render_grade(out, sys_info)
+
+  # Optional, opt-in capacity-fraud sweep. Gated behind a confirmation (or --yes) because it fills free space
+  if args.capacity_check:
+    interactive = sys.stdin.isatty() and not json_mode and not args.quiet
+    if confirm_capacity_sweep(args, sys_info, errs if json_mode else progress, interactive):
+      try:
+        compute_capacity(sys_info, args, spinner, progress)
+      except OSError as error:
+        errs.out('')
+        errs.out(errs.badge('FAIL', 'fail') + ' Capacity sweep failed on ' + (args.dir or 'the default directory') + ': ' + str(error))
+        return 2
+      if render:
+        render_capacity(out, sys_info)
 
   if json_mode:
     print(json.dumps(build_json(sys_info), indent=2, default=str))
   elif not args.quiet:
-    if not args.no_benchmark:
-      render_benchmark(out, sys_info)
-      render_grade(out, sys_info)
     out.out('')
 
-  # Exit 0 when the card meets its rated performance (or no benchmark ran), 1 when it falls short
+  # Exit non-zero if the card fails either test: slower than rated (grade) or smaller than reported (capacity)
+  failed = False
   if not args.no_benchmark:
-    return 0 if sys_info['grade']['pass'] else 1
-  return 0
+    failed = failed or not sys_info['grade']['pass']
+  if 'capacity' in sys_info:
+    failed = failed or not sys_info['capacity']['ok']
+  return 1 if failed else 0
 
 if __name__ == '__main__':
   sys.exit(main())

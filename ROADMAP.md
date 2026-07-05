@@ -47,6 +47,22 @@ The bash original (`rpi-sdinfo.sh`) is kept for reference only and is not being 
 - **Refactor.** Gather / compute / render are now separated (`compute_perf`, `compute_grade`, `render_*`,
   `build_json`) so the same data drives both the text and JSON output.
 
+## Done in 0.6
+
+- **Capacity-fraud sweep — the headline fake-detection feature.** New `sdverify.py` is a dependency-free,
+  pure-stdlib write-then-verify sweep (the f3 / h2testw technique). It fills the card's free space with test
+  files whose every block is stamped with a SHAKE-128 pattern keyed by its absolute offset — unique,
+  non-compressible data a cheating controller cannot guess, dedupe, or store cheaply — then reads it all back and
+  regenerates the expected pattern per offset. A genuine card verifies every byte; a fake returns zeros, garbage,
+  or a wrapped earlier block, and the offset of the first mismatch is the card's true usable capacity. Reads
+  bypass the OS cache (shared IO helpers with `sdbench`) so a fake can't pass by serving the page cache.
+- **Wired into `rpi-sdinfo`** as opt-in `--capacity-check` (with `--capacity-mb` to cap a quick partial sweep and
+  `--yes`/confirmation gating, since it fills free space and adds flash wear). A `CAPACITY` report section and a
+  `capacity` block in the JSON; a fake now fails the overall exit code. Non-destructive to existing files (its
+  own test files are always cleaned up), and a free-space safety margin is always left.
+- Verified end-to-end on macOS: genuine cards pass, an injected corruption is caught at the exact byte offset,
+  and text / JSON / quiet / confirmation-gate paths all behave.
+
 ## Next up (v1.0 blockers)
 
 - **Not yet hardware-tested on a Pi.** The macOS path is exercised end-to-end; the Linux `gather_linux()` path
@@ -63,9 +79,10 @@ The bash original (`rpi-sdinfo.sh`) is kept for reference only and is not being 
 
 ## Fake / counterfeit card detection (the reason the tool exists)
 
-- **Capacity fraud test.** The classic counterfeit is a small card reporting a huge capacity. Add an optional
-  write-then-verify sweep across the full reported capacity (à la f3/h2testw), in pure Python so it works on
-  both platforms. Must be clearly opt-in and warn about wear/time. This is the single highest-value feature left.
+- **Capacity fraud test.** ✅ Shipped in 0.6 (`sdverify.py`, `--capacity-check`). Still to refine: sweep by raw
+  device/LBA (not just filesystem free space) where we have the device and privileges, so a nearly-full card can
+  still be fully tested; expose a fast "corners" mode (sample the start/middle/end of the address space) for a
+  quick fake sniff without writing the whole card.
 - **CID/CSD cross-checks.** Flag cards whose CID branding, declared capacity, and rated speed class are mutually
   inconsistent (e.g. a MID that never ships the branded make, an A2 label that can't hit A1, a future MDT).
 - **Decode the CSD register** (stubbed in the bash version): structure version → SDSC/SDHC/SDXC, command

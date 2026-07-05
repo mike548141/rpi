@@ -21,7 +21,8 @@
 #     * Windows - no user-space cache-bypass flag, so writes use O_DSYNC-equivalent fsync durability and the
 #                 numbers lean a little optimistic on reads; still enough to spot a slow or fake card.
 #   The numbers are good enough to tell a genuine class-10/A1 card from a slow or counterfeit one, which is
-#   all rpi-sdinfo needs. See ROADMAP.md for the path to O_DIRECT and a capacity-fraud sweep.
+#   all rpi-sdinfo needs. For the capacity-fraud (fake-card) sweep see sdverify.py; ROADMAP.md tracks the path
+#   to a true O_DIRECT benchmark.
 #
 # Usage (standalone):
 #   python3 sdbench.py [--dir /var/tmp] [--runs 3] [--size-mb 64] [--seconds 10] [--json]
