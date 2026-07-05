@@ -2,8 +2,8 @@
 # floor) and the latency distribution built on top of it.
 import unittest
 
-import _loader  # noqa: F401 - puts the repo root on sys.path
-import sdbench
+import _loader  # noqa: F401 - puts src/ on sys.path so rpi_sdinfo imports
+from rpi_sdinfo import bench as sdbench
 
 
 class Percentile(unittest.TestCase):

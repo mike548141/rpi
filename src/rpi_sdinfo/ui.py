@@ -2,13 +2,13 @@
 #
 # Author:       Mike Clements, Competitive Edge
 # Version:      0.1-20260705
-# File:         ui.py
+# File:         src/rpi_sdinfo/ui.py
 # License:      GNU GPL v3
 # Language:     Python 3.6 or later
 # Source:       https://github.com/mike548141/rpi
 #
 # Description:
-#   A tiny, dependency-free terminal styling toolkit shared by rpi-sdinfo.py and sdbench.py. Pure Python
+#   A tiny, dependency-free terminal styling toolkit shared by the rpi_sdinfo cli and bench modules. Pure Python
 #   standard library, so it runs anywhere CPython does (Raspberry Pi Linux, macOS, Windows).
 #
 #   Everything degrades gracefully: colour and Unicode box-drawing are used only when the output is an

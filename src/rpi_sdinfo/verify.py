@@ -2,7 +2,7 @@
 #
 # Author:       Mike Clements, Competitive Edge
 # Version:      0.2-20260705
-# File:         sdverify.py
+# File:         src/rpi_sdinfo/verify.py
 # License:      GNU GPL v3
 # Language:     Python 3.6 or later
 # Source:       https://github.com/mike548141/rpi
@@ -25,7 +25,7 @@
 #       true usable capacity.
 #     * Reads bypass the OS cache (F_NOCACHE on macOS, posix_fadvise(DONTNEED) on Linux) so we measure the
 #       device, not RAM - otherwise a fake would "pass" by serving the data we just wrote from the page
-#       cache. The IO helpers are shared with sdbench.py.
+#       cache. The IO helpers are shared with bench.py.
 #
 #   This is non-destructive to existing files (it only adds its own, then deletes them) but it does fill
 #   the card's free space and writes its full capacity once, so it takes time and adds a little flash wear.
@@ -41,10 +41,10 @@
 # power-of-two fake; an odd non-power-of-two wrap can still need the thorough free-space sweep above.
 #
 # Usage (standalone):
-#   python3 sdverify.py --dir /Volumes/CARD [--file-size-mb 1024] [--block-kb 4096] [--capacity-mb N] [--keep] [--json]
+#   rpi-sdverify --dir /Volumes/CARD [--file-size-mb 1024] [--block-kb 4096] [--capacity-mb N] [--keep] [--json]
 #     Non-destructive free-space fill sweep. --dir must be a mounted, writable path on the card under test.
 #     Without --capacity-mb the whole free space is swept; test files are removed unless --keep is given.
-#   python3 sdverify.py --device /dev/disk4 --yes [--capacity-mb N] [--block-kb 4096] [--json]
+#   rpi-sdverify --device /dev/disk4 --yes [--capacity-mb N] [--block-kb 4096] [--json]
 #     DESTRUCTIVE quick corners sweep of a raw block device. Overwrites the device; refuses a mounted one.
 #
 # Exit codes: 0 genuine (all written data verified) · 1 fraud/corruption detected · 2 usage/IO error
@@ -62,7 +62,7 @@ import time
 
 # Cache-bypassing IO primitives are shared with the benchmark so the two tools never diverge on how they
 # reach the device rather than RAM (_disable_cache, _evict_read_cache, portable _pread/_pwrite, O_BINARY)
-import sdbench
+from . import bench as sdbench
 
 #======================================
 # Constants

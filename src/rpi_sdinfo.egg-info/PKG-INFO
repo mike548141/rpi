@@ -1,3 +1,28 @@
+Metadata-Version: 2.4
+Name: rpi-sdinfo
+Version: 0.9.0
+Summary: Native, dependency-free SD/MMC card identity, benchmark and counterfeit detection (Raspberry Pi, macOS, Windows).
+Author: Mike Clements
+License: GPL-2.0-or-later
+Project-URL: Repository, https://github.com/mike548141/rpi
+Project-URL: Issues, https://github.com/mike548141/rpi/issues
+Keywords: sd-card,mmc,raspberry-pi,benchmark,counterfeit,fake-detection,storage,f3,h2testw
+Classifier: Development Status :: 4 - Beta
+Classifier: Environment :: Console
+Classifier: Intended Audience :: System Administrators
+Classifier: Intended Audience :: End Users/Desktop
+Classifier: License :: OSI Approved :: GNU General Public License v2 or later (GPLv2+)
+Classifier: Operating System :: POSIX :: Linux
+Classifier: Operating System :: MacOS
+Classifier: Operating System :: Microsoft :: Windows
+Classifier: Programming Language :: Python :: 3
+Classifier: Topic :: System :: Hardware
+Classifier: Topic :: Utilities
+Requires-Python: >=3.6
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Dynamic: license-file
+
 # rpi
 Raspberry Pi tools
 
@@ -6,9 +31,8 @@ If I make more tools then I will add them here, but currently this is just one t
 ## rpi-sdinfo
 A tool to (a) test the performance and integrity of SD/MMC cards, and (b) try to spot genuine vs fake cards by
 comparing what the card reports about itself against how it actually performs. Originally written in bash
-(`archive/rpi-sdinfo.sh`, kept for reference only); the developed version is the pure-Python `rpi_sdinfo` package,
-installable as the `rpi-sdinfo` command (see [Install](#install)). Still short of a tagged v1.0, but a solid,
-working start.
+(`archive/rpi-sdinfo.sh`, kept for reference only); the developed version is `rpi-sdinfo.py`. Still short of a tagged
+v1.0, but a solid, working start.
 
 If it proves useful the plan is a public service where everyone can share results to build a database of SD card
 identifiers, performance, and failure rates.
@@ -17,16 +41,16 @@ identifiers, performance, and failure rates.
 
 - Identifies the card: capacity, and on a Raspberry Pi the make / model / branding decoded from the CID/CSD
   registers, plus filesystem and IO statistics.
-- Benchmarks it with a **native, dependency-free** engine (the `rpi-sdbench` tool) — sequential write throughput
-  and random 4 KiB read/write IOPS. No `fio` (or any external tool) required.
+- Benchmarks it with a **native, dependency-free** engine (`sdbench.py`) — sequential write throughput and
+  random 4 KiB read/write IOPS. No `fio` (or any external tool) required.
 - Grades the measured performance against the card's rated speed class, falling back to **A1** (the Raspberry Pi
   baseline) when the class is unknown. Prints PASS/FAIL per metric and exits non-zero on failure, so it is usable
   in scripts.
-- **Unmasks fake cards** two ways (native `rpi-sdverify`, the pure-Python cousin of `f3` / `h2testw`):
+- **Unmasks fake cards** two ways (native `sdverify.py`, the pure-Python cousin of `f3` / `h2testw`):
   - **Thorough, non-destructive** (`--capacity-check`): fills the card's free space with offset-stamped data
     and reads it all back. A counterfeit that reports a huge size but has a small chip fails verification at its
     true capacity. Only adds its own test files and deletes them again.
-  - **Quick, destructive corners sweep** (`rpi-sdverify --device …`): probes block 0, every power-of-two offset,
+  - **Quick, destructive corners sweep** (`sdverify.py --device …`): probes block 0, every power-of-two offset,
     and the last block of the *reported* capacity. A fake truncates the block address at a power-of-two
     boundary, so block 0 and that boundary alias onto one physical cell — guaranteeing detection in ~log₂(N)
     probes (29 for a 512 GB card) instead of writing the whole card. Writes the raw device, so it is gated
@@ -51,79 +75,49 @@ identifiers, performance, and failure rates.
   removable flag (Windows does not expose the SD CID/CSD registers either); the benchmark and grading work
   normally. Point `--dir` at the card's drive, e.g. `--dir E:\`.
 
-Only the Python standard library is used — there are **no runtime dependencies** to `pip install` on any platform.
-
-### Install
-
-The recommended way is [`pipx`](https://pipx.pypa.io) (installs into an isolated environment and puts the
-commands on your `PATH`):
-
-```
-pipx install rpi-sdinfo          # once published to PyPI
-# or straight from the repo:
-pipx install git+https://github.com/mike548141/rpi
-```
-
-Or with plain `pip` (ideally in a virtualenv):
-
-```
-pip install rpi-sdinfo
-```
-
-This installs three commands — `rpi-sdinfo` (the full tool), `rpi-sdbench` (benchmark only) and `rpi-sdverify`
-(capacity-fraud sweep only). No install needed to try it from a clone — run the package directly:
-
-```
-git clone https://github.com/mike548141/rpi && cd rpi
-python3 -m rpi_sdinfo --help        # requires src/ on the path: see below
-PYTHONPATH=src python3 -m rpi_sdinfo --no-benchmark
-```
-
-(Once installed, drop the `PYTHONPATH=src` prefix — `rpi-sdinfo` / `python -m rpi_sdinfo` just work.)
+Only the Python standard library is used — nothing to `pip install` on any platform.
 
 ### Usage
 
-Examples use the installed `rpi-sdinfo` command; `python -m rpi_sdinfo` is equivalent everywhere.
-
 ```
 # Raspberry Pi (full detail; sudo to read the registers)
-sudo rpi-sdinfo
+sudo ./rpi-sdinfo.py
 
 # macOS (benchmark + whatever identity the reader exposes)
-rpi-sdinfo --dir /Volumes/MYCARD
+./rpi-sdinfo.py --dir /Volumes/MYCARD
 
 # Windows (from PowerShell / cmd)
-rpi-sdinfo --dir E:\
+python rpi-sdinfo.py --dir E:\
 
 # Just the card detail, no benchmark
-rpi-sdinfo --no-benchmark
+./rpi-sdinfo.py --no-benchmark
 
 # Machine-readable output for other tools / scripts
-rpi-sdinfo --json --dir /Volumes/MYCARD | jq .grade.pass
+./rpi-sdinfo.py --json --dir /Volumes/MYCARD | jq .grade.pass
 
 # Just an exit code (0 = PASS, 1 = FAIL) for automation
-rpi-sdinfo --quiet --dir /Volumes/MYCARD; echo $?
+./rpi-sdinfo.py --quiet --dir /Volumes/MYCARD; echo $?
 
 # Unmask a fake card: fill it, write + verify the whole capacity (slow; adds flash wear)
-rpi-sdinfo --dir /Volumes/MYCARD --capacity-check
+./rpi-sdinfo.py --dir /Volumes/MYCARD --capacity-check
 
 # Save every run to a local SQLite history (default ~/.rpi-sdinfo/results.db; pass a path to override)
-rpi-sdinfo --dir /Volumes/MYCARD --save-db
+./rpi-sdinfo.py --dir /Volumes/MYCARD --save-db
 
 # Summarise that history (every card tested, verdicts, and the fakes flagged) without testing a card
-rpi-sdinfo --db-query
+./rpi-sdinfo.py --db-query
 
 # Dump the verbatim sources (dumpe2fs / registers / decoded CSD / raw samples) when a field looks wrong
-sudo rpi-sdinfo --raw
+sudo ./rpi-sdinfo.py --raw
 
 # Just a native benchmark of a path, standalone
-rpi-sdbench --dir /Volumes/MYCARD
+./sdbench.py --dir /Volumes/MYCARD
 
 # Just a native capacity-fraud sweep of a path, standalone (non-destructive, fills free space)
-rpi-sdverify --dir /Volumes/MYCARD
+./sdverify.py --dir /Volumes/MYCARD
 
 # Quick fake sniff of a raw device (DESTRUCTIVE: overwrites the card; unmount it first)
-rpi-sdverify --device /dev/disk4 --yes
+./sdverify.py --device /dev/disk4 --yes
 ```
 
 Useful options: `--device`, `--partition`, `--dir`, `--runs`, `--size-mb`, `--seconds`, `--no-benchmark`,

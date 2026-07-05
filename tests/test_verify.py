@@ -5,8 +5,8 @@ import shutil
 import tempfile
 import unittest
 
-import _loader  # noqa: F401 - puts the repo root on sys.path
-import sdverify
+import _loader  # noqa: F401 - puts src/ on sys.path so rpi_sdinfo imports
+from rpi_sdinfo import verify as sdverify
 
 
 class PatternBlock(unittest.TestCase):

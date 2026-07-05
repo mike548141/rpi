@@ -10,19 +10,26 @@ import tempfile
 import unittest
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+SRC = os.path.join(ROOT, 'src')
+
+# Invoke the package modules with `python -m`, putting src/ on PYTHONPATH so this works without an
+# install. These are the same entry points the console scripts (rpi-sdinfo / rpi-sdbench / rpi-sdverify)
+# resolve to, so the smoke test exercises the shipped code paths.
+_MODULE = {'sdinfo': 'rpi_sdinfo', 'bench': 'rpi_sdinfo.bench', 'verify': 'rpi_sdinfo.verify'}
 
 
-def run(argv, timeout=60):
-  return subprocess.run([sys.executable] + argv, cwd=ROOT, capture_output=True,
-                        text=True, timeout=timeout)
+def run(tool, args, timeout=60):
+  env = dict(os.environ, PYTHONPATH=SRC + os.pathsep + os.environ.get('PYTHONPATH', ''))
+  return subprocess.run([sys.executable, '-m', _MODULE[tool]] + args, cwd=ROOT,
+                        capture_output=True, text=True, timeout=timeout, env=env)
 
 
 class SdbenchCli(unittest.TestCase):
   def test_json_output_contract(self):
     tmp = tempfile.mkdtemp()
     try:
-      proc = run(['sdbench.py', '--json', '--runs', '1', '--size-mb', '2',
-                  '--seconds', '1', '--dir', tmp])
+      proc = run('bench', ['--json', '--runs', '1', '--size-mb', '2',
+                           '--seconds', '1', '--dir', tmp])
       self.assertEqual(proc.returncode, 0, proc.stderr)
       doc = json.loads(proc.stdout)
       # Headline means for all three phases, each carrying a latency distribution (the 0.8 feature)
@@ -39,7 +46,7 @@ class SdverifyCli(unittest.TestCase):
     tmp = tempfile.mkdtemp()
     try:
       # A tiny 4 MB capped sweep of a real, genuine local filesystem must verify clean and exit 0
-      proc = run(['sdverify.py', '--json', '--capacity-mb', '4', '--dir', tmp])
+      proc = run('verify', ['--json', '--capacity-mb', '4', '--dir', tmp])
       self.assertEqual(proc.returncode, 0, proc.stderr)
       doc = json.loads(proc.stdout)
       self.assertTrue(doc['ok'], doc)
@@ -50,7 +57,7 @@ class SdverifyCli(unittest.TestCase):
 
 class SdinfoCli(unittest.TestCase):
   def test_help_runs(self):
-    proc = run(['rpi-sdinfo.py', '--help'])
+    proc = run('sdinfo', ['--help'])
     self.assertEqual(proc.returncode, 0, proc.stderr)
     self.assertIn('usage', proc.stdout.lower())
 
@@ -60,7 +67,7 @@ class SdinfoCli(unittest.TestCase):
     tmp = tempfile.mkdtemp()
     dbpath = os.path.join(tmp, 'results.db')
     try:
-      proc = run(['rpi-sdinfo.py', '--db-query', dbpath, '--json'])
+      proc = run('sdinfo', ['--db-query', dbpath, '--json'])
       self.assertEqual(proc.returncode, 2, proc.stderr)
       self.assertNotIn('Traceback', proc.stderr)
       self.assertIn('database', (proc.stdout + proc.stderr).lower())

@@ -2,7 +2,7 @@
 #
 # Author:       Mike Clements, Competitive Edge
 # Version:      0.8-20260705
-# File:         rpi-sdinfo.py
+# File:         src/rpi_sdinfo/cli.py
 # License:      GNU GPL v3
 # Language:     Python 3.6 or later
 # Source:       https://github.com/mike548141/sdinfo/
@@ -30,7 +30,7 @@
 #     2  usage error or unsupported platform
 #
 # Pre-requisite:
-#   Performance testing is now native Python (see sdbench.py) - no external fio dependency. Nothing to install.
+#   Performance testing is now native Python (see bench.py) - no external fio dependency. Nothing to install.
 #
 # References:
 #
@@ -94,14 +94,13 @@ import sys
 # Benchmark target directory default
 import tempfile
 
-# Native, dependency-free performance benchmark (replaces fio). Ships alongside this script
-import sdbench
-
-# Native, dependency-free capacity-fraud sweep (f3/h2testw style). Ships alongside this script
-import sdverify
-
-# Shared, dependency-free terminal styling (colour, sections, badges, spinner). Ships alongside this script
-import ui
+# Sibling package modules. Aliased to their historical names so the call sites below read unchanged:
+#   bench   - native, dependency-free performance benchmark (replaces fio)
+#   verify  - native, dependency-free capacity-fraud sweep (f3/h2testw style)
+#   ui      - shared, dependency-free terminal styling (colour, sections, badges, spinner)
+from . import bench as sdbench
+from . import verify as sdverify
+from . import ui
 
 #======================================
 # Declare the constants
@@ -109,7 +108,7 @@ import ui
 
 # Tool version and the version of the JSON document shape emitted by --format json. Bump SCHEMA only on a
 # breaking change to the JSON structure so downstream consumers can rely on it
-VERSION = '0.9-20260706'
+from . import __version__ as VERSION
 SCHEMA = 'rpi-sdinfo/1'
 
 # The default Linux device for the MMC or SD card (overridable with --device; the partition defaults to <device>p2)
@@ -572,7 +571,7 @@ def best_median(values, higher_is_better=True):
 # CSD register decode + CID/CSD cross-checks (fake detection from metadata alone)
 #--------------------------------------
 #
-# The capacity sweep (sdverify.py) proves a card's real size by writing to it. This does the complementary,
+# The capacity sweep (verify.py) proves a card's real size by writing to it. This does the complementary,
 # instant, non-destructive check: decode what the card *claims* about itself in the CSD register and flag
 # internal contradictions. The strongest tell is a Standard-Capacity (v1.0) CSD that claims a High/eXtended
 # capacity - physically impossible per the SD spec, so a dead giveaway that a small card's firmware was
@@ -1141,7 +1140,7 @@ def _render_linux_stats(console, sys_info):
   console.kv('Disk writes', f_num(disk['write_completed']) + ' ops ' + console.g['dot'] + ' ' + f_num(disk['write_avg_mbps'], 1) + ' MBps ' + console.g['dot'] + ' ' + f_num(disk['write_avg_iops']) + ' IOPS')
 
 #======================================
-# Performance test (native, see sdbench.py)
+# Performance test (native, see bench.py)
 #--------------------------------------
 
 def compute_perf(sys_info, args, spinner, progress):
@@ -1256,7 +1255,7 @@ def render_grade(console, sys_info):
     console.box('FAIL  ' + console.g['dot'] + '  slower than rated ' + grade['graded_against'] + ' (worn, misbranded, or fake)', 'fail')
 
 #======================================
-# Capacity-fraud sweep (native, see sdverify.py)
+# Capacity-fraud sweep (native, see verify.py)
 #--------------------------------------
 
 def _human_bytes(num_bytes):

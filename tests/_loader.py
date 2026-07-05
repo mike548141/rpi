@@ -1,21 +1,18 @@
-# Shared test helper: import the three tool modules from the repo root.
-# rpi-sdinfo.py has a hyphen in its name, so it cannot be imported with a plain
-# `import`; load it by path via importlib. sdbench / sdverify import normally.
-import importlib.util
+# Shared test helper. Puts the src/ layout on sys.path so the `rpi_sdinfo` package imports whether or
+# not it has been pip-installed, then exposes its modules to the test suite. Importing this module has
+# the side effect of making `from rpi_sdinfo import ...` work, so test modules import it first.
 import os
 import sys
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if _ROOT not in sys.path:
-  sys.path.insert(0, _ROOT)
+_SRC = os.path.join(_ROOT, 'src')
+if _SRC not in sys.path:
+  sys.path.insert(0, _SRC)
 
 
 def load_sdinfo():
-  path = os.path.join(_ROOT, 'rpi-sdinfo.py')
-  spec = importlib.util.spec_from_file_location('rpi_sdinfo', path)
-  module = importlib.util.module_from_spec(spec)
-  spec.loader.exec_module(module)
-  return module
+  from rpi_sdinfo import cli
+  return cli
 
 
 def build_csd(structure, tran_speed=0x32, read_bl_len=9, c_size=0, c_size_mult=7, ccc=0x5B5):

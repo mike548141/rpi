@@ -2,7 +2,7 @@
 #
 # Author:       Mike Clements, Competitive Edge
 # Version:      0.3-20260705
-# File:         sdbench.py
+# File:         src/rpi_sdinfo/bench.py
 # License:      GNU GPL v3
 # Language:     Python 3.6 or later
 # Source:       https://github.com/mike548141/rpi
@@ -21,11 +21,11 @@
 #     * Windows - no user-space cache-bypass flag, so writes use O_DSYNC-equivalent fsync durability and the
 #                 numbers lean a little optimistic on reads; still enough to spot a slow or fake card.
 #   The numbers are good enough to tell a genuine class-10/A1 card from a slow or counterfeit one, which is
-#   all rpi-sdinfo needs. For the capacity-fraud (fake-card) sweep see sdverify.py; ROADMAP.md tracks the path
+#   all rpi-sdinfo needs. For the capacity-fraud (fake-card) sweep see verify.py; ROADMAP.md tracks the path
 #   to a true O_DIRECT benchmark.
 #
 # Usage (standalone):
-#   python3 sdbench.py [--dir /var/tmp] [--runs 3] [--size-mb 64] [--seconds 10] [--json]
+#   rpi-sdbench [--dir /var/tmp] [--runs 3] [--size-mb 64] [--seconds 10] [--json]
 #   The test file is created in --dir (default the system temp dir) and removed afterwards. Point --dir at a
 #   path on the card you want to test. --json prints machine-readable results to stdout.
 
@@ -286,7 +286,7 @@ def main(argv=None):
   args = parser.parse_args(argv)
 
   # In JSON mode stdout must carry only the JSON document, so all human progress goes to stderr
-  import ui
+  from . import ui
   status = ui.Console(sys.stderr if args.json else sys.stdout)
   spinner = ui.Spinner(status)
 

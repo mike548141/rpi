@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rpi-sdinfo"
+description = "Native, dependency-free SD/MMC card identity, benchmark and counterfeit detection (Raspberry Pi, macOS, Windows)."
+readme = "README.md"
+requires-python = ">=3.6"
+license = { text = "GPL-2.0-or-later" }
+authors = [{ name = "Mike Clements" }]
+keywords = ["sd-card", "mmc", "raspberry-pi", "benchmark", "counterfeit", "fake-detection", "storage", "f3", "h2testw"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Environment :: Console",
+  "Intended Audience :: System Administrators",
+  "Intended Audience :: End Users/Desktop",
+  "License :: OSI Approved :: GNU General Public License v2 or later (GPLv2+)",
+  "Operating System :: POSIX :: Linux",
+  "Operating System :: MacOS",
+  "Operating System :: Microsoft :: Windows",
+  "Programming Language :: Python :: 3",
+  "Topic :: System :: Hardware",
+  "Topic :: Utilities",
+]
+# No runtime dependencies - standard library only, by design.
+dependencies = []
+dynamic = ["version"]
+
+[project.urls]
+Repository = "https://github.com/mike548141/rpi"
+Issues = "https://github.com/mike548141/rpi/issues"
+
+[project.scripts]
+rpi-sdinfo = "rpi_sdinfo.cli:main"
+rpi-sdbench = "rpi_sdinfo.bench:main"
+rpi-sdverify = "rpi_sdinfo.verify:main"
+
+[tool.setuptools.dynamic]
+version = { attr = "rpi_sdinfo.__version__" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
