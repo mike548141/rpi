@@ -76,6 +76,15 @@ python rpi-sdinfo.py --dir E:\
 # Unmask a fake card: fill it, write + verify the whole capacity (slow; adds flash wear)
 ./rpi-sdinfo.py --dir /Volumes/MYCARD --capacity-check
 
+# Save every run to a local SQLite history (default ~/.rpi-sdinfo/results.db; pass a path to override)
+./rpi-sdinfo.py --dir /Volumes/MYCARD --save-db
+
+# Summarise that history (every card tested, verdicts, and the fakes flagged) without testing a card
+./rpi-sdinfo.py --db-query
+
+# Dump the verbatim sources (dumpe2fs / registers / decoded CSD / raw samples) when a field looks wrong
+sudo ./rpi-sdinfo.py --raw
+
 # Just a native benchmark of a path, standalone
 ./sdbench.py --dir /Volumes/MYCARD
 
@@ -87,8 +96,8 @@ python rpi-sdinfo.py --dir E:\
 ```
 
 Useful options: `--device`, `--partition`, `--dir`, `--runs`, `--size-mb`, `--seconds`, `--no-benchmark`,
-`--capacity-check`, `--capacity-mb`, `--yes`, `--format text|json` (or `--json`), `--quiet`,
-`--color`/`--no-color`, `--version` (`--help` for the full list). Colour follows the
+`--capacity-check`, `--capacity-mb`, `--yes`, `--format text|json` (or `--json`), `--quiet`, `--raw`,
+`--save-db [PATH]`, `--db-query [PATH]`, `--color`/`--no-color`, `--version` (`--help` for the full list). Colour follows the
 [`NO_COLOR`](https://no-color.org) and `CLICOLOR_FORCE` conventions and switches itself off when output is piped
 or redirected.
 
@@ -111,6 +120,28 @@ bad offset if any, a usable-capacity estimate, and `capacity.ok`). On a Raspberr
 (`findings` with per-issue severity, and `consistency.ok`) plus the decoded CSD under `storage.csd_decoded`.
 Progress and any messages go to stderr, never stdout. `SCHEMA` is bumped only on a breaking change to the shape, so consumers can pin to it. `sdbench.py
 --json` and `sdverify.py --json` each emit their own standalone JSON.
+
+Add `--raw` for a `raw` block carrying the verbatim sources (full `dumpe2fs` / `diskutil` record, raw
+`/proc` reads) alongside the decoded CSD and every per-run benchmark sample — off by default so the contract
+above stays clean.
+
+### Building a history (`--save-db`)
+
+`--save-db [PATH]` appends each run to a local SQLite database (default `~/.rpi-sdinfo/results.db`), created on
+first use. One row per run: the full JSON document verbatim in a `document` column, plus typed columns you can
+query directly — identity (`card_label`, `manufacturer`, `cid_psn`), `capacity_gb`, measured performance
+(`seq_write_mbps`, `rand_write_iops`, `rand_read_iops`), `csd_capacity_type`, and the pass/fail flags
+(`grade_pass`, `capacity_ok`, `consistency_ok`, `overall_pass`). So `SELECT card_label, overall_pass FROM runs
+WHERE overall_pass = 0` lists every card that failed a test. The DB is **local-only** and keeps the real
+serial/MACs; a save failure warns but never changes the exit code. It's the seed of the crowd-sourced card
+database on the roadmap — sharing it needs a stronger anonymisation scheme first.
+
+Read it back with `--db-query` (no card needed): totals, a per-card table (grouped by label + CID serial, with
+run count, latest verdict, best sequential write and rated class), and every flagged run with a plain-English
+reason. `--db-query --json` emits the same summary as one document for scripting. The benchmark also records the
+full latency distribution (mean, p50/p95/p99, min/max in ms) per phase — shown by `sdbench.py` directly, carried
+in the JSON `benchmark` block, and dumped by `--raw` — because the tail latency is what a worn or fake card
+betrays even when its mean looks fine.
 
 ### More
 

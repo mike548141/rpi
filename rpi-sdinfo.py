@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 #
 # Author:       Mike Clements, Competitive Edge
-# Version:      0.7-20260705
+# Version:      0.8-20260705
 # File:         rpi-sdinfo.py
 # License:      GNU GPL v3
 # Language:     Python 3.6 or later
@@ -82,6 +82,9 @@ import re
 # Advanced math
 import statistics
 
+# Optional persist-a-run-to-a-local-database (--save-db)
+import sqlite3
+
 # Run external commands (dumpe2fs on Linux, diskutil on macOS)
 import subprocess
 
@@ -106,11 +109,15 @@ import ui
 
 # Tool version and the version of the JSON document shape emitted by --format json. Bump SCHEMA only on a
 # breaking change to the JSON structure so downstream consumers can rely on it
-VERSION = '0.7-20260705'
+VERSION = '0.8-20260705'
 SCHEMA = 'rpi-sdinfo/1'
 
 # The default Linux device for the MMC or SD card (overridable with --device; the partition defaults to <device>p2)
 block_device = 'mmcblk0'
+
+# Where --save-db writes when no path is given: a per-user database that accumulates every run (the local seed of
+# the crowd-sourced card database in ROADMAP). Kept out of the working directory so repeated runs pile into one file
+default_db = os.path.join(os.path.expanduser('~'), '.rpi-sdinfo', 'results.db')
 
 # The total number of performance tests to run to ensure a consistent result (overridable with --runs)
 max_runs = 6
@@ -656,11 +663,16 @@ def gather_linux(args):
   device = args.device or block_device
   partition = args.partition or (device + 'p2')
 
-  # Load the source files once, up front, so the data is internally consistent and not read twice
-  fs_info = parse_kv(subprocess.run(['/sbin/dumpe2fs', '-h', '/dev/' + partition], capture_output=True, encoding='utf-8', text=True, timeout=5).stdout.split('\n'))
-  load_avg = read_file('/proc/loadavg').split()
-  mem_info = parse_kv(read_file('/proc/meminfo').split('\n'))
-  disk_stats = read_file('/proc/diskstats', ' ' + device + ' ', 'regex').split()
+  # Load the source files once, up front, so the data is internally consistent and not read twice. Keep the raw
+  # text of each source so --raw can dump it verbatim for debugging (parsing bugs, unexpected label spellings)
+  dumpe2fs_raw = subprocess.run(['/sbin/dumpe2fs', '-h', '/dev/' + partition], capture_output=True, encoding='utf-8', text=True, timeout=5).stdout
+  loadavg_raw = read_file('/proc/loadavg')
+  meminfo_raw = read_file('/proc/meminfo')
+  diskstats_raw = read_file('/proc/diskstats', ' ' + device + ' ', 'regex')
+  fs_info = parse_kv(dumpe2fs_raw.split('\n'))
+  load_avg = loadavg_raw.split()
+  mem_info = parse_kv(meminfo_raw.split('\n'))
+  disk_stats = diskstats_raw.split()
   # Fixed application salt so the anonymised device uuid is stable across runs (a random salt would make it useless as a shared-database identifier). See ROADMAP for a stronger scheme
   salt = b'rpi-sdinfo/device-uuid/v1'
   serial = read_file('/sys/firmware/devicetree/base/serial-number', '\x00')
@@ -783,6 +795,15 @@ def gather_linux(args):
   disk['read_avg_iops'] = safe_div(disk['read_completed'], disk['read_time'] / 1000)
   disk['write_avg_mbps'] = safe_div(disk['write_sectors'] * block_size / 1000000, disk['write_time'] / 1000)
   disk['write_avg_iops'] = safe_div(disk['write_completed'], disk['write_time'] / 1000)
+
+  # --raw: keep the unparsed sources so a debugging run can show exactly what the kernel reported, warts and all
+  if args.raw:
+    sys_info['raw'] = {
+      'dumpe2fs': dumpe2fs_raw,
+      'proc_loadavg': loadavg_raw,
+      'proc_meminfo': meminfo_raw,
+      'proc_diskstats': diskstats_raw,
+    }
   return sys_info
 
 #======================================
@@ -853,6 +874,9 @@ def gather_macos(args):
       'cid_psn' : '', 'cid_mdt' : '', 'cid_prv_fw' : ''
     }
   }
+  # --raw: the whole diskutil record is the raw source on macOS (bytes/datetime values coerced to str for JSON)
+  if args.raw:
+    sys_info['raw'] = {'diskutil': {k: str(v) for k, v in info.items()}}
   return sys_info
 
 def _sysctl(name):
@@ -931,6 +955,9 @@ def gather_windows(args):
       'cid_psn' : '', 'cid_mdt' : '', 'cid_prv_fw' : ''
     }
   }
+  # --raw: the Win32 volume query plus the disk-usage total are the raw source on Windows
+  if args.raw:
+    sys_info['raw'] = {'volume': vol, 'disk_total_bytes': total}
   return sys_info
 
 #======================================
@@ -1027,6 +1054,46 @@ def render_consistency(console, sys_info):
     console.line(console.badge(finding['severity'].upper(), kind) + ' ' + finding['message'])
   if decoded and not findings:
     console.line(console.badge('OK', 'pass') + ' CSD, capacity and branding are internally consistent')
+
+def render_raw(console, sys_info):
+  # --raw debug dump: the decoded CSD, every unparsed source we read, and the raw per-run benchmark samples. This
+  # is the verbatim detail behind the friendly report - the first thing to reach for when a parse looks wrong
+  console.section('Raw', note='verbatim sources for debugging')
+
+  decoded = sys_info.get('storage', {}).get('csd_decoded')
+  if decoded:
+    console.kv('CSD decoded', '', label_style='grey')
+    for key in sorted(decoded):
+      console.line(console.style((str(key) + ':').ljust(20), 'grey') + str(decoded[key]), indent=4)
+
+  perf = sys_info.get('perf')
+  if perf:
+    console.kv('Benchmark samples', '', label_style='grey')
+    console.line(console.style('seq write MBps:  ', 'grey') + '  '.join(f_num(v, 1) for v in perf['write']['seq_mbps']), indent=4)
+    console.line(console.style('rand write IOPS: ', 'grey') + '  '.join(f_num(v, 0) for v in perf['write']['rand_4kb_iops']), indent=4)
+    console.line(console.style('rand read IOPS:  ', 'grey') + '  '.join(f_num(v, 0) for v in perf['read']['rand_4kb_iops']), indent=4)
+
+    # Latency distribution (ms per op) - the tail a mean hides, aggregated across every run
+    console.kv('Benchmark latency', 'ms per op, aggregated across runs', label_style='grey')
+    phases = (('seq write ', perf['write'].get('seq_latency_pct', [])),
+              ('rand write', perf['write'].get('rand_4kb_latency_pct', [])),
+              ('rand read ', perf['read'].get('rand_4kb_latency_pct', [])))
+    for label, pct_list in phases:
+      lat = sdbench.aggregate_latency(pct_list)
+      console.line(console.style(label + ':  ', 'grey')
+                   + 'p50 ' + f_num(lat['p50_ms'], 2) + '  ' + console.g['dot']
+                   + ' p95 ' + f_num(lat['p95_ms'], 2) + '  ' + console.g['dot']
+                   + ' p99 ' + f_num(lat['p99_ms'], 2) + '  ' + console.g['dot']
+                   + ' max ' + f_num(lat['max_ms'], 2), indent=4)
+
+  for name, value in sys_info.get('raw', {}).items():
+    console.kv(name, '', label_style='grey')
+    if isinstance(value, dict):
+      for key in value:
+        console.line(console.style((str(key) + ':').ljust(20), 'grey') + str(value[key]), indent=4)
+    else:
+      for text_line in str(value).rstrip('\n').split('\n'):
+        console.line(console.style(text_line, 'grey'), indent=4)
 
 def _render_linux_stats(console, sys_info):
   cpu = sys_info['stats']['cpu']
@@ -1255,7 +1322,172 @@ def build_json(sys_info):
     doc['capacity'] = sys_info['capacity']
   if 'consistency' in sys_info:
     doc['consistency'] = sys_info['consistency']
+  if 'raw' in sys_info:
+    doc['raw'] = sys_info['raw']
   return doc
+
+#======================================
+# Persist a run to a local SQLite database (--save-db)
+#--------------------------------------
+
+# One row per run. The full JSON document is stored verbatim in `document`; the rest are pulled out as typed
+# columns so the DB is queryable (e.g. every fake ever seen, or all runs for one card serial) without parsing
+# JSON in SQL. (name, SQLite type-affinity) pairs, in insert order
+DB_COLUMNS = (
+  ('generated', 'TEXT'), ('tool_version', 'TEXT'), ('schema', 'TEXT'), ('platform', 'TEXT'),
+  ('host_uuid', 'TEXT'), ('device', 'TEXT'), ('card_label', 'TEXT'), ('card_type', 'TEXT'),
+  ('manufacturer', 'TEXT'), ('oem', 'TEXT'), ('cid_psn', 'TEXT'), ('cid_mdt', 'TEXT'),
+  ('capacity_gb', 'REAL'), ('speed_class', 'TEXT'), ('csd_capacity_type', 'TEXT'), ('csd_capacity_gb', 'REAL'),
+  ('seq_write_mbps', 'REAL'), ('rand_write_iops', 'REAL'), ('rand_read_iops', 'REAL'),
+  ('grade_pass', 'INTEGER'), ('graded_against', 'TEXT'), ('capacity_ok', 'INTEGER'),
+  ('consistency_ok', 'INTEGER'), ('overall_pass', 'INTEGER'), ('document', 'TEXT'),
+)
+DB_COLUMN_NAMES = tuple(name for name, _ in DB_COLUMNS)
+
+def _db_row(sys_info, overall_pass):
+  # Flatten the gathered result into the DB_COLUMNS. Everything is .get()-guarded so a --no-benchmark run, or a
+  # macOS/Windows run with no registers, still stores a clean partial row rather than crashing
+  storage = sys_info.get('storage', {})
+  perf = sys_info.get('perf', {})
+  grade = sys_info.get('grade', {})
+  decoded = storage.get('csd_decoded') or {}
+  bool_or_none = lambda flag: (1 if flag else 0) if flag is not None else None
+  return {
+    'generated': sys_info.get('generated'),
+    'tool_version': VERSION,
+    'schema': SCHEMA,
+    'platform': sys_info.get('platform'),
+    'host_uuid': sys_info.get('hardware', {}).get('uuid') or None,
+    'device': sys_info.get('device'),
+    'card_label': storage.get('label'),
+    'card_type': storage.get('type'),
+    'manufacturer': storage.get('manufacturer'),
+    'oem': storage.get('oem'),
+    'cid_psn': storage.get('cid_psn') or None,
+    'cid_mdt': storage.get('cid_mdt') or None,
+    'capacity_gb': storage.get('GB'),
+    'speed_class': ', '.join(storage.get('speed_class', [])) or None,
+    'csd_capacity_type': decoded.get('capacity_type'),
+    'csd_capacity_gb': (decoded['capacity_bytes'] / 1000 ** 3) if decoded.get('capacity_bytes') else None,
+    'seq_write_mbps': perf.get('write', {}).get('seq_mbps_result'),
+    'rand_write_iops': perf.get('write', {}).get('rand_4kb_iops_result'),
+    'rand_read_iops': perf.get('read', {}).get('rand_4kb_iops_result'),
+    'grade_pass': bool_or_none(grade.get('pass')) if grade else None,
+    'graded_against': grade.get('graded_against'),
+    'capacity_ok': bool_or_none(sys_info['capacity']['ok']) if 'capacity' in sys_info else None,
+    'consistency_ok': bool_or_none(sys_info['consistency']['ok']) if 'consistency' in sys_info else None,
+    'overall_pass': bool_or_none(overall_pass),
+    'document': json.dumps(build_json(sys_info), default=str),
+  }
+
+def save_to_db(path, sys_info, overall_pass):
+  # Append this run to a local SQLite database, creating it (and its parent directory) on first use. The DB is
+  # local-only, so it keeps the real serial/MACs - the anonymisation caveat in ROADMAP applies only to upload
+  directory = os.path.dirname(path)
+  if directory:
+    os.makedirs(directory, exist_ok=True)
+  row = _db_row(sys_info, overall_pass)
+  columns = ', '.join(DB_COLUMN_NAMES)
+  placeholders = ', '.join(':' + name for name in DB_COLUMN_NAMES)
+  schema = ', '.join(name + ' ' + kind for name, kind in DB_COLUMNS)
+  with sqlite3.connect(path) as conn:
+    conn.execute('CREATE TABLE IF NOT EXISTS runs (id INTEGER PRIMARY KEY AUTOINCREMENT, ' + schema + ')')
+    conn.execute('INSERT INTO runs (' + columns + ') VALUES (' + placeholders + ')', row)
+  return path
+
+def query_db(path):
+  # Summarise the saved run history: totals, and one grouped row per distinct card (by label + CID serial) with
+  # its run count, best sequential write, latest verdict, plus every failing run. Returns None if the DB has no
+  # runs table yet (created by --save-db). Raises sqlite3.Error on a corrupt/unreadable file
+  conn = sqlite3.connect(path)
+  conn.row_factory = sqlite3.Row
+  try:
+    if not conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='runs'").fetchone():
+      return None
+    total = conn.execute('SELECT count(*) FROM runs').fetchone()[0]
+    passed = conn.execute('SELECT count(*) FROM runs WHERE overall_pass = 1').fetchone()[0]
+    failed = conn.execute('SELECT count(*) FROM runs WHERE overall_pass = 0').fetchone()[0]
+    period = conn.execute('SELECT min(generated), max(generated) FROM runs').fetchone()
+    # min(overall_pass) over a card's runs is 0 if it ever failed, so it doubles as an "ever failed?" flag
+    cards = conn.execute(
+      'SELECT card_label, cid_psn, count(*) AS runs, max(generated) AS last_seen, '
+      'max(seq_write_mbps) AS best_seq, min(overall_pass) AS all_pass, '
+      'max(capacity_gb) AS capacity_gb, max(speed_class) AS speed_class '
+      'FROM runs GROUP BY card_label, cid_psn ORDER BY last_seen DESC').fetchall()
+    flagged = conn.execute(
+      'SELECT generated, card_label, cid_psn, grade_pass, capacity_ok, consistency_ok '
+      'FROM runs WHERE overall_pass = 0 ORDER BY generated DESC').fetchall()
+    return {
+      'path': path, 'total': total, 'passed': passed, 'failed': failed,
+      'cards_count': len(cards), 'first': period[0], 'last': period[1],
+      'cards': [dict(row) for row in cards], 'flagged': [dict(row) for row in flagged],
+    }
+  finally:
+    conn.close()
+
+def _flag_reason(record):
+  # Turn a failing run's pass/fail columns into a human reason. grade/capacity/consistency map to the three tests
+  reasons = []
+  if record.get('grade_pass') == 0:
+    reasons.append('too slow')
+  if record.get('capacity_ok') == 0:
+    reasons.append('capacity fraud')
+  if record.get('consistency_ok') == 0:
+    reasons.append('CSD/CID inconsistent')
+  return ', '.join(reasons) or 'failed'
+
+def render_db_summary(console, data):
+  console.section('Database', note=data['path'])
+  console.kv('Runs recorded', f_num(data['total']))
+  console.kv('Distinct cards', f_num(data['cards_count']))
+  if data['total']:
+    console.kv('Period', (data['first'] or '?') + ' ' + console.g['dot'] + ' ' + (data['last'] or '?'))
+    console.kv('Verdict', console.badge('PASS', 'pass') + ' ' + f_num(data['passed']) + '   '
+               + console.badge('FAIL', 'fail') + ' ' + f_num(data['failed']))
+
+  if data['cards']:
+    console.section('Cards', note='most recently tested first')
+    for card in data['cards']:
+      verdict = console.badge('PASS', 'pass') if card['all_pass'] else console.badge('FAIL', 'fail')
+      label = (card['card_label'] or 'unknown')
+      if card['cid_psn']:
+        label += ' (' + card['cid_psn'] + ')'
+      note = f_num(card['runs']) + '× ' + console.g['dot'] + ' last ' + (card['last_seen'] or '?')[:10]
+      if card['best_seq']:
+        note += ' ' + console.g['dot'] + ' best ' + f_num(card['best_seq'], 1) + ' MBps'
+      if card['speed_class']:
+        note += ' ' + console.g['dot'] + ' ' + card['speed_class']
+      console.kv(label, verdict, width=28, value_style=None, note=note)
+
+  if data['flagged']:
+    console.section('Flagged runs', note='failed a test - suspect worn, misbranded, or fake')
+    for record in data['flagged']:
+      label = (record['card_label'] or 'unknown')
+      if record['cid_psn']:
+        label += ' (' + record['cid_psn'] + ')'
+      console.line(console.badge('FAIL', 'fail') + ' ' + (record['generated'] or '?')[:10] + '  '
+                   + label + ' ' + console.g['dot'] + ' ' + console.style(_flag_reason(record), 'yellow'))
+
+def run_db_query(path, out, errs, json_mode):
+  # Handle --db-query: print a summary of the saved history and exit, without testing a card
+  if not os.path.exists(path):
+    errs.out(errs.badge('FAIL', 'fail') + ' No database at ' + path + ' yet - run with --save-db first.')
+    return 2
+  try:
+    data = query_db(path)
+  except sqlite3.Error as error:
+    errs.out(errs.badge('FAIL', 'fail') + ' Could not read the database ' + path + ': ' + str(error))
+    return 2
+  if data is None:
+    errs.out(errs.badge('FAIL', 'fail') + ' ' + path + ' has no rpi-sdinfo run history yet.')
+    return 2
+  if json_mode:
+    print(json.dumps(data, indent=2, default=str))
+  else:
+    out.banner('rpi-sdinfo ' + VERSION, 'saved run history')
+    render_db_summary(out, data)
+    out.out('')
+  return 0
 
 #======================================
 # Main
@@ -1276,6 +1508,9 @@ def parse_args(argv=None):
   parser.add_argument('--format', choices=['text', 'json'], default='text', help='Output format (default: %(default)s). json emits the full result on stdout for other tools')
   parser.add_argument('--json', action='store_const', const='json', dest='format', help='Shortcut for --format json')
   parser.add_argument('--quiet', action='store_true', help='Suppress the report; exit code still reflects PASS/FAIL (handy in scripts)')
+  parser.add_argument('--raw', action='store_true', help='Also dump the verbatim sources (full dumpe2fs / registers / diskutil, decoded CSD, raw benchmark samples) for debugging - a RAW report section, and a "raw" block in --json')
+  parser.add_argument('--save-db', nargs='?', const=default_db, default=None, metavar='PATH', help='Append this run to a local SQLite database (default: ' + default_db + '). Builds a queryable history of every card tested; local-only, so decide what is safe before sharing it')
+  parser.add_argument('--db-query', nargs='?', const=default_db, default=None, metavar='PATH', help='Summarise the saved run history from a local SQLite database (default: ' + default_db + ') and exit, instead of testing a card. Honours --json')
   color = parser.add_mutually_exclusive_group()
   color.add_argument('--color', dest='color', action='store_const', const=True, help='Force colour output (also: CLICOLOR_FORCE=1)')
   color.add_argument('--no-color', dest='color', action='store_const', const=False, help='Disable colour output (also: NO_COLOR=1)')
@@ -1310,6 +1545,10 @@ def main(argv=None):
   else:
     progress = out
   spinner = ui.Spinner(progress)
+
+  # --db-query short-circuits: summarise the saved history and exit, no card required
+  if args.db_query is not None:
+    return run_db_query(args.db_query, out, errs, json_mode)
 
   sys_info = gather(args)
   if sys_info is None:
@@ -1354,6 +1593,10 @@ def main(argv=None):
       if render:
         render_capacity(out, sys_info)
 
+  # --raw debug dump goes last in the text report, after the friendly sections it explains
+  if render and args.raw:
+    render_raw(out, sys_info)
+
   if json_mode:
     print(json.dumps(build_json(sys_info), indent=2, default=str))
   elif not args.quiet:
@@ -1368,6 +1611,17 @@ def main(argv=None):
     failed = failed or not sys_info['capacity']['ok']
   if 'consistency' in sys_info:
     failed = failed or not sys_info['consistency']['ok']
+
+  # Optional persist-to-SQLite. Runs after grading so pass/fail is known; a save failure warns but never changes
+  # the exit code (the card verdict is what the exit code means, not whether the DB write worked)
+  if args.save_db:
+    status = errs if json_mode else progress
+    try:
+      saved = save_to_db(args.save_db, sys_info, not failed)
+      status.out(status.badge('OK', 'pass') + ' Saved this run to ' + saved)
+    except (sqlite3.Error, OSError) as error:
+      errs.out(errs.badge('WARN', 'warn') + ' Could not save to the database ' + args.save_db + ': ' + str(error))
+
   return 1 if failed else 0
 
 if __name__ == '__main__':

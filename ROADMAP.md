@@ -77,6 +77,32 @@ The bash original (`archive/rpi-sdinfo.sh`) is kept for reference only and is no
   verified to fail a reflashed-fake vector and pass a genuine card. No-op (and silent) on macOS / Windows, which
   cannot read the register.
 
+## Done in 0.8
+
+- **`--raw` debug dump.** Captures the verbatim sources behind the friendly report - on Linux the full `dumpe2fs`
+  output plus raw `/proc/loadavg`, `/proc/meminfo` and the `/proc/diskstats` line; on macOS the whole `diskutil`
+  record; on Windows the Win32 volume query. Rendered as a `RAW` report section (with the decoded CSD fields and
+  the raw per-run benchmark samples) and carried as a `raw` block in `--format json`. Off by default so normal
+  output and the JSON contract stay clean; the raw block only appears when `--raw` is passed.
+- **SQLite persistence.** `--save-db [PATH]` appends the run to a local SQLite database (default
+  `~/.rpi-sdinfo/results.db`), creating the file and its directory on first use. One row per run: the full JSON
+  document verbatim in a `document` column, plus typed, queryable columns (identity, capacity, measured
+  performance, CSD capacity type, and every pass/fail flag) so a history of tested cards - genuine and fake - can
+  be queried without parsing JSON in SQL. Local-only, so it keeps the real serial/MACs; a save failure warns but
+  never changes the card's exit code. The local seed of the crowd-sourced database below (upload still gated on a
+  stronger anonymisation scheme).
+- **`--db-query [PATH]` history summary.** Reads the saved database instead of testing a card and prints totals
+  (runs, distinct cards, period, pass/fail), a per-card table (grouped by label + CID serial, with run count,
+  latest verdict, best sequential write and rated class), and a list of every flagged run with a plain-English
+  reason (too slow / capacity fraud / CSD-CID inconsistent). Honours `--json`.
+- **Latency percentiles.** `sdbench` now keeps every per-operation latency and reports the distribution
+  (mean, p50/p95/p99, min/max in ms) per phase, not just the mean - the tail is what a worn or fake card exposes.
+  Surfaced in `sdbench`'s own text/JSON output, in the run's `benchmark` block (`*_latency_pct`), and in the
+  `rpi-sdinfo --raw` dump. Percentile helper avoids `statistics.quantiles` so the 3.6 floor holds.
+- Verified end-to-end on macOS: `--raw` text/JSON, the raw block's presence gating, two runs (a graded benchmark
+  and a `--no-benchmark` run) persisting clean full/partial rows with numeric columns intact, the latency
+  distribution, and `--db-query` text/JSON including the flagged-run list (exercised with an injected fake row).
+
 ## Next up (v1.0 blockers)
 
 - **Not yet hardware-tested on a Pi.** The macOS path is exercised end-to-end; the Linux `gather_linux()` path
@@ -116,8 +142,8 @@ The bash original (`archive/rpi-sdinfo.sh`) is kept for reference only and is no
 
 ## Data capture & sharing (the "build a public database" idea)
 
-- **Structured output.** ✅ `--format json` ships in 0.5. Still to do: optional persist to a local SQLite DB.
-- **Raw mode.** `--raw` to dump the full `dumpe2fs` / register / benchmark detail for debugging.
+- **Structured output.** ✅ `--format json` ships in 0.5, ✅ local SQLite persistence (`--save-db`) in 0.8.
+- **Raw mode.** ✅ Shipped in 0.8 (`--raw`): dumps the full `dumpe2fs` / register / benchmark detail for debugging.
 - **Crowd-sourced upload.** Optional POST to an API / S3 bucket so results (CID, CSD, capacity, measured
   performance, pass/fail) build a shared database of card identifiers and real-world failure rates. Needs a
   stronger anonymisation scheme than the current fixed-salt PBKDF2 over the serial (a public salt over a
@@ -128,7 +154,7 @@ The bash original (`archive/rpi-sdinfo.sh`) is kept for reference only and is no
 ## Smaller cleanups
 
 - `sdbench`: optional true O_DIRECT path on Linux (aligned buffers) for the most accurate device-level numbers;
-  progressively-larger block sizes; expose latency percentiles, not just the mean.
+  progressively-larger block sizes. ✅ Latency percentiles (not just the mean) shipped in 0.8.
 - macOS: resolve the card's product name more reliably for USB card readers, and auto-detect a removable card
   when `--device`/`--dir` is omitted.
 - `read_file(return_scope='lines')` only returns a single line; extend it to a range, and test that the `regex`

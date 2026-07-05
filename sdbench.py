@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 #
 # Author:       Mike Clements, Competitive Edge
-# Version:      0.2-20260705
+# Version:      0.3-20260705
 # File:         sdbench.py
 # License:      GNU GPL v3
 # Language:     Python 3.6 or later
@@ -31,6 +31,7 @@
 
 import argparse
 import json
+import math
 import os
 import random
 import statistics
@@ -100,12 +101,44 @@ def _evict_read_cache(file_descriptor, offset, length):
     except OSError:
       pass
 
+def _percentile(sorted_vals, q):
+  # Linear-interpolation percentile (q in 0..100) over an already-sorted, non-empty list. Avoids
+  # statistics.quantiles so we stay on the 3.6 floor this tool targets
+  if not sorted_vals:
+    return 0.0
+  if len(sorted_vals) == 1:
+    return sorted_vals[0]
+  rank = (q / 100.0) * (len(sorted_vals) - 1)
+  low = int(math.floor(rank))
+  high = int(math.ceil(rank))
+  if low == high:
+    return sorted_vals[low]
+  return sorted_vals[low] * (high - rank) + sorted_vals[high] * (rank - low)
+
+def _latency_stats(latencies_s):
+  # Reduce every per-operation latency (seconds) to a distribution in milliseconds. A mean alone hides the tail
+  # that actually hurts on a worn or fake card, so expose p50/p95/p99 and the extremes too
+  if not latencies_s:
+    return {'mean_ms': 0.0, 'p50_ms': 0.0, 'p95_ms': 0.0, 'p99_ms': 0.0, 'min_ms': 0.0, 'max_ms': 0.0}
+  ms = sorted(value * 1000 for value in latencies_s)
+  return {
+    'mean_ms': statistics.mean(ms),
+    'p50_ms': _percentile(ms, 50),
+    'p95_ms': _percentile(ms, 95),
+    'p99_ms': _percentile(ms, 99),
+    'min_ms': ms[0],
+    'max_ms': ms[-1],
+  }
+
 def _result(total_bytes, operations, elapsed_s, latencies_s):
-  # Package one test's raw counters into the metrics rpi-sdinfo reports. MBps is base-10 (matching card branding)
+  # Package one test's raw counters into the metrics rpi-sdinfo reports. MBps is base-10 (matching card branding).
+  # `lat_ms` stays the mean (backward compatible); `lat` carries the full percentile breakdown
+  lat = _latency_stats(latencies_s)
   return {
     'mbps': (total_bytes / 1000000) / elapsed_s if elapsed_s else 0.0,
     'iops': operations / elapsed_s if elapsed_s else 0.0,
-    'lat_ms': (statistics.mean(latencies_s) * 1000) if latencies_s else 0.0
+    'lat_ms': lat['mean_ms'],
+    'lat': lat,
   }
 
 #======================================
@@ -181,11 +214,12 @@ def benchmark_once(path, size_bytes, duration_s=DEFAULT_SECONDS, on_phase=None):
   return {'seq_write': seq_write, 'rand_write': rand_write, 'rand_read': rand_read}
 
 def empty_results():
-  # The list-of-samples structure rpi-sdinfo aggregates over. Keys mirror the old fio result shape
+  # The list-of-samples structure rpi-sdinfo aggregates over. Keys mirror the old fio result shape.
+  # `*_latency` stays the per-run mean (ms) for compatibility; `*_latency_pct` adds the per-run percentile dicts
   return {
-    'write': {'seq_mbps': [], 'seq_iops': [], 'seq_latency': [],
-              'rand_4kb_mbps': [], 'rand_4kb_iops': [], 'rand_4kb_latency': []},
-    'read': {'rand_4kb_mbps': [], 'rand_4kb_iops': [], 'rand_4kb_latency': []}
+    'write': {'seq_mbps': [], 'seq_iops': [], 'seq_latency': [], 'seq_latency_pct': [],
+              'rand_4kb_mbps': [], 'rand_4kb_iops': [], 'rand_4kb_latency': [], 'rand_4kb_latency_pct': []},
+    'read': {'rand_4kb_mbps': [], 'rand_4kb_iops': [], 'rand_4kb_latency': [], 'rand_4kb_latency_pct': []}
   }
 
 def run(path, runs=DEFAULT_RUNS, size_bytes=DEFAULT_SIZE_MB * 1024 * 1024, duration_s=DEFAULT_SECONDS, on_run=None, on_phase=None):
@@ -199,12 +233,15 @@ def run(path, runs=DEFAULT_RUNS, size_bytes=DEFAULT_SIZE_MB * 1024 * 1024, durat
     results['write']['seq_mbps'].append(metrics['seq_write']['mbps'])
     results['write']['seq_iops'].append(metrics['seq_write']['iops'])
     results['write']['seq_latency'].append(metrics['seq_write']['lat_ms'])
+    results['write']['seq_latency_pct'].append(metrics['seq_write']['lat'])
     results['write']['rand_4kb_mbps'].append(metrics['rand_write']['mbps'])
     results['write']['rand_4kb_iops'].append(metrics['rand_write']['iops'])
     results['write']['rand_4kb_latency'].append(metrics['rand_write']['lat_ms'])
+    results['write']['rand_4kb_latency_pct'].append(metrics['rand_write']['lat'])
     results['read']['rand_4kb_mbps'].append(metrics['rand_read']['mbps'])
     results['read']['rand_4kb_iops'].append(metrics['rand_read']['iops'])
     results['read']['rand_4kb_latency'].append(metrics['rand_read']['lat_ms'])
+    results['read']['rand_4kb_latency_pct'].append(metrics['rand_read']['lat'])
     if on_run:
       on_run(run_number, metrics)
   return results
@@ -213,15 +250,29 @@ def run(path, runs=DEFAULT_RUNS, size_bytes=DEFAULT_SIZE_MB * 1024 * 1024, durat
 # Standalone command line entry point
 #--------------------------------------
 
+def aggregate_latency(pct_list):
+  # Combine the per-run latency dicts (from _latency_stats) into one distribution: mean the central percentiles,
+  # but keep the true min and max across every run. Returns zeros when no runs were recorded
+  if not pct_list:
+    return {'mean_ms': 0.0, 'p50_ms': 0.0, 'p95_ms': 0.0, 'p99_ms': 0.0, 'min_ms': 0.0, 'max_ms': 0.0}
+  agg = {key: statistics.mean(d.get(key, 0.0) for d in pct_list) for key in ('mean_ms', 'p50_ms', 'p95_ms', 'p99_ms')}
+  agg['min_ms'] = min(d.get('min_ms', 0.0) for d in pct_list)
+  agg['max_ms'] = max(d.get('max_ms', 0.0) for d in pct_list)
+  return agg
+
 def summary(results):
-  # Reduce the per-run sample lists to the mean of each headline metric (used by both the text and JSON output)
+  # Reduce the per-run sample lists to the mean of each headline metric plus a combined latency distribution
+  # (used by both the text and JSON output)
   return {
     'seq_write': {'mbps': statistics.mean(results['write']['seq_mbps']),
-                  'iops': statistics.mean(results['write']['seq_iops'])},
+                  'iops': statistics.mean(results['write']['seq_iops']),
+                  'lat': aggregate_latency(results['write']['seq_latency_pct'])},
     'rand_write': {'mbps': statistics.mean(results['write']['rand_4kb_mbps']),
-                   'iops': statistics.mean(results['write']['rand_4kb_iops'])},
+                   'iops': statistics.mean(results['write']['rand_4kb_iops']),
+                   'lat': aggregate_latency(results['write']['rand_4kb_latency_pct'])},
     'rand_read': {'mbps': statistics.mean(results['read']['rand_4kb_mbps']),
-                  'iops': statistics.mean(results['read']['rand_4kb_iops'])},
+                  'iops': statistics.mean(results['read']['rand_4kb_iops']),
+                  'lat': aggregate_latency(results['read']['rand_4kb_latency_pct'])},
   }
 
 def main(argv=None):
@@ -272,9 +323,14 @@ def main(argv=None):
     return 0
 
   status.section('Mean over all runs')
-  status.kv('Sequential write', f'{means["seq_write"]["mbps"]:.1f} MBps', value_style='bold')
-  status.kv('Random 4 KiB write', f'{means["rand_write"]["iops"]:.0f} IOPS ({means["rand_write"]["mbps"]:.2f} MBps)', value_style='bold')
-  status.kv('Random 4 KiB read', f'{means["rand_read"]["iops"]:.0f} IOPS ({means["rand_read"]["mbps"]:.2f} MBps)', value_style='bold')
+  status.kv('Sequential write', f'{means["seq_write"]["mbps"]:.1f} MBps', value_style='bold', note=f'p95 {means["seq_write"]["lat"]["p95_ms"]:.2f} ms')
+  status.kv('Random 4 KiB write', f'{means["rand_write"]["iops"]:.0f} IOPS ({means["rand_write"]["mbps"]:.2f} MBps)', value_style='bold', note=f'p95 {means["rand_write"]["lat"]["p95_ms"]:.2f} ms')
+  status.kv('Random 4 KiB read', f'{means["rand_read"]["iops"]:.0f} IOPS ({means["rand_read"]["mbps"]:.2f} MBps)', value_style='bold', note=f'p95 {means["rand_read"]["lat"]["p95_ms"]:.2f} ms')
+
+  status.section('Latency', 'ms per operation')
+  for label, key in (('Sequential write', 'seq_write'), ('Random 4 KiB write', 'rand_write'), ('Random 4 KiB read', 'rand_read')):
+    lat = means[key]['lat']
+    status.kv(label, f'p50 {lat["p50_ms"]:.2f}  {status.g["dot"]}  p95 {lat["p95_ms"]:.2f}  {status.g["dot"]}  p99 {lat["p99_ms"]:.2f}', note=f'max {lat["max_ms"]:.2f}')
   status.out('')
   return 0
 
