@@ -1,7 +1,7 @@
 #!/usr/bin/python
 #
 # Author:       Mike Clements, Competitive Edge
-# Version:      0.2-20231020
+# Version:      0.3-20260705
 # File:         rpi-sdinfo.py
 # License:      GNU GPL v3
 # Language:     Python 3.6 or later
@@ -22,16 +22,11 @@
 # Outputs:
 #
 
-# Issues:
+# Known limitations / planned work: see ROADMAP.md
+# Remaining assumptions worth calling out inline:
 ## fio had a faux pas sometime ago where it confused Base-10 and Base-2 (e.g. MB and MiB). So I'm not sure what units we are getting from fio here but I'm assuming Base-10
-## I can't get f strings to work with both localisation and a max number of decimal places. Using a function as a work around
-## Option to save to SQLite DB and/or JSON file
-## Option for raw output of all relevant detail e.g. all of dumpe2fs etc
-## I would like to select lines from meminfo and dumpe2fs using attribute titles (regex) instead of line number
-## Option to post to a API or S3 bucket so everyone can share results and build a database of MMC & SD card identifiers (CID). Maybe CSD too
-## Uses an assumption that the Linux kernel erase_size = block size. Handle if erase_size / block size is 0 i.e. a SD is not block-addressed
-## Improve the exception handling
-## Make read_file able to return multiple lines specified by line numbers, not just a single. And test regex returns multiple lines incl
+## Uses an assumption that the Linux kernel erase_size = block size. Does not yet handle erase_size / block size of 0 i.e. a SD that is not block-addressed
+## f_num() is a workaround for f-strings not combining localisation with a max number of decimal places
 
 #======================================
 # Import the libraries
@@ -458,6 +453,7 @@ def f_num(num_value, dec_places=0):
   return f"{num_value:n}"
 
 def read_file(file_path, search_for='', return_scope='all', replace_with=''):
+  # Returns '' (not None) when the file is absent so callers can safely concatenate, e.g. a Pi Zero has no eth0
   if os.path.isfile(file_path):
     file_contents = ''
     with open(file_path, 'r') as file_pointer:
@@ -473,31 +469,59 @@ def read_file(file_path, search_for='', return_scope='all', replace_with=''):
           if re.search(search_for, file_line):
             file_contents += file_line
       return file_contents
+  return ''
+
+def parse_kv(lines, separator=':'):
+  # Parse 'key: value' style output (dumpe2fs, /proc/meminfo, ...) into a dict keyed by the label so we look
+  # attributes up by name rather than by fragile line number / character offset
+  result = {}
+  for line in lines:
+    if separator in line:
+      key, _, value = line.partition(separator)
+      result[key.strip()] = value.strip()
+  return result
+
+def mib(mem_value):
+  # Convert a /proc/meminfo style 'N kB' value to MiB (its numeric leading field / 1024)
+  return int(mem_value.split()[0]) / 1024
+
+def safe_div(numerator, denominator):
+  # Guard the disk-throughput maths against a divide-by-zero on a card that has been idle since boot
+  return numerator / denominator if denominator else 0
+
+def best_median(values, higher_is_better=True):
+  # Real world runs are noisy, so drop the worst half (slow outliers, or high-latency outliers) and take the
+  # median of what remains as a fair best-guess of the storage's rated performance
+  ordered = sorted(values)
+  half = math.floor(len(ordered) / 2)
+  if higher_is_better:
+    return statistics.median(ordered[half:])
+  return statistics.median(ordered[:half] or ordered)
 
 #======================================
 # Execute the script
 #--------------------------------------
 
 # Loading the files here instead of in sys_info to save reading the same file multiple times and ensure the data read is consistent i.e. doesn't change between reads
-# Filesystem info
-fs_info = subprocess.run(['/sbin/dumpe2fs', '-h', '/dev/' + block_partition], capture_output=True, encoding='utf-8', text=True, timeout=3).stdout.split('\n')
+# Filesystem info, parsed by attribute label rather than line number
+fs_info = parse_kv(subprocess.run(['/sbin/dumpe2fs', '-h', '/dev/' + block_partition], capture_output=True, encoding='utf-8', text=True, timeout=3).stdout.split('\n'))
 # CPU load averages
 load_avg = read_file('/proc/loadavg').split()
-# Memory utilisation info
-mem_info = read_file('/proc/meminfo').split('\n')
+# Memory utilisation info, parsed by attribute label rather than line number
+mem_info = parse_kv(read_file('/proc/meminfo').split('\n'))
 # Disk statistics for the MMC/SD card
 disk_stats = read_file('/proc/diskstats', ' ' + block_device + ' ', 'regex').split()
-# Salt
-salt = os.urandom(32)
+# Fixed application salt so the anonymised device uuid is stable across runs (a random salt would produce a new uuid every run, making it useless as an identifier for the shared results database). See ROADMAP for a stronger anonymisation scheme
+salt = b'rpi-sdinfo/device-uuid/v1'
 
 sys_info = {
   'hardware' : {
     'model' : read_file('/sys/firmware/devicetree/base/model', '\x00'),
     'serial_number' : read_file('/sys/firmware/devicetree/base/serial-number', '\x00'),
     'uuid' : hashlib.pbkdf2_hmac('sha256', read_file('/sys/firmware/devicetree/base/serial-number', '\x00').encode('utf-8'), salt, 1000).hex(),
-    'mac_eth0' : read_file('/sys/class/net/eth0/address', '\n'),
-    'mac_wlan0' : read_file('/sys/class/net/wlan0/address', '\n'),
-    'mac_bt0' : read_file('/sys/kernel/debug/bluetooth/hci0/identity')[0:17]
+    'mac_eth0' : read_file('/sys/class/net/eth0/address', '\n') or 'n/a',
+    'mac_wlan0' : read_file('/sys/class/net/wlan0/address', '\n') or 'n/a',
+    'mac_bt0' : read_file('/sys/kernel/debug/bluetooth/hci0/identity')[0:17] or 'n/a'
   },
   'software' : {
     'os_release' : platform.freedesktop_os_release().get('PRETTY_NAME', 'Linux'),
@@ -526,11 +550,11 @@ sys_info = {
     'ssr' : read_file('/sys/block/' + block_device + '/device/ssr', '\n')                  # SD Status Register
   },
   'filesystem' : {
-    'state' : fs_info[8].split()[2],
-    'created' : fs_info[25][26:50],
-    'last_checked' : fs_info[30][26:50],
-    'mount_count' : int(fs_info[28].split()[2]),
-    'last_mount' : fs_info[26][26:50]
+    'state' : fs_info.get('Filesystem state', 'unknown'),
+    'created' : fs_info.get('Filesystem created', 'unknown'),
+    'last_checked' : fs_info.get('Last checked', 'unknown'),
+    'mount_count' : int(fs_info.get('Mount count', 0)),
+    'last_mount' : fs_info.get('Last mount time', 'unknown')
   },
   'stats' : {
     'cpu' : {
@@ -540,15 +564,15 @@ sys_info = {
       'threads' : load_avg[3]
     },
     'memory' : {
-      'total' : int(mem_info[0].split()[1]) / 1024,
-      'free' : int(mem_info[1].split()[1]) / 1024,
-      'available' : int(mem_info[2].split()[1]) / 1024,
-      'buffers' : int(mem_info[3].split()[1]) / 1024,
-      'cached' : int(mem_info[4].split()[1]) / 1024,
-      'swap_total' : int(mem_info[14].split()[1]) / 1024,
-      'swap_free' : int(mem_info[15].split()[1]) / 1024,
-      'vm_alloc_total' : int(mem_info[35].split()[1]) / 1024,
-      'vm_alloc_used' : int(mem_info[36].split()[1]) / 1024
+      'total' : mib(mem_info.get('MemTotal', '0')),
+      'free' : mib(mem_info.get('MemFree', '0')),
+      'available' : mib(mem_info.get('MemAvailable', '0')),
+      'buffers' : mib(mem_info.get('Buffers', '0')),
+      'cached' : mib(mem_info.get('Cached', '0')),
+      'swap_total' : mib(mem_info.get('SwapTotal', '0')),
+      'swap_free' : mib(mem_info.get('SwapFree', '0')),
+      'vm_alloc_total' : mib(mem_info.get('VmallocTotal', '0')),
+      'vm_alloc_used' : mib(mem_info.get('VmallocUsed', '0'))
     },
     'disk' : {
       'major_number' : int(disk_stats[0]),
@@ -610,6 +634,12 @@ try:
 except KeyError:
   sys_info['storage']['label'] = sys_info['storage']['oem']
 
+# The speed class(es) the card's branding claims, used later to grade the measured performance. Empty when unknown, in which case we grade against A1 (the Raspberry Pi baseline)
+try:
+  sys_info['storage']['speed_class'] = manufacturer[sys_info['storage']['type']][sys_info['storage']['cid_mid']][sys_info['storage']['cid_oid']][sys_info['storage']['cid_pnm']][sys_info['storage']['cid_prv_hw']]['speed_class']
+except KeyError:
+  sys_info['storage']['speed_class'] = []
+
 # Card state
 if ((sys_info['storage']['read_only'] == '0') and (sys_info['storage']['force_read_only'] == '0')):
   sys_info['storage']['state'] = 'read/write'
@@ -631,13 +661,13 @@ if ((sys_info['stats']['cpu']['load_1m'] >= 1.0) or ((sys_info['stats']['cpu']['
 else:
   sys_info['stats']['cpu']['warning'] = ''
 
-# Analyse the disk stats for real world throughput and IO per second
-sys_info['stats']['disk']['read_avg_mbps'] = ((sys_info['stats']['disk']['read_sectors'] * sys_info['storage']['block_size']) / 1000000) / (sys_info['stats']['disk']['read_time'] / 1000)
-sys_info['stats']['disk']['read_avg_mibps'] = ((sys_info['stats']['disk']['read_sectors'] * sys_info['storage']['block_size']) / 1024 / 1024) / (sys_info['stats']['disk']['read_time'] / 1000)
-sys_info['stats']['disk']['read_avg_iops'] = sys_info['stats']['disk']['read_completed'] / (sys_info['stats']['disk']['read_time'] / 1000)
-sys_info['stats']['disk']['write_avg_mbps'] = ((sys_info['stats']['disk']['write_sectors'] * sys_info['storage']['block_size']) / 1000000) / (sys_info['stats']['disk']['write_time'] / 1000)
-sys_info['stats']['disk']['write_avg_mibps'] = ((sys_info['stats']['disk']['write_sectors'] * sys_info['storage']['block_size']) / 1024 / 1024) / (sys_info['stats']['disk']['write_time'] / 1000)
-sys_info['stats']['disk']['write_avg_iops'] = sys_info['stats']['disk']['write_completed'] / (sys_info['stats']['disk']['write_time'] / 1000)
+# Analyse the disk stats for real world throughput and IO per second (safe_div guards a card idle since boot)
+sys_info['stats']['disk']['read_avg_mbps'] = safe_div((sys_info['stats']['disk']['read_sectors'] * sys_info['storage']['block_size']) / 1000000, sys_info['stats']['disk']['read_time'] / 1000)
+sys_info['stats']['disk']['read_avg_mibps'] = safe_div((sys_info['stats']['disk']['read_sectors'] * sys_info['storage']['block_size']) / 1024 / 1024, sys_info['stats']['disk']['read_time'] / 1000)
+sys_info['stats']['disk']['read_avg_iops'] = safe_div(sys_info['stats']['disk']['read_completed'], sys_info['stats']['disk']['read_time'] / 1000)
+sys_info['stats']['disk']['write_avg_mbps'] = safe_div((sys_info['stats']['disk']['write_sectors'] * sys_info['storage']['block_size']) / 1000000, sys_info['stats']['disk']['write_time'] / 1000)
+sys_info['stats']['disk']['write_avg_mibps'] = safe_div((sys_info['stats']['disk']['write_sectors'] * sys_info['storage']['block_size']) / 1024 / 1024, sys_info['stats']['disk']['write_time'] / 1000)
+sys_info['stats']['disk']['write_avg_iops'] = safe_div(sys_info['stats']['disk']['write_completed'], sys_info['stats']['disk']['write_time'] / 1000)
 
 # System info
 print('\n' + sys_info['hardware']['model'] + ' (serial: ' + sys_info['hardware']['serial_number'] + ')\n   Has been up for ' + str(datetime.timedelta(seconds = float(read_file('/proc/uptime', '\n').split()[0]))) + ' running ' + sys_info['software']['os_release'] + ' with kernel ' + sys_info['software']['os_kernel'])
@@ -660,7 +690,7 @@ try:
     print('\nPerformance testing ' + block_device + ', this is non-destructive so it will not mess with your data. This does create a test file (' + test_file + ') which will be removed after the tests are completed')
 except KeyError:
   print('\n\nYou need to install fio to run performance testing on your ' + sys_info['storage']['type'] + ' storage\nsudo apt -y install fio\n\n')
-  exit(1)
+  sys.exit(1)
 
 # Create fio job file with job details
 if os.path.isfile('/usr/share/fio/sd_bench.fio') == False:
@@ -668,61 +698,91 @@ if os.path.isfile('/usr/share/fio/sd_bench.fio') == False:
     file_pointer.write('# Use FIO to emulate the Apps Class A1 performance test.\n# This is not an exact benchmark as the card is not in the state required by the\n# specification, but is good enough as a sniff test.\n#\n[global]\nioengine=libaio\niodepth=4\nsize=64m\ndirect=1\nend_fsync=1\ndirectory=' + os.path.split(test_file)[0] + '\nfilename=' + os.path.split(test_file)[1] + '\n\n[prepare-file]\nrw=write\nbs=512k\nstonewall\n\n[seq-write]\nrw=write\nbs=512k\nstonewall\n\n[rand-4k-write]\nrw=randwrite\nbs=4k\nruntime=10\nstonewall\n\n[rand-4k-read]\nrw=randread\nbs=4k\nruntime=10\nstonewall\n\n# execute with command $ fio --output-format=terse sd_bench.fio | cut -f 3,7,8,48,49 -d";" -\n# testname, read bandwidth, read iops, write bandwidth, write iops')
 
 # Run performance testing
-for run in range(1, max_runs + 1):
-  fio_results = json.loads(subprocess.run(['/usr/bin/fio', '--output-format=json', '--max-jobs=' + max_jobs, '/usr/share/fio/sd_bench.fio'], capture_output=True, encoding='utf-8', text=True, timeout=90).stdout)
-  ## Not sure if fio is reporting bw, random reads & writes in KB or KiB
-  for job in range(1, max_jobs):
-    if fio_results['jobs'][job]['jobname'] == 'seq-write':
-      sys_info['fio']['write']['seq_mbps'].append(fio_results['jobs'][job]['write']['bw'] / 1000)
-      sys_info['fio']['write']['seq_iops'].append(fio_results['jobs'][job]['write']['iops'])
-      sys_info['fio']['write']['seq_latency'].append(fio_results['jobs'][job]['write']['lat_ns']['mean'] / 1000000)
-    elif fio_results['jobs'][job]['jobname'] == 'rand-4k-write':
-      sys_info['fio']['write']['rand_4kb_mbps'].append(fio_results['jobs'][job]['write']['bw'] / 1000)
-      sys_info['fio']['write']['rand_4kb_iops'].append(fio_results['jobs'][job]['write']['iops'])
-      sys_info['fio']['write']['rand_4kb_latency'].append(fio_results['jobs'][job]['write']['lat_ns']['mean'] / 1000000)
-    elif fio_results['jobs'][job]['jobname'] == 'rand-4k-read':
-      sys_info['fio']['read']['rand_4kb_mbps'].append(fio_results['jobs'][job]['read']['bw'] / 1000)
-      sys_info['fio']['read']['rand_4kb_iops'].append(fio_results['jobs'][job]['read']['iops'])
-      sys_info['fio']['read']['rand_4kb_latency'].append(fio_results['jobs'][job]['read']['lat_ns']['mean'] / 1000000)
-  
-  print('   Run ' + str(run) + ' of ' + str(max_runs) + ': ' + f_num(sys_info['fio']['write']['seq_mbps'][run], 1) + ' MBps, ' + f_num(sys_info['fio']['write']['seq_iops'][run]) + ' IOPS, ' + f_num(sys_info['fio']['write']['seq_latency'][run]) + ' ms    ' + f_num(sys_info['fio']['write']['rand_4kb_mbps'][run], 1) + ' MBps, ' + f_num(sys_info['fio']['write']['rand_4kb_iops'][run]) + ' IOPS, ' + f_num(sys_info['fio']['write']['rand_4kb_latency'][run]) + ' ms    ' + f_num(sys_info['fio']['read']['rand_4kb_mbps'][run], 1) + ' MBps, ' + f_num(sys_info['fio']['read']['rand_4kb_iops'][run]) + ' IOPS, ' + f_num(sys_info['fio']['read']['rand_4kb_latency'][run]) + ' ms')
-
 print('                   Sequential Writes            Random 4 KB writes            Random 4 KB reads')
+for run in range(1, max_runs + 1):
+  fio_results = json.loads(subprocess.run(['/usr/bin/fio', '--output-format=json', '--max-jobs=' + str(max_jobs), '/usr/share/fio/sd_bench.fio'], capture_output=True, encoding='utf-8', text=True, timeout=90).stdout)
+  ## Not sure if fio is reporting bw, random reads & writes in KB or KiB
+  # Dispatch by job name rather than by list index so the prepare-file job (and any re-ordering) can't skew the results
+  for job in fio_results['jobs']:
+    if job['jobname'] == 'seq-write':
+      sys_info['fio']['write']['seq_mbps'].append(job['write']['bw'] / 1000)
+      sys_info['fio']['write']['seq_iops'].append(job['write']['iops'])
+      sys_info['fio']['write']['seq_latency'].append(job['write']['lat_ns']['mean'] / 1000000)
+    elif job['jobname'] == 'rand-4k-write':
+      sys_info['fio']['write']['rand_4kb_mbps'].append(job['write']['bw'] / 1000)
+      sys_info['fio']['write']['rand_4kb_iops'].append(job['write']['iops'])
+      sys_info['fio']['write']['rand_4kb_latency'].append(job['write']['lat_ns']['mean'] / 1000000)
+    elif job['jobname'] == 'rand-4k-read':
+      sys_info['fio']['read']['rand_4kb_mbps'].append(job['read']['bw'] / 1000)
+      sys_info['fio']['read']['rand_4kb_iops'].append(job['read']['iops'])
+      sys_info['fio']['read']['rand_4kb_latency'].append(job['read']['lat_ns']['mean'] / 1000000)
+
+  # Report this run from the values just appended ([-1]); the lists grow by one per run so a fixed index would be wrong
+  print('   Run ' + str(run) + ' of ' + str(max_runs) + ': ' + f_num(sys_info['fio']['write']['seq_mbps'][-1], 1) + ' MBps, ' + f_num(sys_info['fio']['write']['seq_iops'][-1]) + ' IOPS, ' + f_num(sys_info['fio']['write']['seq_latency'][-1]) + ' ms    ' + f_num(sys_info['fio']['write']['rand_4kb_mbps'][-1], 1) + ' MBps, ' + f_num(sys_info['fio']['write']['rand_4kb_iops'][-1]) + ' IOPS, ' + f_num(sys_info['fio']['write']['rand_4kb_latency'][-1]) + ' ms    ' + f_num(sys_info['fio']['read']['rand_4kb_mbps'][-1], 1) + ' MBps, ' + f_num(sys_info['fio']['read']['rand_4kb_iops'][-1]) + ' IOPS, ' + f_num(sys_info['fio']['read']['rand_4kb_latency'][-1]) + ' ms')
 
 if os.path.isfile(test_file):
   os.remove(test_file)
 
-# Somethimes thing will negatively affect the performance results so we take the median of the best results as a best guess of the real world performance while still being applicable to the storages rated speed
-# Get the median of the upper half of the MBps and IOPS results and the lower half of the latency
-sys_info['fio']['write']['seq_mbps_result'] = statistics.median(sorted(sys_info['fio']['write']['seq_mbps'])[(math.floor(len(sys_info['fio']['write']['seq_mbps']) / 2)):len(sys_info['fio']['write']['seq_mbps'])])
-sys_info['fio']['write']['seq_iops_result'] = statistics.median(sorted(sys_info['fio']['write']['seq_iops'])[(math.floor(len(sys_info['fio']['write']['seq_iops']) / 2)):len(sys_info['fio']['write']['seq_iops'])])
-sys_info['fio']['write']['seq_latency_result'] = statistics.median(sorted(sys_info['fio']['write']['seq_latency'])[0:(math.floor(len(sys_info['fio']['write']['seq_latency']) / 2))])
+# Sometimes something will negatively affect the performance results, so we take the median of the best half of
+# results (the slow-outlier free upper half for throughput/IOPS, lower half for latency) as a best guess of the
+# real world performance while still being applicable to the storage's rated speed
+sys_info['fio']['write']['seq_mbps_result'] = best_median(sys_info['fio']['write']['seq_mbps'])
+sys_info['fio']['write']['seq_iops_result'] = best_median(sys_info['fio']['write']['seq_iops'])
+sys_info['fio']['write']['seq_latency_result'] = best_median(sys_info['fio']['write']['seq_latency'], higher_is_better=False)
+sys_info['fio']['write']['rand_4kb_mbps_result'] = best_median(sys_info['fio']['write']['rand_4kb_mbps'])
+sys_info['fio']['write']['rand_4kb_iops_result'] = best_median(sys_info['fio']['write']['rand_4kb_iops'])
+sys_info['fio']['write']['rand_4kb_latency_result'] = best_median(sys_info['fio']['write']['rand_4kb_latency'], higher_is_better=False)
+sys_info['fio']['read']['rand_4kb_mbps_result'] = best_median(sys_info['fio']['read']['rand_4kb_mbps'])
+sys_info['fio']['read']['rand_4kb_iops_result'] = best_median(sys_info['fio']['read']['rand_4kb_iops'])
+sys_info['fio']['read']['rand_4kb_latency_result'] = best_median(sys_info['fio']['read']['rand_4kb_latency'], higher_is_better=False)
 
-
-print('\nAverage of the results from ' + str(max_runs) + ' runs\n   Sequential Writes:  ' + f_num(statistics.mean(sys_info['fio']['write']['seq_mbps']), 1) + ' MBps (stdev ' + f_num(statistics.stdev(sys_info['fio']['write']['seq_mbps']), 1) + ')\n                       ' + f_num(statistics.mean(sys_info['fio']['write']['seq_iops'])) + ' IOPS (stdev ' + f_num(statistics.stdev(sys_info['fio']['write']['seq_iops']), 1) + ')\n                       ' + f_num(statistics.mean(sys_info['fio']['write']['seq_latency'])) + ' ms (stdev ' + f_num(statistics.stdev(sys_info['fio']['write']['seq_latency']), 1) + ')')
-print('\n   Random 4 KB Writes: ' + f_num(statistics.mean(sys_info['fio']['write']['rand_4kb_mbps']), 1) + ' MBps (stdev ' + f_num(statistics.stdev(sys_info['fio']['write']['rand_4kb_mbps']), 1) + ')\n                       ' + f_num(statistics.mean(sys_info['fio']['write']['rand_4kb_iops'])) + ' IOPS (stdev ' + f_num(statistics.stdev(sys_info['fio']['write']['rand_4kb_iops']), 1) + ')\n                       ' + f_num(statistics.mean(sys_info['fio']['write']['rand_4kb_latency'])) + ' ms (stdev ' + f_num(statistics.stdev(sys_info['fio']['write']['rand_4kb_latency']), 1) + ')')
-print('\n   Random 4 KB Reads:  ' + f_num(statistics.mean(sys_info['fio']['read']['rand_4kb_mbps']), 1) + ' MBps (stdev ' + f_num(statistics.stdev(sys_info['fio']['read']['rand_4kb_mbps']), 1) + ')\n                       ' + f_num(statistics.mean(sys_info['fio']['read']['rand_4kb_iops'])) + ' IOPS (stdev ' + f_num(statistics.stdev(sys_info['fio']['read']['rand_4kb_iops']), 1) + ')\n                       ' + f_num(statistics.mean(sys_info['fio']['read']['rand_4kb_latency'])) + ' ms (stdev ' + f_num(statistics.stdev(sys_info['fio']['read']['rand_4kb_latency']), 1) + ')')
-
-
-
-### Finish removing _list and [run]. Ammend structure too ['fio']['read'] and write
-
-
-
-
-
-
-# Summary:
-## Take median of the top half of results. Base the standard deviation on the whole list. Do that for mbps, iops, and latency
-## Handle no eth0 eg on RPi Zero
-# Lookup what speed class (eg A1) the card should be, A1 if can't find
-## Show results against expected card spec or A1 as fallback - MiB & IOps seq wr 10 MBps, rand read 1500 IOps, rand write 500 IOps
-# Message to user if below spec: Note that sequential write speed declines over time as a card is used - your card may require reformatting
+print('\nBest-guess result (median of the best half) from ' + str(max_runs) + ' runs, standard deviation over all runs')
+print('   Sequential Writes:  ' + f_num(sys_info['fio']['write']['seq_mbps_result'], 1) + ' MBps (mean ' + f_num(statistics.mean(sys_info['fio']['write']['seq_mbps']), 1) + ', stdev ' + f_num(statistics.stdev(sys_info['fio']['write']['seq_mbps']), 1) + ')\n                       ' + f_num(sys_info['fio']['write']['seq_iops_result']) + ' IOPS (mean ' + f_num(statistics.mean(sys_info['fio']['write']['seq_iops'])) + ', stdev ' + f_num(statistics.stdev(sys_info['fio']['write']['seq_iops']), 1) + ')\n                       ' + f_num(sys_info['fio']['write']['seq_latency_result'], 2) + ' ms (mean ' + f_num(statistics.mean(sys_info['fio']['write']['seq_latency']), 2) + ', stdev ' + f_num(statistics.stdev(sys_info['fio']['write']['seq_latency']), 2) + ')')
+print('\n   Random 4 KB Writes: ' + f_num(sys_info['fio']['write']['rand_4kb_mbps_result'], 1) + ' MBps (mean ' + f_num(statistics.mean(sys_info['fio']['write']['rand_4kb_mbps']), 1) + ', stdev ' + f_num(statistics.stdev(sys_info['fio']['write']['rand_4kb_mbps']), 1) + ')\n                       ' + f_num(sys_info['fio']['write']['rand_4kb_iops_result']) + ' IOPS (mean ' + f_num(statistics.mean(sys_info['fio']['write']['rand_4kb_iops'])) + ', stdev ' + f_num(statistics.stdev(sys_info['fio']['write']['rand_4kb_iops']), 1) + ')\n                       ' + f_num(sys_info['fio']['write']['rand_4kb_latency_result'], 2) + ' ms (mean ' + f_num(statistics.mean(sys_info['fio']['write']['rand_4kb_latency']), 2) + ', stdev ' + f_num(statistics.stdev(sys_info['fio']['write']['rand_4kb_latency']), 2) + ')')
+print('\n   Random 4 KB Reads:  ' + f_num(sys_info['fio']['read']['rand_4kb_mbps_result'], 1) + ' MBps (mean ' + f_num(statistics.mean(sys_info['fio']['read']['rand_4kb_mbps']), 1) + ', stdev ' + f_num(statistics.stdev(sys_info['fio']['read']['rand_4kb_mbps']), 1) + ')\n                       ' + f_num(sys_info['fio']['read']['rand_4kb_iops_result']) + ' IOPS (mean ' + f_num(statistics.mean(sys_info['fio']['read']['rand_4kb_iops'])) + ', stdev ' + f_num(statistics.stdev(sys_info['fio']['read']['rand_4kb_iops']), 1) + ')\n                       ' + f_num(sys_info['fio']['read']['rand_4kb_latency_result'], 2) + ' ms (mean ' + f_num(statistics.mean(sys_info['fio']['read']['rand_4kb_latency']), 2) + ', stdev ' + f_num(statistics.stdev(sys_info['fio']['read']['rand_4kb_latency']), 2) + ')')
 
 #======================================
-# Event handlers & timer loop
+# Grade the results against the card's rated speed class
 #--------------------------------------
+
+# Derive the minimum performance the card should deliver. A card can declare several classes (e.g. C10 + U1 + A1),
+# so we take the toughest target of each metric. Where the card declares nothing measurable we fall back to
+# Application Performance Class 1 (A1), the class the Raspberry Pi Foundation recommends as a baseline
+declared_classes = sys_info['storage']['speed_class']
+target = {'seq_write': 0, 'rand_read': 0, 'rand_write': 0}
+for card_class in declared_classes:
+  class_spec = speed_class.get(card_class, {})
+  for metric in target:
+    target[metric] = max(target[metric], class_spec.get(metric, 0))
+for metric in target:
+  if target[metric] == 0:
+    target[metric] = speed_class['A1'][metric]
+
+graded_against = ', '.join(declared_classes) if declared_classes else 'A1 (assumed, no rated class found for this card)'
+
+def grade(label, measured, required, units):
+  # Print a single PASS/FAIL line comparing a measured result against its target
+  verdict = 'PASS' if measured >= required else 'FAIL'
+  print('   ' + label + ': ' + f_num(measured, 1) + ' ' + units + ' (target ' + f_num(required, 1) + ' ' + units + ') - ' + verdict)
+  return measured >= required
+
+print('\nGrading measured performance against ' + graded_against)
+seq_write_pass = grade('Sequential write ', sys_info['fio']['write']['seq_mbps_result'], target['seq_write'], 'MBps')
+rand_write_pass = grade('Random write     ', sys_info['fio']['write']['rand_4kb_iops_result'], target['rand_write'], 'IOPS')
+rand_read_pass = grade('Random read      ', sys_info['fio']['read']['rand_4kb_iops_result'], target['rand_read'], 'IOPS')
+
+if not seq_write_pass:
+  print('   Note: sequential write speed declines over time as a card is used - your card may require reformatting')
+
+all_pass = seq_write_pass and rand_write_pass and rand_read_pass
+if all_pass:
+  print('\nResult: PASS - the card meets its rated ' + graded_against + ' performance')
+else:
+  print('\nResult: FAIL - the card is slower than its rated ' + graded_against + ' performance (a worn, misbranded, or counterfeit card)')
 
 #======================================
 # Exit the script
 #--------------------------------------
+
+# Exit 0 when the card meets its rated performance, 1 when it falls short, so the script is usable in automation
+sys.exit(0 if all_pass else 1)
