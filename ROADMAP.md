@@ -103,19 +103,38 @@ The bash original (`archive/rpi-sdinfo.sh`) is kept for reference only and is no
   and a `--no-benchmark` run) persisting clean full/partial rows with numeric columns intact, the latency
   distribution, and `--db-query` text/JSON including the flagged-run list (exercised with an injected fake row).
 
+## Done in 0.9
+
+- **Automated regression tests — the first in the project.** A stdlib-`unittest` suite under `tests/` (no new
+  dependencies, runs on macOS/Linux/Windows with `python3 -m unittest discover -s tests`) locks in the
+  hardware-independent logic that until now was only asserted in prose: the CSD decode round-trips against
+  independently packed v1.0/v2.0/v3.0 registers and the TRAN_SPEED table; `cross_check()` fails a reflashed-fake
+  vector and passes a genuine card; capacity/grade maths, latency percentiles, the offset-keyed sweep pattern,
+  and — importantly — a simulated power-of-two address-truncation fake proving the `(0, R)` corners alias is
+  always caught. An end-to-end CLI smoke test drives the real `sdbench` / `sdverify` write-and-verify paths and
+  the JSON contracts against a scratch file on the local disk. 68 tests, ~3 s.
+- **`erase_size` / block-size-of-0 handled explicitly.** New `resolve_block_size()` detects the not-block-addressed
+  case (kernel `erase_size` 0), still falls back to 512 for the capacity maths, but now returns an `assumed`
+  flag. `gather_linux()` records it as `storage.block_size_assumed`, and `cross_check()` surfaces it as an `info`
+  finding so the capacity figure is presented as assumption-based, not measured fact — no longer a silent guess.
+- **Exception handling tightened.** The four broad `try/except KeyError` blocks around the CID-database lookups
+  are replaced by a single `_lookup()` helper that walks the nested table by key and returns the default the
+  moment a level is missing *or is a non-dict node* — closing a latent `TypeError` traceback the old code would
+  have raised on a malformed table, and no longer swallowing unrelated `KeyError`s. `read_file()` now degrades a
+  permission-gated / unreadable node (e.g. the root-only Bluetooth identity, `mac_bt0`) to `''` instead of
+  letting an `OSError` become a traceback.
+
 ## Next up (v1.0 blockers)
 
-- **Not yet hardware-tested on a Pi.** The macOS path is exercised end-to-end; the Linux `gather_linux()` path
-  is preserved from the working 0.3 logic and compiles, but needs a run on a real Pi 3B and Pi Zero W. Watch:
+- **Not yet hardware-tested on a Pi.** The macOS path is exercised end-to-end (and now unit-tested); the Linux
+  `gather_linux()` path is preserved from the working 0.3 logic and compiles, but the sysfs-dependent parts still
+  need a run on a real Pi 3B and Pi Zero W. Watch:
   - `sdbench` write/read units and whether the F_NOCACHE/O_DSYNC path reports realistic SD numbers on a Pi
     (validate against the old fio results and a known card).
   - `dumpe2fs` / `meminfo` label spellings across Raspberry Pi OS versions.
   - `/proc/diskstats` column count/order for the read/write counters.
-- **`erase_size` / block size of 0.** The kernel reports `erase_size` as 0 when a card is not block-addressed;
-  capacity maths falls back to 512 but should detect and flag the case explicitly.
-- **Tighten exception handling.** Narrow the broad `try/except KeyError` around the manufacturer lookups; report
-  unreadable sysfs nodes (permissions, missing hardware — `mac_bt0` needs root) with a clear message, not a
-  traceback.
+  - The new `erase_size == 0` branch: confirm a real not-block-addressed card actually reports 0 and that the
+    assumed-512 capacity + `info` flag read sensibly (only the pure logic is unit-tested; the sysfs read is not).
 
 ## Fake / counterfeit card detection (the reason the tool exists)
 

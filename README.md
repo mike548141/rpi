@@ -143,6 +143,22 @@ full latency distribution (mean, p50/p95/p99, min/max in ms) per phase — shown
 in the JSON `benchmark` block, and dumped by `--raw` — because the tail latency is what a worn or fake card
 betrays even when its mean looks fine.
 
+### Testing
+
+A dependency-free `unittest` suite lives in `tests/` and runs anywhere Python 3.6+ does — no SD card or Pi
+required, because it covers the hardware-independent logic (CSD decode + fake-detection cross-checks, capacity
+and grade maths, latency percentiles, the capacity-sweep pattern and corners-alias catch) plus an end-to-end
+CLI smoke test that drives the real `sdbench`/`sdverify` write-and-verify paths against a scratch file:
+
+```bash
+python3 -m unittest discover -s tests             # run everything (~3 s)
+python3 -m unittest discover -s tests -v          # verbose, per-test
+cd tests && python3 -m unittest test_csd          # one module
+```
+
+What the suite can't cover is the Linux sysfs/`dumpe2fs`/`diskstats` reads in `gather_linux()` — those need
+real Pi hardware (see [ROADMAP.md](ROADMAP.md)).
+
 ### More
 
 - [SD_CARDS.md](SD_CARDS.md) — how SD cards identify themselves (CID), how to read the label's class symbols,

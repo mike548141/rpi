@@ -42,7 +42,7 @@
 # Known limitations / planned work: see ROADMAP.md
 # Remaining assumptions worth calling out inline:
 ## fio had a faux pas sometime ago where it confused Base-10 and Base-2 (e.g. MB and MiB). So I'm not sure what units we are getting from fio here but I'm assuming Base-10
-## Uses an assumption that the Linux kernel erase_size = block size. Does not yet handle erase_size / block size of 0 i.e. a SD that is not block-addressed
+## Uses the Linux kernel erase_size as the addressable block size; erase_size 0 (a card that is not block-addressed) falls back to 512 and is flagged via cross_check (resolve_block_size)
 ## f_num() is a workaround for f-strings not combining localisation with a max number of decimal places
 
 #======================================
@@ -109,7 +109,7 @@ import ui
 
 # Tool version and the version of the JSON document shape emitted by --format json. Bump SCHEMA only on a
 # breaking change to the JSON structure so downstream consumers can rely on it
-VERSION = '0.8-20260705'
+VERSION = '0.9-20260706'
 SCHEMA = 'rpi-sdinfo/1'
 
 # The default Linux device for the MMC or SD card (overridable with --device; the partition defaults to <device>p2)
@@ -494,22 +494,27 @@ def f_num(num_value, dec_places=0):
   return f"{num_value:n}"
 
 def read_file(file_path, search_for='', return_scope='all', replace_with=''):
-  # Returns '' (not None) when the file is absent so callers can safely concatenate, e.g. a Pi Zero has no eth0
+  # Returns '' (not None) when the file is absent so callers can safely concatenate, e.g. a Pi Zero has no eth0.
+  # Also returns '' (rather than a traceback) when a node exists but cannot be read - e.g. a permission-gated
+  # sysfs/debugfs path such as the Bluetooth identity, which needs root.
   if os.path.isfile(file_path):
     file_contents = ''
-    with open(file_path, 'r') as file_pointer:
-      if return_scope == 'all':
-        # Return everything in the file
-        file_contents = file_pointer.read().replace(search_for, replace_with)
-      elif return_scope == 'lines':
-        # Return just the line indicated by its number
-        file_contents = file_pointer.readlines()[search_for]
-      elif return_scope == 'regex':
-        # Return all lines that contains the regexp specified
-        for file_line in file_pointer:
-          if re.search(search_for, file_line):
-            file_contents += file_line
-      return file_contents
+    try:
+      with open(file_path, 'r') as file_pointer:
+        if return_scope == 'all':
+          # Return everything in the file
+          file_contents = file_pointer.read().replace(search_for, replace_with)
+        elif return_scope == 'lines':
+          # Return just the line indicated by its number
+          file_contents = file_pointer.readlines()[search_for]
+        elif return_scope == 'regex':
+          # Return all lines that contains the regexp specified
+          for file_line in file_pointer:
+            if re.search(search_for, file_line):
+              file_contents += file_line
+    except OSError:
+      return ''
+    return file_contents
   return ''
 
 def parse_kv(lines, separator=':'):
@@ -529,6 +534,30 @@ def mib(mem_value):
 def safe_div(numerator, denominator):
   # Guard the disk-throughput maths against a divide-by-zero on a card that has been idle since boot
   return numerator / denominator if denominator else 0
+
+def resolve_block_size(erase_size):
+  # The kernel exposes a card's addressable block size as erase_size: 512 for a normal block-addressed
+  # card, 0 for a card that is not block-addressed. Fall back to 512 in the 0 case but report that we
+  # assumed it, so the capacity figure derived from it can be flagged rather than silently trusted.
+  # Returns (block_size, assumed).
+  try:
+    erase_size = int(erase_size)
+  except (TypeError, ValueError):
+    erase_size = 0
+  if erase_size > 0:
+    return erase_size, False
+  return 512, True
+
+def _lookup(tree, *keys, default=None):
+  # Walk a nested dict by successive keys, returning default the moment a level is missing or is not a
+  # dict. Replaces a broad try/except KeyError around the CID database lookups: that also swallowed
+  # unrelated KeyErrors and turned a non-dict intermediate node into an uncaught TypeError traceback.
+  node = tree
+  for key in keys:
+    if not isinstance(node, dict) or key not in node:
+      return default
+    node = node[key]
+  return node
 
 def best_median(values, higher_is_better=True):
   # Real world runs are noisy, so drop the worst half (slow outliers, or high-latency outliers) and take the
@@ -637,6 +666,11 @@ def cross_check(storage, now=None):
   # a fake - surface it as information so a gap in the table is visible, not alarming
   if storage.get('cid_pnm') and storage.get('manufacturer') in (None, '', 'unknown'):
     findings.append({'severity': 'info', 'message': "product '%s' is not in the CID database yet (unverified make)" % storage['cid_pnm']})
+
+  # The kernel reported erase_size as 0 (card not block-addressed): the capacity above rests on an assumed
+  # 512-byte block, so make that assumption visible rather than presenting the figure as measured fact
+  if storage.get('block_size_assumed'):
+    findings.append({'severity': 'info', 'message': 'card is not block-addressed (erase_size 0); capacity assumes a 512-byte block'})
 
   return findings
 
@@ -747,30 +781,24 @@ def gather_linux(args):
     }
   }
 
-  # Analyse - capacity. Linux kernel dictates erase_size is 512 for a block-addressed card, 0 otherwise (see ROADMAP for the 0 case)
-  block_size = sys_info['storage']['block_size'] or 512
+  # Analyse - capacity. erase_size is the card's addressable block size (512 when block-addressed);
+  # a 0 means the card is not block-addressed, so we assume 512 and flag it (see cross_check / ROADMAP)
+  block_size, block_size_assumed = resolve_block_size(sys_info['storage']['block_size'])
+  sys_info['storage']['block_size'] = block_size
+  sys_info['storage']['block_size_assumed'] = block_size_assumed
   sys_info['storage']['bytes'] = sys_info['storage']['blocks'] * block_size
   sys_info['storage']['GB'] = sys_info['storage']['bytes'] / 1000000000
   sys_info['storage']['GiB'] = sys_info['storage']['bytes'] / 1024 / 1024 / 1024
 
-  # Analyse - look up make, brand, model and rated speed class from the crowd-sourced CID database
+  # Analyse - look up make, brand, model and rated speed class from the crowd-sourced CID database.
+  # _lookup walks the nested table safely (a missing or non-dict node yields the default, not a traceback)
   card_type, mid, oid, pnm, hwrev = (sys_info['storage'][k] for k in ('type', 'cid_mid', 'cid_oid', 'cid_pnm', 'cid_prv_hw'))
-  try:
-    sys_info['storage']['manufacturer'] = manufacturer[card_type][mid]['manufacturer']
-  except KeyError:
-    sys_info['storage']['manufacturer'] = 'unknown'
-  try:
-    sys_info['storage']['oem'] = manufacturer[card_type][mid][oid]['oem']
-  except KeyError:
-    sys_info['storage']['oem'] = sys_info['storage']['manufacturer']
-  try:
-    sys_info['storage']['label'] = manufacturer[card_type][mid][oid][pnm][hwrev]['label']
-  except KeyError:
-    sys_info['storage']['label'] = sys_info['storage']['oem']
-  try:
-    sys_info['storage']['speed_class'] = manufacturer[card_type][mid][oid][pnm][hwrev]['speed_class']
-  except KeyError:
-    sys_info['storage']['speed_class'] = []
+  mfr = _lookup(manufacturer, card_type, mid, 'manufacturer', default='unknown')
+  sys_info['storage']['manufacturer'] = mfr
+  sys_info['storage']['oem'] = _lookup(manufacturer, card_type, mid, oid, 'oem', default=mfr)
+  oem = sys_info['storage']['oem']
+  sys_info['storage']['label'] = _lookup(manufacturer, card_type, mid, oid, pnm, hwrev, 'label', default=oem)
+  sys_info['storage']['speed_class'] = _lookup(manufacturer, card_type, mid, oid, pnm, hwrev, 'speed_class', default=[])
 
   # Analyse - card read/write and removable state
   read_only, force_ro = sys_info['storage']['read_only'], sys_info['storage']['force_read_only']
