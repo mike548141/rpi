@@ -1,7 +1,7 @@
 # rpi-sdinfo roadmap
 
 Status of the Python tool and what's left before a v1.0.
-The bash original (`rpi-sdinfo.sh`) is kept for reference only and is not being developed further.
+The bash original (`archive/rpi-sdinfo.sh`) is kept for reference only and is not being developed further.
 
 ## Done in 0.3
 

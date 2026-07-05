@@ -6,7 +6,7 @@ If I make more tools then I will add them here, but currently this is just one t
 ## rpi-sdinfo
 A tool to (a) test the performance and integrity of SD/MMC cards, and (b) try to spot genuine vs fake cards by
 comparing what the card reports about itself against how it actually performs. Originally written in bash
-(`rpi-sdinfo.sh`, kept for reference only); the developed version is `rpi-sdinfo.py`. Still short of a tagged
+(`archive/rpi-sdinfo.sh`, kept for reference only); the developed version is `rpi-sdinfo.py`. Still short of a tagged
 v1.0, but a solid, working start.
 
 If it proves useful the plan is a public service where everyone can share results to build a database of SD card
