@@ -170,7 +170,7 @@ database on the roadmap — sharing it needs a stronger anonymisation scheme fir
 Read it back with `--db-query` (no card needed): totals, a per-card table (grouped by label + CID serial, with
 run count, latest verdict, best sequential write and rated class), and every flagged run with a plain-English
 reason. `--db-query --json` emits the same summary as one document for scripting. The benchmark also records the
-full latency distribution (mean, p50/p95/p99, min/max in ms) per phase — shown by `sdbench.py` directly, carried
+full latency distribution (mean, p50/p95/p99, min/max in ms) per phase — shown by `rpi-sdbench` directly, carried
 in the JSON `benchmark` block, and dumped by `--raw` — because the tail latency is what a worn or fake card
 betrays even when its mean looks fine.
 
@@ -197,6 +197,27 @@ real Pi hardware (see [ROADMAP.md](ROADMAP.md)).
 - [ROADMAP.md](ROADMAP.md) — what's done and what's planned before v1.0, including Pi hardware testing and a
   counterfeit-capacity (write/verify) test.
 
-> **Status:** the macOS path is tested end-to-end; the Windows path is written to the same stdlib-only shape but
-> not yet run on real Windows hardware; the Raspberry Pi path is carried over from the working bash logic and
-> compiles, but still needs a run on real Pi hardware before v1.0.
+### Scope & expectations
+
+**What it is:** a zero-dependency, cross-platform *sanity check* for SD/MMC cards — identity, a quick
+benchmark, capacity-fraud detection, and instant metadata cross-checks, all in one command with nothing to
+install. The niche it serves is the Raspberry Pi / homelab / secondhand-card crowd who want one tool that
+answers "is this card genuine, and is it fast enough?".
+
+**What it is not:** a certified benchmark or a forensic capacity tester. It does not try to out-do the
+specialists at their one job — [`f3`](https://github.com/AltraMayor/f3) / h2testw for exhaustive capacity
+fraud, `smartctl` for SMART, `fio` for rigorous throughput. Its value is *breadth in a single portable
+command* plus the CSD-metadata liar-detection those tools don't do. For a definitive verdict on a suspect
+card, confirm with a full `f3` sweep.
+
+**Honest limitations (as of 0.9):**
+
+- The **Raspberry Pi path is not yet hardware-tested** — the macOS path is exercised end-to-end and unit-tested,
+  the Windows path is written to the same stdlib shape but unrun on real hardware, and the Linux `gather_linux()`
+  sysfs reads are carried over from the working bash logic and compile, but need a run on a real Pi before v1.0.
+- **Grading is heuristic** (median-of-best-half vs the rated class, A1 fallback), not a spec-compliant SD
+  Association test.
+- The **crowd-sourced upload / shared database is unsolved** — it needs a stronger anonymisation scheme than a
+  fixed-salt hash over a low-entropy serial before any result leaves your machine.
+
+See [ROADMAP.md](ROADMAP.md) for the full status and the path to v1.0.
