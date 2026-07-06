@@ -3,7 +3,7 @@
 # Author:       Mike Clements, Competitive Edge
 # Version:      0.2-20260705
 # File:         src/rpi_sdinfo/verify.py
-# License:      GNU GPL v3
+# License:      Apache-2.0
 # Language:     Python 3.6 or later
 # Source:       https://github.com/mike548141/rpi
 #
