@@ -28,8 +28,9 @@ import threading
 _windows_ansi_ready = None
 
 def _enable_windows_ansi(stream):
-  # Windows 10 build 1511+ consoles understand ANSI escapes but need the flag turned on per handle. Returns
-  # True if VT processing is (now) enabled, False if we could not enable it (older console, redirected, etc.)
+  """Windows 10 build 1511+ consoles understand ANSI escapes but need the flag turned on per handle. Returns
+  True if VT processing is (now) enabled, False if we could not enable it (older console, redirected, etc.)
+  """
   global _windows_ansi_ready
   if _windows_ansi_ready is not None:
     return _windows_ansi_ready
@@ -51,8 +52,9 @@ def _enable_windows_ansi(stream):
   return _windows_ansi_ready
 
 def supports_color(stream):
-  # Decide whether to emit ANSI colour. Honour the de-facto standards: NO_COLOR disables, CLICOLOR_FORCE forces,
-  # and otherwise colour is only used for an interactive TTY (never when piped/redirected, so `| jq` stays clean)
+  """Decide whether to emit ANSI colour. Honour the de-facto standards: NO_COLOR disables, CLICOLOR_FORCE forces,
+  and otherwise colour is only used for an interactive TTY (never when piped/redirected, so `| jq` stays clean)
+  """
   if os.environ.get('NO_COLOR') is not None:
     return False
   if os.environ.get('CLICOLOR_FORCE', '0') not in ('0', ''):
@@ -66,11 +68,12 @@ def supports_color(stream):
   return True
 
 def supports_unicode(stream):
-  # Box-drawing / block glyphs need a UTF-capable encoding. Fall back to ASCII on legacy code pages
+  """Box-drawing / block glyphs need a UTF-capable encoding. Fall back to ASCII on legacy code pages"""
   encoding = getattr(stream, 'encoding', None) or ''
   return 'utf' in encoding.lower()
 
 def term_width(default=80):
+  """Current terminal width in columns, falling back to `default` when it cannot be determined."""
   try:
     return os.get_terminal_size().columns
   except (OSError, ValueError):
@@ -108,7 +111,7 @@ class Console:
 
   #-- low level ------------------------------------------------------------
   def style(self, text, *names):
-    # Wrap text in the named SGR codes, or return it untouched when colour is off
+    """Wrap text in the named SGR codes, or return it untouched when colour is off"""
     if not self.color or not names:
       return text
     codes = ';'.join(str(_SGR[n]) for n in names)
@@ -141,7 +144,7 @@ class Console:
     self.out(heading)
 
   def kv(self, label, value, width=20, label_style='grey', value_style=None, note=''):
-    # One aligned "label   value" row. label_width keeps the value column tidy
+    """One aligned "label   value" row. label_width keeps the value column tidy"""
     left = self.style((label + ':').ljust(width), label_style)
     right = self.style(str(value), value_style) if value_style else str(value)
     if note:
@@ -156,7 +159,7 @@ class Console:
     self.out(' ' * indent + self.style(glyph * (self.width - indent), 'grey'))
 
   def badge(self, text, kind='info'):
-    # A small coloured PASS / FAIL / WARN chip. Uses reverse video so it reads as a solid block on colour terminals
+    """A small coloured PASS / FAIL / WARN chip. Uses reverse video so it reads as a solid block on colour terminals"""
     palette = {'pass': ('green', self.g['tick']), 'fail': ('red', self.g['cross']),
                'warn': ('yellow', '!'), 'info': ('cyan', self.g['dot'])}
     colour, mark = palette.get(kind, palette['info'])
@@ -166,7 +169,7 @@ class Console:
     return '[' + text + ']'
 
   def bar(self, fraction, width=12):
-    # A compact proportion bar (measured / target), clamped to [0, 1] for the fill but coloured by pass/fail
+    """A compact proportion bar (measured / target), clamped to [0, 1] for the fill but coloured by pass/fail"""
     fraction = max(0.0, fraction)
     filled = min(width, int(round(min(fraction, 1.0) * width)))
     bar = self.g['bar_full'] * filled + self.g['bar_empty'] * (width - filled)
@@ -174,7 +177,7 @@ class Console:
     return self.style(bar, colour)
 
   def box(self, text, kind='info'):
-    # A single-line rounded box, used for the headline PASS/FAIL verdict
+    """A single-line rounded box, used for the headline PASS/FAIL verdict"""
     palette = {'pass': 'green', 'fail': 'red', 'warn': 'yellow', 'info': 'cyan'}
     colour = palette.get(kind, 'cyan')
     inner = '  ' + text + '  '
@@ -215,8 +218,9 @@ class Spinner:
       i += 1
 
   def _pause(self):
-    # Stop the animation thread and erase its line, so the caller can print a permanent row without the
-    # background thread racing to redraw over it. join() guarantees the thread is gone before we return
+    """Stop the animation thread and erase its line, so the caller can print a permanent row without the
+    background thread racing to redraw over it. join() guarantees the thread is gone before we return
+    """
     if self._thread is not None:
       self._stop.set()
       self._thread.join(timeout=1.0)
@@ -226,8 +230,9 @@ class Spinner:
       self.console.flush()
 
   def update(self, text):
-    # Show/refresh the status line. Only animates on a colour TTY; otherwise stays silent (the caller's per-run
-    # rows are the heartbeat) so piped/redirected logs stay clean
+    """Show/refresh the status line. Only animates on a colour TTY; otherwise stays silent (the caller's per-run
+    rows are the heartbeat) so piped/redirected logs stay clean
+    """
     self._text = text
     if not self.animate:
       return
@@ -237,7 +242,7 @@ class Spinner:
       self._thread.start()
 
   def clear(self):
-    # Pause the animation so the caller can print a permanent line; a later update() restarts it
+    """Pause the animation so the caller can print a permanent line; a later update() restarts it"""
     if self.animate:
       self._pause()
 

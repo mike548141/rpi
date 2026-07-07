@@ -487,15 +487,17 @@ speed_class = {
 
 # Workaround for f strings to handle locale, rounding, and variable type in one
 def f_num(num_value, dec_places=0):
+  """Format a number with the active locale's thousands grouping, rounded to dec_places."""
   if isinstance(num_value, str):
     num_value = float(num_value)
   num_value = round(num_value, dec_places)
   return f"{num_value:n}"
 
 def read_file(file_path, search_for='', return_scope='all', replace_with=''):
-  # Returns '' (not None) when the file is absent so callers can safely concatenate, e.g. a Pi Zero has no eth0.
-  # Also returns '' (rather than a traceback) when a node exists but cannot be read - e.g. a permission-gated
-  # sysfs/debugfs path such as the Bluetooth identity, which needs root.
+  """Returns '' (not None) when the file is absent so callers can safely concatenate, e.g. a Pi Zero has no eth0.
+  Also returns '' (rather than a traceback) when a node exists but cannot be read - e.g. a permission-gated
+  sysfs/debugfs path such as the Bluetooth identity, which needs root.
+  """
   if os.path.isfile(file_path):
     file_contents = ''
     try:
@@ -517,8 +519,9 @@ def read_file(file_path, search_for='', return_scope='all', replace_with=''):
   return ''
 
 def parse_kv(lines, separator=':'):
-  # Parse 'key: value' style output (dumpe2fs, /proc/meminfo, ...) into a dict keyed by the label so we look
-  # attributes up by name rather than by fragile line number / character offset
+  """Parse 'key: value' style output (dumpe2fs, /proc/meminfo, ...) into a dict keyed by the label so we look
+  attributes up by name rather than by fragile line number / character offset
+  """
   result = {}
   for line in lines:
     if separator in line:
@@ -527,18 +530,19 @@ def parse_kv(lines, separator=':'):
   return result
 
 def mib(mem_value):
-  # Convert a /proc/meminfo style 'N kB' value to MiB (its numeric leading field / 1024)
+  """Convert a /proc/meminfo style 'N kB' value to MiB (its numeric leading field / 1024)"""
   return int(mem_value.split()[0]) / 1024
 
 def safe_div(numerator, denominator):
-  # Guard the disk-throughput maths against a divide-by-zero on a card that has been idle since boot
+  """Guard the disk-throughput maths against a divide-by-zero on a card that has been idle since boot"""
   return numerator / denominator if denominator else 0
 
 def resolve_block_size(erase_size):
-  # The kernel exposes a card's addressable block size as erase_size: 512 for a normal block-addressed
-  # card, 0 for a card that is not block-addressed. Fall back to 512 in the 0 case but report that we
-  # assumed it, so the capacity figure derived from it can be flagged rather than silently trusted.
-  # Returns (block_size, assumed).
+  """The kernel exposes a card's addressable block size as erase_size: 512 for a normal block-addressed
+  card, 0 for a card that is not block-addressed. Fall back to 512 in the 0 case but report that we
+  assumed it, so the capacity figure derived from it can be flagged rather than silently trusted.
+  Returns (block_size, assumed).
+  """
   try:
     erase_size = int(erase_size)
   except (TypeError, ValueError):
@@ -548,9 +552,10 @@ def resolve_block_size(erase_size):
   return 512, True
 
 def _lookup(tree, *keys, default=None):
-  # Walk a nested dict by successive keys, returning default the moment a level is missing or is not a
-  # dict. Replaces a broad try/except KeyError around the CID database lookups: that also swallowed
-  # unrelated KeyErrors and turned a non-dict intermediate node into an uncaught TypeError traceback.
+  """Walk a nested dict by successive keys, returning default the moment a level is missing or is not a
+  dict. Replaces a broad try/except KeyError around the CID database lookups: that also swallowed
+  unrelated KeyErrors and turned a non-dict intermediate node into an uncaught TypeError traceback.
+  """
   node = tree
   for key in keys:
     if not isinstance(node, dict) or key not in node:
@@ -559,8 +564,9 @@ def _lookup(tree, *keys, default=None):
   return node
 
 def best_median(values, higher_is_better=True):
-  # Real world runs are noisy, so drop the worst half (slow outliers, or high-latency outliers) and take the
-  # median of what remains as a fair best-guess of the storage's rated performance
+  """Real world runs are noisy, so drop the worst half (slow outliers, or high-latency outliers) and take the
+  median of what remains as a fair best-guess of the storage's rated performance
+  """
   ordered = sorted(values)
   half = math.floor(len(ordered) / 2)
   if higher_is_better:
@@ -578,7 +584,7 @@ def best_median(values, higher_is_better=True):
 # reflashed to lie about its size.
 
 def _bits(value, hi, lo):
-  # Extract CSD bits [hi:lo] inclusive from the 128-bit register value (bit 127 is the MSB)
+  """Extract CSD bits [hi:lo] inclusive from the 128-bit register value (bit 127 is the MSB)"""
   return (value >> lo) & ((1 << (hi - lo + 1)) - 1)
 
 # TRAN_SPEED time-value mantissa table (index -> multiplier), from the SD Physical Layer spec
@@ -597,13 +603,14 @@ _CLASS_WRITE_MBPS = {
 }
 
 def _rated_write_floor(speed_class):
-  # Highest sustained-write floor (MB/s) implied by the card's rated-class tokens, or 0 if none are recognised
+  """Highest sustained-write floor (MB/s) implied by the card's rated-class tokens, or 0 if none are recognised"""
   return max((_CLASS_WRITE_MBPS.get(str(c).upper(), 0) for c in (speed_class or [])), default=0)
 
 def decode_csd(csd_hex):
-  # Decode the 128-bit CSD register (a 32-char hex string from sysfs) into the fields we cross-check against
-  # the branding. Returns None if the register is absent or malformed. Capacity maths follows the SD spec:
-  # v1.0 (SDSC) uses C_SIZE/C_SIZE_MULT/READ_BL_LEN; v2.0 (SDHC/SDXC) and v3.0 (SDUC) use the 512 KB C_SIZE form
+  """Decode the 128-bit CSD register (a 32-char hex string from sysfs) into the fields we cross-check against
+  the branding. Returns None if the register is absent or malformed. Capacity maths follows the SD spec:
+  v1.0 (SDSC) uses C_SIZE/C_SIZE_MULT/READ_BL_LEN; v2.0 (SDHC/SDXC) and v3.0 (SDUC) use the 512 KB C_SIZE form
+  """
   text = (csd_hex or '').strip().replace(':', '').replace(' ', '')
   if len(text) != 32:
     return None
@@ -644,7 +651,7 @@ def decode_csd(csd_hex):
   return result
 
 def _parse_mdt(mdt):
-  # The kernel exposes the CID manufacturing date as 'MM/YYYY'. Return (year, month) or None if unparseable
+  """The kernel exposes the CID manufacturing date as 'MM/YYYY'. Return (year, month) or None if unparseable"""
   try:
     month, year = mdt.strip().split('/')
     return int(year), int(month)
@@ -652,9 +659,10 @@ def _parse_mdt(mdt):
     return None
 
 def cross_check(storage, now=None):
-  # Compare the card's self-declared facts (CSD capacity/structure, reported capacity, CID date, branding) for
-  # internal contradictions. Returns a list of findings, each {severity: fail|warn|info, message: str}. 'fail'
-  # means physically impossible per the spec (a strong counterfeit signal); 'warn'/'info' are softer hints
+  """Compare the card's self-declared facts (CSD capacity/structure, reported capacity, CID date, branding) for
+  internal contradictions. Returns a list of findings, each {severity: fail|warn|info, message: str}. 'fail'
+  means physically impossible per the spec (a strong counterfeit signal); 'warn'/'info' are softer hints
+  """
   findings = []
   decoded = storage.get('csd_decoded')
   reported = storage.get('bytes') or 0
@@ -721,8 +729,9 @@ def cross_check(storage, now=None):
   return findings
 
 def compute_consistency(sys_info):
-  # Decode the CSD (if present) and run the cross-checks, stashing both on sys_info. No-op on platforms that
-  # cannot read the register (macOS/Windows), so it is safe to call unconditionally
+  """Decode the CSD (if present) and run the cross-checks, stashing both on sys_info. No-op on platforms that
+  cannot read the register (macOS/Windows), so it is safe to call unconditionally
+  """
   storage = sys_info.get('storage', {})
   storage['csd_decoded'] = decode_csd(storage.get('csd', ''))
   today = datetime.date.today()
@@ -738,8 +747,9 @@ def compute_consistency(sys_info):
 #--------------------------------------
 
 def gather_linux(args):
-  # Read everything the Linux kernel exposes about the Pi and its SD/MMC card, then derive the friendly fields.
-  # sysfs paths are Linux-only; on any other platform gather_macos() is used instead.
+  """Read everything the Linux kernel exposes about the Pi and its SD/MMC card, then derive the friendly fields.
+  sysfs paths are Linux-only; on any other platform gather_macos() is used instead.
+  """
   device = args.device or block_device
   partition = args.partition or (device + 'p2')
 
@@ -885,8 +895,9 @@ def gather_linux(args):
 #--------------------------------------
 
 def diskutil_info(path):
-  # Return diskutil's info for a path or device as a dict, or {} on any failure. Accepts a mount path (e.g.
-  # /Volumes/CARD) or a device id (e.g. disk4); macOS resolves either to the underlying whole disk
+  """Return diskutil's info for a path or device as a dict, or {} on any failure. Accepts a mount path (e.g.
+  /Volumes/CARD) or a device id (e.g. disk4); macOS resolves either to the underlying whole disk
+  """
   try:
     output = subprocess.run(['diskutil', 'info', '-plist', path], capture_output=True, timeout=10).stdout
     return plistlib.loads(output)
@@ -894,7 +905,7 @@ def diskutil_info(path):
     return {}
 
 def _device_for_path(path):
-  # Resolve the device that backs a directory path via df (diskutil info only accepts a mount point or device)
+  """Resolve the device that backs a directory path via df (diskutil info only accepts a mount point or device)"""
   try:
     lines = subprocess.run(['df', path], capture_output=True, encoding='utf-8', timeout=5).stdout.splitlines()
     return lines[1].split()[0] if len(lines) > 1 else ''
@@ -902,8 +913,9 @@ def _device_for_path(path):
     return ''
 
 def _diskutil_disk_partitions():
-  # diskutil's whole-disks-with-partitions list (each entry has 'DeviceIdentifier' and 'Partitions'/'APFSVolumes'
-  # carrying per-volume 'MountPoint'). [] on any failure
+  """diskutil's whole-disks-with-partitions list (each entry has 'DeviceIdentifier' and 'Partitions'/'APFSVolumes'
+  carrying per-volume 'MountPoint'). [] on any failure
+  """
   try:
     output = subprocess.run(['diskutil', 'list', '-plist'], capture_output=True, timeout=10).stdout
     return plistlib.loads(output).get('AllDisksAndPartitions', [])
@@ -911,16 +923,17 @@ def _diskutil_disk_partitions():
     return []
 
 def _entry_mountpoint(entry):
-  # First mounted volume on a whole-disk entry (a plain partition or an APFS volume), or '' if nothing is mounted
+  """First mounted volume on a whole-disk entry (a plain partition or an APFS volume), or '' if nothing is mounted"""
   for vol in list(entry.get('Partitions', [])) + list(entry.get('APFSVolumes', [])):
     if vol.get('MountPoint'):
       return vol['MountPoint']
   return ''
 
 def _autodetect_macos_target():
-  # With no --device/--dir given, find an inserted removable/external card rather than silently profiling the boot
-  # disk. Prefer an SD-bus disk over a generic external one (so a card reader wins over, say, a backup drive).
-  # Returns (device, mountpoint); ('', '') when nothing removable is present
+  """With no --device/--dir given, find an inserted removable/external card rather than silently profiling the boot
+  disk. Prefer an SD-bus disk over a generic external one (so a card reader wins over, say, a backup drive).
+  Returns (device, mountpoint); ('', '') when nothing removable is present
+  """
   best = None
   for entry in _diskutil_disk_partitions():
     disk = entry.get('DeviceIdentifier', '')
@@ -936,7 +949,7 @@ def _autodetect_macos_target():
   return (best[1], best[2]) if best else ('', '')
 
 def _sp_card_reader():
-  # system_profiler's built-in-SD-slot tree; [] on any failure or when the Mac has no native reader / no card
+  """system_profiler's built-in-SD-slot tree; [] on any failure or when the Mac has no native reader / no card"""
   try:
     output = subprocess.run(['system_profiler', '-json', 'SPCardReaderDataType'],
                             capture_output=True, encoding='utf-8', timeout=15).stdout
@@ -945,8 +958,9 @@ def _sp_card_reader():
     return []
 
 def _find_card_node(tree, device):
-  # Depth-first search for the inserted-card entry whose 'bsd_name' matches the whole-disk device (e.g. 'disk4');
-  # the SD slot nests the card under the reader's '_items'. Returns the node dict, or {} if absent
+  """Depth-first search for the inserted-card entry whose 'bsd_name' matches the whole-disk device (e.g. 'disk4');
+  the SD slot nests the card under the reader's '_items'. Returns the node dict, or {} if absent
+  """
   stack = list(tree) if isinstance(tree, list) else [tree]
   while stack:
     node = stack.pop()
@@ -958,10 +972,11 @@ def _find_card_node(tree, device):
   return {}
 
 def macos_card_identity(device, tree=None):
-  # Best-effort *real* card identity from the built-in reader, which (unlike diskutil) can surface the card's own
-  # product/manufacturer/serial rather than just the reader's model. Returns {product, manufacturer, serial} with
-  # only the keys the profiler actually exposed. USB card readers present as generic mass storage and do not
-  # appear here, so this mainly enriches Macs with a native SD slot. `tree` is injectable for testing
+  """Best-effort *real* card identity from the built-in reader, which (unlike diskutil) can surface the card's own
+  product/manufacturer/serial rather than just the reader's model. Returns {product, manufacturer, serial} with
+  only the keys the profiler actually exposed. USB card readers present as generic mass storage and do not
+  appear here, so this mainly enriches Macs with a native SD slot. `tree` is injectable for testing
+  """
   node = _find_card_node(_sp_card_reader() if tree is None else tree, device)
   if not node:
     return {}
@@ -978,7 +993,7 @@ def macos_card_identity(device, tree=None):
   return ident
 
 def gather_macos(args):
-  # macOS cannot read the SD CID/CSD registers, so identity is limited to what the card reader reports
+  """macOS cannot read the SD CID/CSD registers, so identity is limited to what the card reader reports"""
   autodetected = ''
   if not args.device and not args.dir:
     dev, mount = _autodetect_macos_target()
@@ -1058,8 +1073,9 @@ def _sysctl(name):
 #--------------------------------------
 
 def _windows_volume(root):
-  # Query the Win32 API for a drive's volume label, filesystem and removable flag. Returns a dict; any field we
-  # cannot read is simply omitted. Windows exposes no SD CID/CSD registers, so make/model stay unknown here too
+  """Query the Win32 API for a drive's volume label, filesystem and removable flag. Returns a dict; any field we
+  cannot read is simply omitted. Windows exposes no SD CID/CSD registers, so make/model stay unknown here too
+  """
   info = {}
   try:
     import ctypes
@@ -1079,8 +1095,9 @@ def _windows_volume(root):
   return info
 
 def gather_windows(args):
-  # Windows cannot read the SD CID/CSD registers, so identity is limited to the drive's capacity, volume label
-  # and removable state. Resolve the target down to its drive root (e.g. 'E:\\') for the Win32 queries
+  """Windows cannot read the SD CID/CSD registers, so identity is limited to the drive's capacity, volume label
+  and removable state. Resolve the target down to its drive root (e.g. 'E:\\') for the Win32 queries
+  """
   target = args.dir or args.device or os.getcwd()
   drive = os.path.splitdrive(os.path.abspath(target))[0]        # 'E:' from 'E:\path'
   root = (drive + os.sep) if drive else os.path.abspath(os.sep)
@@ -1133,6 +1150,7 @@ def gather_windows(args):
 #--------------------------------------
 
 def render_report(console, sys_info):
+  """Render the full human-readable report - identity, hardware, storage facts and consistency findings."""
   storage = sys_info['storage']
   hardware = sys_info['hardware']
   software = sys_info['software']
@@ -1204,8 +1222,9 @@ def render_report(console, sys_info):
   render_consistency(console, sys_info)
 
 def render_consistency(console, sys_info):
-  # Show the decoded CSD summary and any cross-check findings. Self-skips when the CSD could not be read (macOS
-  # / Windows) and there is nothing to report, so it is safe to call on every platform
+  """Show the decoded CSD summary and any cross-check findings. Self-skips when the CSD could not be read (macOS
+  / Windows) and there is nothing to report, so it is safe to call on every platform
+  """
   consistency = sys_info.get('consistency', {})
   decoded = sys_info.get('storage', {}).get('csd_decoded')
   findings = consistency.get('findings', [])
@@ -1224,8 +1243,9 @@ def render_consistency(console, sys_info):
     console.line(console.badge('OK', 'pass') + ' CSD, capacity and branding are internally consistent')
 
 def render_raw(console, sys_info):
-  # --raw debug dump: the decoded CSD, every unparsed source we read, and the raw per-run benchmark samples. This
-  # is the verbatim detail behind the friendly report - the first thing to reach for when a parse looks wrong
+  """--raw debug dump: the decoded CSD, every unparsed source we read, and the raw per-run benchmark samples. This
+  is the verbatim detail behind the friendly report - the first thing to reach for when a parse looks wrong
+  """
   console.section('Raw', note='verbatim sources for debugging')
 
   decoded = sys_info.get('storage', {}).get('csd_decoded')
@@ -1284,8 +1304,9 @@ def _render_linux_stats(console, sys_info):
 #--------------------------------------
 
 def compute_perf(sys_info, args, spinner, progress):
-  # Run the native benchmark, streaming per-run progress to `progress` (a Console), and stash the results plus
-  # the best-half medians on sys_info. No grading here - see compute_grade()
+  """Run the native benchmark, streaming per-run progress to `progress` (a Console), and stash the results plus
+  the best-half medians on sys_info. No grading here - see compute_grade()
+  """
   bench_dir = args.dir or ('/var/tmp' if sys_info['platform'] == 'linux' else tempfile.gettempdir())
   test_file = os.path.join(bench_dir, test_file_name)
   size_bytes = args.size_mb * 1024 * 1024
@@ -1318,7 +1339,7 @@ def compute_perf(sys_info, args, spinner, progress):
   return perf
 
 def render_benchmark(console, sys_info):
-  # The headline result table: best-half median plus mean and standard deviation over all runs
+  """The headline result table: best-half median plus mean and standard deviation over all runs"""
   perf = sys_info['perf']
   console.section('Result', note='best-half median ' + console.g['dot'] + ' mean ' + console.g['dot'] + ' stdev over all runs')
   _render_metric(console, 'Sequential write', perf['write']['seq_mbps'], 'MBps', 1)
@@ -1336,9 +1357,10 @@ def _render_metric(console, label, samples, units, dec):
 #--------------------------------------
 
 def compute_grade(sys_info):
-  # Compare the measured medians against the toughest target implied by the card's declared speed class(es),
-  # falling back to A1 (the Raspberry Pi baseline) when no class is known. Returns a structured grade and stores
-  # it on sys_info - no printing here, so it is reused by both the text and JSON renderers
+  """Compare the measured medians against the toughest target implied by the card's declared speed class(es),
+  falling back to A1 (the Raspberry Pi baseline) when no class is known. Returns a structured grade and stores
+  it on sys_info - no printing here, so it is reused by both the text and JSON renderers
+  """
   perf = sys_info['perf']
   declared_classes = sys_info['storage'].get('speed_class', [])
 
@@ -1370,6 +1392,7 @@ def compute_grade(sys_info):
   return grade
 
 def render_grade(console, sys_info):
+  """Render the performance grade section - measured medians against the target implied by the rated class."""
   grade = sys_info['grade']
   note = 'vs ' + grade['graded_against'] + (' (assumed - no rated class known)' if grade['assumed'] else '')
   console.section('Grade', note=note)
@@ -1399,7 +1422,7 @@ def render_grade(console, sys_info):
 #--------------------------------------
 
 def _human_bytes(num_bytes):
-  # Base-10 sizes, matching how cards are branded (and sdverify's own formatting)
+  """Base-10 sizes, matching how cards are branded (and sdverify's own formatting)"""
   value = float(num_bytes)
   for unit in ('B', 'kB', 'MB', 'GB', 'TB'):
     if abs(value) < 1000 or unit == 'TB':
@@ -1408,9 +1431,10 @@ def _human_bytes(num_bytes):
   return '%.2f TB' % value
 
 def confirm_capacity_sweep(args, sys_info, out, interactive):
-  # The sweep fills the card's free space and writes its full capacity once, so it is gated. Returns True to
-  # proceed. --yes always proceeds; when non-interactive (piped, --json, --quiet) we require --yes and refuse
-  # otherwise rather than block on a prompt that no one can answer
+  """The sweep fills the card's free space and writes its full capacity once, so it is gated. Returns True to
+  proceed. --yes always proceeds; when non-interactive (piped, --json, --quiet) we require --yes and refuse
+  otherwise rather than block on a prompt that no one can answer
+  """
   if args.yes:
     return True
   if not interactive:
@@ -1427,8 +1451,9 @@ def confirm_capacity_sweep(args, sys_info, out, interactive):
   return answer in ('y', 'yes')
 
 def compute_capacity(sys_info, args, spinner, progress):
-  # Run the write-then-verify sweep against the card, streaming progress, and stash the result on sys_info.
-  # Non-destructive to existing files; the sweep's own test files are always cleaned up
+  """Run the write-then-verify sweep against the card, streaming progress, and stash the result on sys_info.
+  Non-destructive to existing files; the sweep's own test files are always cleaned up
+  """
   sweep_dir = args.dir or ('/var/tmp' if sys_info['platform'] == 'linux' else tempfile.gettempdir())
   cap = args.capacity_mb * 1024 * 1024 if args.capacity_mb is not None else None
 
@@ -1453,6 +1478,7 @@ def compute_capacity(sys_info, args, spinner, progress):
   return capacity
 
 def render_capacity(console, sys_info):
+  """Render the capacity-sweep (fake-card test) section - written vs verified bytes and the verdict."""
   cap = sys_info['capacity']
   console.section('Capacity', note='write + verify sweep (fake-card test)')
   console.kv('Reported capacity', _human_bytes(cap['reported_total_bytes']))
@@ -1475,8 +1501,9 @@ def render_capacity(console, sys_info):
 #--------------------------------------
 
 def build_json(sys_info):
-  # Assemble the machine-readable document in a stable key order. --format json emits exactly this on stdout so
-  # other software and scripts can consume identity, benchmark samples, and the grade
+  """Assemble the machine-readable document in a stable key order. --format json emits exactly this on stdout so
+  other software and scripts can consume identity, benchmark samples, and the grade
+  """
   doc = {'schema': SCHEMA, 'tool_version': VERSION, 'generated': sys_info['generated']}
   for key in ('platform', 'device', 'partition', 'hardware', 'software', 'storage', 'filesystem', 'stats'):
     if key in sys_info:
@@ -1512,8 +1539,9 @@ DB_COLUMNS = (
 DB_COLUMN_NAMES = tuple(name for name, _ in DB_COLUMNS)
 
 def _db_row(sys_info, overall_pass):
-  # Flatten the gathered result into the DB_COLUMNS. Everything is .get()-guarded so a --no-benchmark run, or a
-  # macOS/Windows run with no registers, still stores a clean partial row rather than crashing
+  """Flatten the gathered result into the DB_COLUMNS. Everything is .get()-guarded so a --no-benchmark run, or a
+  macOS/Windows run with no registers, still stores a clean partial row rather than crashing
+  """
   storage = sys_info.get('storage', {})
   perf = sys_info.get('perf', {})
   grade = sys_info.get('grade', {})
@@ -1549,8 +1577,9 @@ def _db_row(sys_info, overall_pass):
   }
 
 def save_to_db(path, sys_info, overall_pass):
-  # Append this run to a local SQLite database, creating it (and its parent directory) on first use. The DB is
-  # local-only, so it keeps the real serial/MACs - the anonymisation caveat in ROADMAP applies only to upload
+  """Append this run to a local SQLite database, creating it (and its parent directory) on first use. The DB is
+  local-only, so it keeps the real serial/MACs - the anonymisation caveat in ROADMAP applies only to upload
+  """
   directory = os.path.dirname(path)
   if directory:
     os.makedirs(directory, exist_ok=True)
@@ -1564,9 +1593,10 @@ def save_to_db(path, sys_info, overall_pass):
   return path
 
 def query_db(path):
-  # Summarise the saved run history: totals, and one grouped row per distinct card (by label + CID serial) with
-  # its run count, best sequential write, latest verdict, plus every failing run. Returns None if the DB has no
-  # runs table yet (created by --save-db). Raises sqlite3.Error on a corrupt/unreadable file
+  """Summarise the saved run history: totals, and one grouped row per distinct card (by label + CID serial) with
+  its run count, best sequential write, latest verdict, plus every failing run. Returns None if the DB has no
+  runs table yet (created by --save-db). Raises sqlite3.Error on a corrupt/unreadable file
+  """
   conn = sqlite3.connect(path)
   conn.row_factory = sqlite3.Row
   try:
@@ -1594,7 +1624,7 @@ def query_db(path):
     conn.close()
 
 def _flag_reason(record):
-  # Turn a failing run's pass/fail columns into a human reason. grade/capacity/consistency map to the three tests
+  """Turn a failing run's pass/fail columns into a human reason. grade/capacity/consistency map to the three tests"""
   reasons = []
   if record.get('grade_pass') == 0:
     reasons.append('too slow')
@@ -1605,6 +1635,7 @@ def _flag_reason(record):
   return ', '.join(reasons) or 'failed'
 
 def render_db_summary(console, data):
+  """Render the saved-history summary - totals, one row per distinct card, and any failing runs."""
   console.section('Database', note=data['path'])
   console.kv('Runs recorded', f_num(data['total']))
   console.kv('Distinct cards', f_num(data['cards_count']))
@@ -1637,7 +1668,7 @@ def render_db_summary(console, data):
                    + label + ' ' + console.g['dot'] + ' ' + console.style(_flag_reason(record), 'yellow'))
 
 def run_db_query(path, out, errs, json_mode):
-  # Handle --db-query: print a summary of the saved history and exit, without testing a card
+  """Handle --db-query: print a summary of the saved history and exit, without testing a card"""
   if not os.path.exists(path):
     errs.out(errs.badge('FAIL', 'fail') + ' No database at ' + path + ' yet - run with --save-db first.')
     return 2
@@ -1662,6 +1693,7 @@ def run_db_query(path, out, errs, json_mode):
 #--------------------------------------
 
 def parse_args(argv=None):
+  """Build the rpi-sdinfo argument parser and parse argv (defaults to sys.argv)."""
   parser = argparse.ArgumentParser(description='Identify, benchmark, and grade an SD/MMC card (Raspberry Pi Linux, macOS, or Windows).')
   parser.add_argument('--device', help='Storage device to inspect. Linux: block device name (default: ' + block_device + '). macOS: disk id or mount path (e.g. disk4 or /Volumes/CARD). Windows: a drive (e.g. E:)')
   parser.add_argument('--partition', help='Linux filesystem partition to inspect (default: <device>p2)')
@@ -1687,7 +1719,7 @@ def parse_args(argv=None):
   return parser.parse_args(argv)
 
 def gather(args):
-  # Dispatch to the right platform collector. Returns None on an unsupported platform
+  """Dispatch to the right platform collector. Returns None on an unsupported platform"""
   if sys.platform == 'darwin':
     return gather_macos(args)
   if sys.platform.startswith('linux'):
@@ -1697,6 +1729,7 @@ def gather(args):
   return None
 
 def main(argv=None):
+  """rpi-sdinfo entry point: gather, benchmark, verify and render, returning the process exit code."""
   args = parse_args(argv)
   # Set the locale for number formatting once we are actually running (not at import)
   locale.setlocale(locale.LC_ALL, '')

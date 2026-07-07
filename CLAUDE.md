@@ -62,6 +62,5 @@ detection** (capacity fraud + CID/CSD metadata contradictions); everything else 
 - **No Pi hardware in the dev environment.** Development is on macOS, so `gather_linux()` and `sdbench`'s
   Linux IO path **cannot be hardware-tested here** — this is the #1 v1.0 blocker. Flag it; don't claim the Linux
   path is verified.
-- **Open threads (in ROADMAP):** converting ~116 functions' `#` lead comments to `"""docstrings"""` for
-  documentation-as-code; tagging `v0.9.0` and whether to publish to PyPI. (Licence is settled — Apache-2.0, ADR
-  0002.)
+- **Open threads (in ROADMAP):** tagging `v0.9.0` and whether to publish to PyPI; publishing an SBOM on release.
+  (Licence is settled — Apache-2.0, ADR 0002. Function docstrings are done.)

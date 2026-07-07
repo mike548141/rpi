@@ -79,7 +79,7 @@ RAND_BLOCK = 4 * 1024       # 4 KiB random IO block, as per the A1 test
 #--------------------------------------
 
 def _disable_cache(file_descriptor):
-  # On macOS, ask the kernel to bypass the buffer cache for this descriptor so we measure the device, not RAM
+  """On macOS, ask the kernel to bypass the buffer cache for this descriptor so we measure the device, not RAM"""
   if sys.platform == 'darwin' and fcntl is not None:
     try:
       fcntl.fcntl(file_descriptor, F_NOCACHE, 1)
@@ -87,14 +87,14 @@ def _disable_cache(file_descriptor):
       pass
 
 def _write_flags():
-  # Prefer O_DSYNC on Linux so each write is durable (a true device write); macOS relies on F_NOCACHE instead
+  """Prefer O_DSYNC on Linux so each write is durable (a true device write); macOS relies on F_NOCACHE instead"""
   flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC | O_BINARY
   if hasattr(os, 'O_DSYNC') and sys.platform != 'darwin':
     flags |= os.O_DSYNC
   return flags
 
 def _evict_read_cache(file_descriptor, offset, length):
-  # On Linux, drop the page cache for the region we are about to read so the read hits the device
+  """On Linux, drop the page cache for the region we are about to read so the read hits the device"""
   if hasattr(os, 'posix_fadvise'):
     try:
       os.posix_fadvise(file_descriptor, offset, length, os.POSIX_FADV_DONTNEED)
@@ -102,8 +102,9 @@ def _evict_read_cache(file_descriptor, offset, length):
       pass
 
 def _percentile(sorted_vals, q):
-  # Linear-interpolation percentile (q in 0..100) over an already-sorted, non-empty list. Avoids
-  # statistics.quantiles so we stay on the 3.6 floor this tool targets
+  """Linear-interpolation percentile (q in 0..100) over an already-sorted, non-empty list. Avoids
+  statistics.quantiles so we stay on the 3.6 floor this tool targets
+  """
   if not sorted_vals:
     return 0.0
   if len(sorted_vals) == 1:
@@ -116,8 +117,9 @@ def _percentile(sorted_vals, q):
   return sorted_vals[low] * (high - rank) + sorted_vals[high] * (rank - low)
 
 def _latency_stats(latencies_s):
-  # Reduce every per-operation latency (seconds) to a distribution in milliseconds. A mean alone hides the tail
-  # that actually hurts on a worn or fake card, so expose p50/p95/p99 and the extremes too
+  """Reduce every per-operation latency (seconds) to a distribution in milliseconds. A mean alone hides the tail
+  that actually hurts on a worn or fake card, so expose p50/p95/p99 and the extremes too
+  """
   if not latencies_s:
     return {'mean_ms': 0.0, 'p50_ms': 0.0, 'p95_ms': 0.0, 'p99_ms': 0.0, 'min_ms': 0.0, 'max_ms': 0.0}
   ms = sorted(value * 1000 for value in latencies_s)
@@ -131,8 +133,9 @@ def _latency_stats(latencies_s):
   }
 
 def _result(total_bytes, operations, elapsed_s, latencies_s):
-  # Package one test's raw counters into the metrics rpi-sdinfo reports. MBps is base-10 (matching card branding).
-  # `lat_ms` stays the mean (backward compatible); `lat` carries the full percentile breakdown
+  """Package one test's raw counters into the metrics rpi-sdinfo reports. MBps is base-10 (matching card branding).
+  `lat_ms` stays the mean (backward compatible); `lat` carries the full percentile breakdown
+  """
   lat = _latency_stats(latencies_s)
   return {
     'mbps': (total_bytes / 1000000) / elapsed_s if elapsed_s else 0.0,
@@ -146,7 +149,7 @@ def _result(total_bytes, operations, elapsed_s, latencies_s):
 #--------------------------------------
 
 def sequential_write(path, size_bytes, block_size=SEQ_BLOCK):
-  # Write size_bytes to path in block_size chunks and time it. Creates/truncates the file to size_bytes
+  """Write size_bytes to path in block_size chunks and time it. Creates/truncates the file to size_bytes"""
   block_size = min(block_size, size_bytes) or size_bytes
   blocks = max(1, size_bytes // block_size)
   buffer = os.urandom(block_size)  # Random data so a card/controller that dedupes or compresses can't cheat
@@ -166,7 +169,7 @@ def sequential_write(path, size_bytes, block_size=SEQ_BLOCK):
   return _result(blocks * block_size, blocks, elapsed, latencies)
 
 def random_io(path, size_bytes, mode, duration_s=DEFAULT_SECONDS, block_size=RAND_BLOCK):
-  # Do random block_size reads or writes at aligned offsets across an existing size_bytes file for duration_s
+  """Do random block_size reads or writes at aligned offsets across an existing size_bytes file for duration_s"""
   aligned_blocks = max(1, (size_bytes - block_size) // block_size)
   buffer = os.urandom(block_size) if mode == 'write' else None
   latencies = []
@@ -200,8 +203,9 @@ def random_io(path, size_bytes, mode, duration_s=DEFAULT_SECONDS, block_size=RAN
 #--------------------------------------
 
 def benchmark_once(path, size_bytes, duration_s=DEFAULT_SECONDS, on_phase=None):
-  # Run the full A1-style suite once against the file at path, returning per-test metrics.
-  # `on_phase(name)` is an optional callback fired before each phase (e.g. to drive a progress spinner)
+  """Run the full A1-style suite once against the file at path, returning per-test metrics.
+  `on_phase(name)` is an optional callback fired before each phase (e.g. to drive a progress spinner)
+  """
   def phase(name):
     if on_phase:
       on_phase(name)
@@ -214,8 +218,9 @@ def benchmark_once(path, size_bytes, duration_s=DEFAULT_SECONDS, on_phase=None):
   return {'seq_write': seq_write, 'rand_write': rand_write, 'rand_read': rand_read}
 
 def empty_results():
-  # The list-of-samples structure rpi-sdinfo aggregates over. Keys mirror the old fio result shape.
-  # `*_latency` stays the per-run mean (ms) for compatibility; `*_latency_pct` adds the per-run percentile dicts
+  """The list-of-samples structure rpi-sdinfo aggregates over. Keys mirror the old fio result shape.
+  `*_latency` stays the per-run mean (ms) for compatibility; `*_latency_pct` adds the per-run percentile dicts
+  """
   return {
     'write': {'seq_mbps': [], 'seq_iops': [], 'seq_latency': [], 'seq_latency_pct': [],
               'rand_4kb_mbps': [], 'rand_4kb_iops': [], 'rand_4kb_latency': [], 'rand_4kb_latency_pct': []},
@@ -223,9 +228,10 @@ def empty_results():
   }
 
 def run(path, runs=DEFAULT_RUNS, size_bytes=DEFAULT_SIZE_MB * 1024 * 1024, duration_s=DEFAULT_SECONDS, on_run=None, on_phase=None):
-  # Run the suite `runs` times, collecting samples into the rpi-sdinfo result structure.
-  # `on_run(run_number, run_metrics)` fires after each run; `on_phase(run_number, phase_name)` fires before each
-  # phase within a run - both optional, both purely for progress reporting.
+  """Run the suite `runs` times, collecting samples into the rpi-sdinfo result structure.
+  `on_run(run_number, run_metrics)` fires after each run; `on_phase(run_number, phase_name)` fires before each
+  phase within a run - both optional, both purely for progress reporting.
+  """
   results = empty_results()
   for run_number in range(1, runs + 1):
     phase_cb = (lambda name, n=run_number: on_phase(n, name)) if on_phase else None
@@ -251,8 +257,9 @@ def run(path, runs=DEFAULT_RUNS, size_bytes=DEFAULT_SIZE_MB * 1024 * 1024, durat
 #--------------------------------------
 
 def aggregate_latency(pct_list):
-  # Combine the per-run latency dicts (from _latency_stats) into one distribution: mean the central percentiles,
-  # but keep the true min and max across every run. Returns zeros when no runs were recorded
+  """Combine the per-run latency dicts (from _latency_stats) into one distribution: mean the central percentiles,
+  but keep the true min and max across every run. Returns zeros when no runs were recorded
+  """
   if not pct_list:
     return {'mean_ms': 0.0, 'p50_ms': 0.0, 'p95_ms': 0.0, 'p99_ms': 0.0, 'min_ms': 0.0, 'max_ms': 0.0}
   agg = {key: statistics.mean(d.get(key, 0.0) for d in pct_list) for key in ('mean_ms', 'p50_ms', 'p95_ms', 'p99_ms')}
@@ -261,8 +268,9 @@ def aggregate_latency(pct_list):
   return agg
 
 def summary(results):
-  # Reduce the per-run sample lists to the mean of each headline metric plus a combined latency distribution
-  # (used by both the text and JSON output)
+  """Reduce the per-run sample lists to the mean of each headline metric plus a combined latency distribution
+  (used by both the text and JSON output)
+  """
   return {
     'seq_write': {'mbps': statistics.mean(results['write']['seq_mbps']),
                   'iops': statistics.mean(results['write']['seq_iops']),
@@ -276,6 +284,7 @@ def summary(results):
   }
 
 def main(argv=None):
+  """rpi-sdbench entry point: run the benchmark suite against a directory and print the results."""
   parser = argparse.ArgumentParser(description='Native, dependency-free SD/MMC storage benchmark (A1 sniff test).')
   parser.add_argument('--dir', default=tempfile.gettempdir(), help='Directory on the card to test (default: system temp dir)')
   parser.add_argument('--runs', type=int, default=DEFAULT_RUNS, help='Number of benchmark runs to average (default: %(default)s)')

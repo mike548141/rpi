@@ -6,6 +6,11 @@ All notable changes to rpi-sdinfo are recorded here. The format loosely follows
 
 ## [Unreleased]
 
+### Changed
+- **Function docstrings (documentation-as-code).** Every function's leading `#` comment is now a
+  `"""docstring"""`, and the public entry points that had none gained a one-liner, so `pydoc`/`help()` and any
+  API-doc tool show each function's intent instead of a bare signature. No behaviour change.
+
 ### Added
 - **Corners sweep: congruence-busting decimal probes.** The raw-device corners sweep (`sdverify --device`) now
   also probes each common decimal capacity boundary below the reported size (8/16/32/…/512 GB, etc.), not only

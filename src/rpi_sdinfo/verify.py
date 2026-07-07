@@ -101,9 +101,10 @@ SAFETY_MARGIN_FRACTION = 0.01
 #--------------------------------------
 
 def pattern_block(offset, length):
-  # Deterministic, non-compressible bytes unique to this absolute offset in the sweep. SHAKE-128 is an
-  # extendable-output hash, so one call yields exactly `length` bytes seeded by the offset. Regenerating the
-  # same offset during verification reproduces the bytes bit-for-bit without us storing the payload
+  """Deterministic, non-compressible bytes unique to this absolute offset in the sweep. SHAKE-128 is an
+  extendable-output hash, so one call yields exactly `length` bytes seeded by the offset. Regenerating the
+  same offset during verification reproduces the bytes bit-for-bit without us storing the payload
+  """
   seed = PATTERN_KEY + offset.to_bytes(8, 'big')
   return hashlib.shake_128(seed).digest(length)
 
@@ -112,8 +113,9 @@ def pattern_block(offset, length):
 #--------------------------------------
 
 def plan_sweep(path, capacity_bytes=None, margin_bytes=SAFETY_MARGIN_BYTES, margin_fraction=SAFETY_MARGIN_FRACTION):
-  # Decide how many bytes to write: the free space on `path`'s filesystem less a safety margin, optionally
-  # capped by capacity_bytes. Returns (sweep_bytes, usage) where usage is the shutil.disk_usage snapshot
+  """Decide how many bytes to write: the free space on `path`'s filesystem less a safety margin, optionally
+  capped by capacity_bytes. Returns (sweep_bytes, usage) where usage is the shutil.disk_usage snapshot
+  """
   usage = shutil.disk_usage(path)
   margin = max(margin_bytes, int(usage.total * margin_fraction))
   sweep = max(0, usage.free - margin)
@@ -131,9 +133,10 @@ def _open_write(path):
   return file_descriptor
 
 def write_sweep(directory, sweep_bytes, file_bytes, block_bytes, on_progress=None):
-  # Fill `directory` with test files totalling up to sweep_bytes, each block stamped with its absolute-offset
-  # pattern. Returns (files, written_bytes, short) where files is a list of (path, start_offset, length) and
-  # `short` is True if we stopped early on a full filesystem (ENOSPC) before reaching sweep_bytes
+  """Fill `directory` with test files totalling up to sweep_bytes, each block stamped with its absolute-offset
+  pattern. Returns (files, written_bytes, short) where files is a list of (path, start_offset, length) and
+  `short` is True if we stopped early on a full filesystem (ENOSPC) before reaching sweep_bytes
+  """
   files = []
   written = 0
   short = False
@@ -179,9 +182,10 @@ def _open_read(path):
   return file_descriptor
 
 def verify_sweep(files, block_bytes, on_progress=None, total_bytes=None):
-  # Read every file back and compare each block against the pattern regenerated from its absolute offset.
-  # Returns (good_bytes, first_bad_offset): good_bytes is the contiguous run that verified from offset 0, and
-  # first_bad_offset is where the first mismatch was found (None if everything verified)
+  """Read every file back and compare each block against the pattern regenerated from its absolute offset.
+  Returns (good_bytes, first_bad_offset): good_bytes is the contiguous run that verified from offset 0, and
+  first_bad_offset is where the first mismatch was found (None if everything verified)
+  """
   good = 0
   for path, start, length in files:
     file_descriptor = _open_read(path)
@@ -223,18 +227,19 @@ def verify_sweep(files, block_bytes, on_progress=None, total_bytes=None):
 # to the device, over any filesystem there.
 
 def corner_offsets(capacity_bytes, block_bytes):
-  # Probe block 0, every power-of-two block offset, and the final block. This is not arbitrary: a counterfeit
-  # truncates the block address at a power-of-two boundary R blocks, so logical block 0 and logical block R
-  # alias onto the same physical cell. Because R itself is one of the power-of-two offsets we probe, the pair
-  # (0, R) is always in the set - guaranteeing a detectable collision for any such wrap, with only ~log2(N)
-  # probes instead of writing the whole card. Evenly-spaced probes would miss it unless two happened to be
-  # congruent mod R, which is exactly the luck we must not depend on.
-  #
-  # A non-power-of-two wrap (e.g. a real chip of exactly 100 GB) has no power-of-two structure, so none of the
-  # offsets above need land congruent mod R. To bust that we also probe each common DECIMAL capacity boundary
-  # below the reported size: if the card really wraps at one of them, that boundary aliases onto block 0 and is
-  # caught (see COMMON_FAKE_CAPACITIES_BYTES). A truly arbitrary wrap can still slip past both - the thorough
-  # free-space sweep remains the exhaustive backstop; this stays a fast first pass.
+  """Probe block 0, every power-of-two block offset, and the final block. This is not arbitrary: a counterfeit
+  truncates the block address at a power-of-two boundary R blocks, so logical block 0 and logical block R
+  alias onto the same physical cell. Because R itself is one of the power-of-two offsets we probe, the pair
+  (0, R) is always in the set - guaranteeing a detectable collision for any such wrap, with only ~log2(N)
+  probes instead of writing the whole card. Evenly-spaced probes would miss it unless two happened to be
+  congruent mod R, which is exactly the luck we must not depend on.
+
+  A non-power-of-two wrap (e.g. a real chip of exactly 100 GB) has no power-of-two structure, so none of the
+  offsets above need land congruent mod R. To bust that we also probe each common DECIMAL capacity boundary
+  below the reported size: if the card really wraps at one of them, that boundary aliases onto block 0 and is
+  caught (see COMMON_FAKE_CAPACITIES_BYTES). A truly arbitrary wrap can still slip past both - the thorough
+  free-space sweep remains the exhaustive backstop; this stays a fast first pass.
+  """
   if capacity_bytes < block_bytes:
     return [0]
   last = ((capacity_bytes - block_bytes) // block_bytes) * block_bytes
@@ -249,8 +254,9 @@ def corner_offsets(capacity_bytes, block_bytes):
   return sorted(offsets)
 
 def write_offsets(pwrite, offsets, block_bytes, capacity_bytes, on_progress=None):
-  # Write each offset's pattern via the injected pwrite(offset, data). All probes are written before any are
-  # verified so an address collision on a fake overwrites an earlier probe rather than being hidden
+  """Write each offset's pattern via the injected pwrite(offset, data). All probes are written before any are
+  verified so an address collision on a fake overwrites an earlier probe rather than being hidden
+  """
   for index, offset in enumerate(offsets):
     length = min(block_bytes, capacity_bytes - offset)
     pwrite(offset, pattern_block(offset, length))
@@ -258,8 +264,9 @@ def write_offsets(pwrite, offsets, block_bytes, capacity_bytes, on_progress=None
       on_progress('write', index + 1, len(offsets))
 
 def verify_offsets(pread, offsets, block_bytes, capacity_bytes, on_progress=None):
-  # Read each probe back via the injected pread(offset, length) and compare to its regenerated pattern.
-  # Returns (good_count, first_bad_offset) - first_bad_offset is None when every probe verified
+  """Read each probe back via the injected pread(offset, length) and compare to its regenerated pattern.
+  Returns (good_count, first_bad_offset) - first_bad_offset is None when every probe verified
+  """
   good = 0
   for index, offset in enumerate(offsets):
     length = min(block_bytes, capacity_bytes - offset)
@@ -271,7 +278,7 @@ def verify_offsets(pread, offsets, block_bytes, capacity_bytes, on_progress=None
   return good, None
 
 def _device_size(path, file_descriptor):
-  # Size in bytes of a block device or regular file: seek to the end (works for both), falling back to stat
+  """Size in bytes of a block device or regular file: seek to the end (works for both), falling back to stat"""
   try:
     size = os.lseek(file_descriptor, 0, os.SEEK_END)
     if size > 0:
@@ -282,9 +289,10 @@ def _device_size(path, file_descriptor):
 
 def run_device(device_path, capacity_bytes=None, block_bytes=DEFAULT_BLOCK_KB * 1024,
                on_progress=None, on_phase=None):
-  # Quick corners sweep against a raw device (or a regular file, for testing). DESTRUCTIVE on a real device.
-  # capacity_bytes overrides the detected size (e.g. to probe the branded capacity of a device the OS sizes
-  # honestly). Returns the same result shape as run(), with 'corners' listing the probed offsets
+  """Quick corners sweep against a raw device (or a regular file, for testing). DESTRUCTIVE on a real device.
+  capacity_bytes overrides the detected size (e.g. to probe the branded capacity of a device the OS sizes
+  honestly). Returns the same result shape as run(), with 'corners' listing the probed offsets
+  """
   if on_phase:
     on_phase('open')
   flags = os.O_RDWR | sdbench.O_BINARY
@@ -343,6 +351,7 @@ def run_device(device_path, capacity_bytes=None, block_bytes=DEFAULT_BLOCK_KB * 
 #--------------------------------------
 
 def cleanup(files):
+  """Delete the sweep's test files, ignoring any that are already gone. Returns the count removed."""
   removed = 0
   for path, _start, _length in files:
     try:
@@ -358,9 +367,10 @@ def cleanup(files):
 
 def run(directory, capacity_bytes=None, file_bytes=DEFAULT_FILE_MB * 1024 * 1024,
         block_bytes=DEFAULT_BLOCK_KB * 1024, keep=False, on_progress=None, on_phase=None):
-  # Full sweep: plan, write, verify, clean up. Returns a result dict describing what was tested and the
-  # verdict. `on_phase(name)` fires at the start of each phase; `on_progress(phase, done, total)` streams
-  # byte counts for a progress display. Never raises on a mismatch - that is reported in the result
+  """Full sweep: plan, write, verify, clean up. Returns a result dict describing what was tested and the
+  verdict. `on_phase(name)` fires at the start of each phase; `on_progress(phase, done, total)` streams
+  byte counts for a progress display. Never raises on a mismatch - that is reported in the result
+  """
   if on_phase:
     on_phase('plan')
   sweep_bytes, usage = plan_sweep(directory, capacity_bytes)
@@ -419,7 +429,7 @@ def run(directory, capacity_bytes=None, file_bytes=DEFAULT_FILE_MB * 1024 * 1024
 #--------------------------------------
 
 def _human(num_bytes):
-  # Base-10 sizes, matching how cards are branded and how sdbench reports throughput
+  """Base-10 sizes, matching how cards are branded and how sdbench reports throughput"""
   value = float(num_bytes)
   for unit in ('B', 'kB', 'MB', 'GB', 'TB'):
     if abs(value) < 1000 or unit == 'TB':
@@ -428,9 +438,10 @@ def _human(num_bytes):
   return '%.2f TB' % value
 
 def looks_mounted(device_path):
-  # Best-effort guard: is this block device currently mounted? We refuse to raw-write a mounted device so a
-  # slip of the finger cannot wipe a live filesystem (or the boot disk). Not exhaustive - the real safety is
-  # requiring an explicit --device and --yes - but it catches the common mistake
+  """Best-effort guard: is this block device currently mounted? We refuse to raw-write a mounted device so a
+  slip of the finger cannot wipe a live filesystem (or the boot disk). Not exhaustive - the real safety is
+  requiring an explicit --device and --yes - but it catches the common mistake
+  """
   real = os.path.realpath(device_path)
   candidates = {device_path, real}
   try:
@@ -465,7 +476,7 @@ def _device_progress(quiet):
   return on_progress
 
 def _run_device_cli(args, quiet):
-  # DESTRUCTIVE quick corners sweep against a raw device (or a plain file, for testing)
+  """DESTRUCTIVE quick corners sweep against a raw device (or a plain file, for testing)"""
   is_block = False
   try:
     is_block = os.path.isfile(args.device) is False and os.stat(args.device).st_mode & 0o170000 == 0o060000
@@ -510,6 +521,7 @@ def _run_device_cli(args, quiet):
   return 0 if result['ok'] else 1
 
 def main(argv=None):
+  """rpi-sdverify entry point: run the free-space or raw-device corners sweep and return the exit code."""
   parser = argparse.ArgumentParser(description='Native, dependency-free SD/MMC capacity-fraud sweep (f3/h2testw style).')
   parser.add_argument('--dir', default=tempfile.gettempdir(), help='Directory on the card to sweep (default: system temp dir). Point this at the mounted card.')
   parser.add_argument('--device', default=None, help='DESTRUCTIVE quick mode: raw block device (e.g. /dev/disk4 or /dev/mmcblk0) to probe with a fast power-of-two "corners" sweep instead of filling free space. Overwrites the device. Needs --yes.')

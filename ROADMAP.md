@@ -77,10 +77,12 @@ percentiles, the test suite) plus the post-0.9 macOS/CSD work lives in `docs/ROA
 
 ## Documentation & release polish (post-0.9)
 
-- **Docstrings (documentation-as-code).** The package and `__init__` have docstrings and the code is heavily
-  `#`-commented, but the ~116 functions use leading `#` comments rather than `"""docstrings"""`, so `pydoc` /
-  `help()` / any API-doc generator shows only signatures. Convert the lead comment of each public function to a
-  docstring so the inline documentation is machine-extractable.
+- **Docstrings (documentation-as-code).** ✅ Done: every function with a leading `#` comment now carries a
+  `"""docstring"""` (converted by a one-off transform, reviewed by hand), and the public entry points that had
+  no lead comment (`main`, `parse_args`, the `render_*` family, `f_num`, `term_width`, `cleanup`) got a
+  hand-written one-liner. `pydoc` / `help()` / any API-doc generator now shows the intent, not just signatures.
+  Every *public* function is documented; a handful of trivial private helpers (`_pread`, `_open_read`, …) that
+  never had a lead comment are left bare by design.
 - **License.** ✅ Resolved: relicensed to **Apache-2.0** across `LICENSE`, `pyproject.toml` and the per-file
   headers (commit `2e4ed88`), clearing the earlier GPL v2/v3 inconsistency.
 - **Tag and publish.** Once the above is settled: tag `v0.9.0`, and decide whether to publish to PyPI (would make
