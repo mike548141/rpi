@@ -65,6 +65,19 @@ the root depends on nothing — a provably tiny supply-chain surface. The versio
 the package `__version__`; the rest from `pyproject.toml`. Do **not** commit the generated
 JSON — it is a build artifact regenerated on tag.
 
+## Cutting a release
+
+The single source of truth for the version is `__version__` in `src/rpi_sdinfo/__init__.py`.
+To release:
+
+1. Bump `__version__`, move the `CHANGELOG.md` `[Unreleased]` block under the new version, commit.
+2. Tag it: `git tag vX.Y.Z && git push origin vX.Y.Z`.
+
+The `Release` workflow (`.github/workflows/release.yml`) then checks the tag matches
+`__version__`, builds the sdist + wheel, generates the SBOM, and publishes a GitHub Release
+with all three attached. Use the workflow's **Run workflow** button for a no-publish dry run.
+Publishing to **PyPI is intentionally manual** (not automated) — see `ROADMAP.md`.
+
 ## Pull requests
 
 1. Branch off `main`.

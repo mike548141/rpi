@@ -85,15 +85,18 @@ percentiles, the test suite) plus the post-0.9 macOS/CSD work lives in `docs/ROA
   never had a lead comment are left bare by design.
 - **License.** ✅ Resolved: relicensed to **Apache-2.0** across `LICENSE`, `pyproject.toml` and the per-file
   headers (commit `2e4ed88`), clearing the earlier GPL v2/v3 inconsistency.
-- **Tag and publish.** Once the above is settled: tag `v0.9.0`, and decide whether to publish to PyPI (would make
-  `pipx install rpi-sdinfo` work without the git URL) — gated on the same "safe to share" review as the upload.
+- **Tag and publish.** ◑ Release plumbing shipped: `.github/workflows/release.yml` triggers on a `v*` tag,
+  checks the tag matches `__version__`, builds the sdist + wheel, generates the SBOM, and publishes a GitHub
+  Release with all three attached (`workflow_dispatch` gives a no-publish dry run). **Remaining (your call):**
+  actually tag `v0.9.0`, and decide whether to also publish to PyPI (would make `pipx install rpi-sdinfo` work
+  without the git URL) — the PyPI push is deliberately *not* automated, gated on the "safe to share" review.
 - **Publish an SBOM.** ◑ Generator shipped: `tools/gen_sbom.py` emits a **CycloneDX 1.5** JSON SBOM, stdlib-only
   (no `cyclonedx-py` — for a zero-dep package the generator itself stays dependency-free), with an empty
   `components` list and a no-dependency root — the "provably tiny supply-chain surface" made machine-readable.
   Format/generation/delivery decisions recorded in [ADR 0005](docs/decisions/0005-sbom-cyclonedx.md); covered by
-  `tests/test_sbom.py`. **Remaining:** wire a release workflow to run it on tag and attach the output (and bundle
-  in the sdist/wheel) — part of the tag-and-publish track below, deliberately not built until release is
-  greenlit. Dev-tooling only — no runtime dependency (ADR 0001).
+  `tests/test_sbom.py`. ✅ Now wired into the release workflow (`.github/workflows/release.yml`), which generates
+  the SBOM on a `v*` tag and attaches it to the GitHub Release alongside the sdist/wheel. Dev-tooling only — no
+  runtime dependency (ADR 0001).
 
 ## Smaller cleanups
 

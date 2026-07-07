@@ -89,3 +89,18 @@ Convention adopted 2026-07-08 from the sibling `ros`/`tiki` repo (lean roadmap +
   the artifact). **Next**: the standing v1.0 Pi-hardware blocker; the rest of the release track (tag, PyPI,
   wiring the SBOM into a tag CI job, artifact signing) and the crowd-upload anonymisation scheme all need Mike's
   go-ahead — that's the genuine decision point, not more code.
+
+- **2026-07-08 (cont. 5)**: Asked Mike where to go next; he picked **release plumbing for v0.9.0**. Added
+  `.github/workflows/release.yml`: triggers on a `v*` tag, **guards that the tag matches `__version__`** (a
+  release can't ship a version the code disagrees with), builds sdist + wheel (`python -m build`), generates the
+  SBOM (`tools/gen_sbom.py -o dist/rpi-sdinfo.cdx.json`), uploads them as workflow artifacts, and publishes a
+  GitHub Release with the tarball/wheel/SBOM attached via `softprops/action-gh-release@v2` +
+  `generate_release_notes`. `workflow_dispatch` gives a no-publish dry run. **PyPI push is deliberately NOT
+  automated** — left manual pending the safe-to-share review (Mike's call). Validated locally before writing the
+  YAML: `python -m build` produces `rpi_sdinfo-0.9.0.{tar.gz,whl}` cleanly, the wheel excludes `tools/`
+  (src-layout), the tag-vs-`__version__` one-liner and the YAML both parse. Docs: ROADMAP (tag-and-publish ◑,
+  SBOM ✅ wired), CHANGELOG (Added), CONTRIBUTING (a "Cutting a release" section). 109 tests still green (no code
+  touched). **To actually release**: bump `__version__` if needed, move CHANGELOG `[Unreleased]` under the
+  version, `git tag v0.9.0 && git push origin v0.9.0` — the workflow does the rest. **Next / still open**: the
+  Pi-hardware blocker; the PyPI-publish decision; upload anonymisation; artifact signing (sigstore/cosign) could
+  bolt onto the release job later.

@@ -7,6 +7,9 @@ All notable changes to rpi-sdinfo are recorded here. The format loosely follows
 ## [Unreleased]
 
 ### Added
+- **Release workflow (`.github/workflows/release.yml`).** On a `v*` tag it verifies the tag matches
+  `__version__`, builds the sdist + wheel, generates the CycloneDX SBOM, and publishes a GitHub Release with all
+  three attached (`workflow_dispatch` gives a no-publish dry run). Publishing to PyPI stays intentionally manual.
 - **SBOM generator (`tools/gen_sbom.py`).** Emits a CycloneDX 1.5 JSON Software Bill of Materials for the
   package - stdlib-only (no third-party generator), with an empty component list and a no-dependency root that
   makes the zero-runtime-dependency supply chain a machine-readable fact. Dev/release tooling; adds no runtime

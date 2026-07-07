@@ -11,10 +11,13 @@ src/rpi_sdinfo.egg-info/PKG-INFO
 src/rpi_sdinfo.egg-info/SOURCES.txt
 src/rpi_sdinfo.egg-info/dependency_links.txt
 src/rpi_sdinfo.egg-info/entry_points.txt
+src/rpi_sdinfo.egg-info/requires.txt
 src/rpi_sdinfo.egg-info/top_level.txt
 tests/test_bench.py
 tests/test_cli.py
 tests/test_csd.py
 tests/test_grade.py
 tests/test_helpers.py
+tests/test_macos.py
+tests/test_sbom.py
 tests/test_verify.py
