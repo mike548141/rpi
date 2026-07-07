@@ -202,10 +202,17 @@ real Pi hardware (see [ROADMAP.md](ROADMAP.md)).
 
 ### Scope & expectations
 
-**What it is:** a zero-dependency, cross-platform *sanity check* for SD/MMC cards — identity, a quick
-benchmark, capacity-fraud detection, and instant metadata cross-checks, all in one command with nothing to
-install. The niche it serves is the Raspberry Pi / homelab / secondhand-card crowd who want one tool that
-answers "is this card genuine, and is it fast enough?".
+**What it is:** a zero-dependency, cross-platform *diagnostic* for SD/MMC cards — identity, a quick benchmark,
+capacity-fraud detection, and instant metadata cross-checks, all in one command with nothing to install. The
+niche it serves is the Raspberry Pi / homelab / secondhand-card crowd who want one tool that answers "is this
+card genuine, and is it fast enough — and if not, *why*?". Counterfeit-catching is the headline, but it equally
+diagnoses a *genuine* card that is faulty, worn, honestly slow, or simply bottlenecked by the host, reader or
+bus rather than the card itself.
+
+**It is a diagnostic, not a dumbed-down appliance.** If you're running it you can read a nuanced answer, so it
+gives you one — the real cause, at its true severity, not a single fake/genuine light. A genuine U3 card that
+measures slow because the reader is a non-UHS bus is *told* to you as exactly that, not failed and not silently
+believed fast (see [ADR 0004](docs/decisions/0004-honest-diagnostic-not-a-pass-fail-toy.md)).
 
 **What it is not:** a certified benchmark or a forensic capacity tester. It does not try to out-do the
 specialists at their one job — [`f3`](https://github.com/AltraMayor/f3) / h2testw for exhaustive capacity

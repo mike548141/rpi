@@ -31,6 +31,11 @@ detection** (capacity fraud + CID/CSD metadata contradictions); everything else 
 
 ## Design principles (do not violate without discussing)
 
+- **Honest diagnostic, not a pass/fail toy.** The purpose is broader than fake-catching: also diagnose a
+  *genuine* card that is faulty, worn, honestly slow, or bottlenecked by the host/reader/bus. The audience are
+  diagnosticians, not luddites — report the real cause at its true severity, don't dumb findings down, and never
+  cry "fake" on an inference a genuine card could trip. See [ADR 0004](docs/decisions/0004-honest-diagnostic-not-a-pass-fail-toy.md)
+  (and its worked example, [ADR 0003](docs/decisions/0003-tran-speed-is-not-proof-of-fake.md)).
 - **Standard library only — zero runtime dependencies.** Must run on stock Pi OS / macOS / Windows Python with
   nothing to `pip install`. Reach for the stdlib before shelling out or adding a dep.
 - **Cross-platform, degrade gracefully.** Platform code sits behind `sys.platform`. macOS/Windows can't read the
