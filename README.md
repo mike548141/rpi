@@ -44,9 +44,12 @@ identifiers, performance, and failure rates.
 
 - **Raspberry Pi Linux** — full detail (reads the SD CID/CSD registers from sysfs). Run with `sudo` so it can
   read every register. No packages to install.
-- **macOS** — plug the card into a reader. Identity is limited to what macOS exposes via `diskutil` (capacity,
-  media name, bus, SMART, removable) because macOS does not expose the SD CID/CSD registers; the benchmark and
-  grading work normally. Point `--dir` at the mounted card, e.g. `/Volumes/MYCARD`.
+- **macOS** — plug the card into a reader and just run `rpi-sdinfo`: with no `--device`/`--dir` it auto-detects
+  the inserted removable card (preferring an SD-bus reader) and benchmarks that card rather than the boot disk.
+  Identity is otherwise limited to what macOS exposes via `diskutil` (capacity, media name, bus, SMART,
+  removable) because macOS does not expose the SD CID/CSD registers — though on a Mac with a **built-in SD slot**
+  the tool also asks the card reader for the card's own product/make/serial. The benchmark and grading work
+  normally. Pass `--dir /Volumes/MYCARD` (or `--device disk4`) to target a specific card.
 - **Windows** — plug the card into a reader. Identity is limited to the drive's capacity, volume label and
   removable flag (Windows does not expose the SD CID/CSD registers either); the benchmark and grading work
   normally. Point `--dir` at the card's drive, e.g. `--dir E:\`.

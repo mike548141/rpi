@@ -854,9 +854,92 @@ def _device_for_path(path):
   except (subprocess.SubprocessError, OSError, IndexError):
     return ''
 
+def _diskutil_disk_partitions():
+  # diskutil's whole-disks-with-partitions list (each entry has 'DeviceIdentifier' and 'Partitions'/'APFSVolumes'
+  # carrying per-volume 'MountPoint'). [] on any failure
+  try:
+    output = subprocess.run(['diskutil', 'list', '-plist'], capture_output=True, timeout=10).stdout
+    return plistlib.loads(output).get('AllDisksAndPartitions', [])
+  except (subprocess.SubprocessError, OSError, plistlib.InvalidFileException, ValueError):
+    return []
+
+def _entry_mountpoint(entry):
+  # First mounted volume on a whole-disk entry (a plain partition or an APFS volume), or '' if nothing is mounted
+  for vol in list(entry.get('Partitions', [])) + list(entry.get('APFSVolumes', [])):
+    if vol.get('MountPoint'):
+      return vol['MountPoint']
+  return ''
+
+def _autodetect_macos_target():
+  # With no --device/--dir given, find an inserted removable/external card rather than silently profiling the boot
+  # disk. Prefer an SD-bus disk over a generic external one (so a card reader wins over, say, a backup drive).
+  # Returns (device, mountpoint); ('', '') when nothing removable is present
+  best = None
+  for entry in _diskutil_disk_partitions():
+    disk = entry.get('DeviceIdentifier', '')
+    if not disk:
+      continue
+    info = diskutil_info(disk)
+    if not info.get('RemovableMediaOrExternalDevice'):
+      continue
+    bus = info.get('BusProtocol', '')
+    score = 2 if ('Secure Digital' in bus or bus == 'SD') else 1
+    if best is None or score > best[0]:
+      best = (score, disk, _entry_mountpoint(entry))
+  return (best[1], best[2]) if best else ('', '')
+
+def _sp_card_reader():
+  # system_profiler's built-in-SD-slot tree; [] on any failure or when the Mac has no native reader / no card
+  try:
+    output = subprocess.run(['system_profiler', '-json', 'SPCardReaderDataType'],
+                            capture_output=True, encoding='utf-8', timeout=15).stdout
+    return json.loads(output).get('SPCardReaderDataType', [])
+  except (subprocess.SubprocessError, OSError, ValueError, AttributeError):
+    return []
+
+def _find_card_node(tree, device):
+  # Depth-first search for the inserted-card entry whose 'bsd_name' matches the whole-disk device (e.g. 'disk4');
+  # the SD slot nests the card under the reader's '_items'. Returns the node dict, or {} if absent
+  stack = list(tree) if isinstance(tree, list) else [tree]
+  while stack:
+    node = stack.pop()
+    if not isinstance(node, dict):
+      continue
+    if node.get('bsd_name') == device:
+      return node
+    stack.extend(node.get('_items', []))
+  return {}
+
+def macos_card_identity(device, tree=None):
+  # Best-effort *real* card identity from the built-in reader, which (unlike diskutil) can surface the card's own
+  # product/manufacturer/serial rather than just the reader's model. Returns {product, manufacturer, serial} with
+  # only the keys the profiler actually exposed. USB card readers present as generic mass storage and do not
+  # appear here, so this mainly enriches Macs with a native SD slot. `tree` is injectable for testing
+  node = _find_card_node(_sp_card_reader() if tree is None else tree, device)
+  if not node:
+    return {}
+  ident = {}
+  product = (node.get('_name') or '').strip()
+  if product:
+    ident['product'] = product
+  for key, value in node.items():
+    low = key.lower()
+    if value and 'manufacturer' in low:
+      ident.setdefault('manufacturer', str(value).strip())
+    elif value and 'serial' in low:
+      ident.setdefault('serial', str(value).strip())
+  return ident
+
 def gather_macos(args):
   # macOS cannot read the SD CID/CSD registers, so identity is limited to what the card reader reports
-  target = args.device or args.dir or '/'
+  autodetected = ''
+  if not args.device and not args.dir:
+    dev, mount = _autodetect_macos_target()
+    if dev:
+      autodetected = dev
+      if mount:
+        args.dir = mount        # point the benchmark/sweep at the card, not the boot disk's temp dir
+  target = autodetected or args.device or args.dir or '/'
   info = diskutil_info(target)
   # An arbitrary subdirectory is neither a mount point nor a device (diskutil returns a null error plist), so
   # fall back to the device that backs it
@@ -901,6 +984,17 @@ def gather_macos(args):
       'cid_psn' : '', 'cid_mdt' : '', 'cid_prv_fw' : ''
     }
   }
+  # A native SD slot can name the real card (product/make/serial) where diskutil only saw the reader; fill any
+  # gaps it can, never overwriting something diskutil already resolved
+  card = macos_card_identity(sys_info['device'])
+  if card.get('product') and sys_info['storage']['label'] == 'unknown':
+    sys_info['storage']['label'] = card['product']
+  if card.get('manufacturer') and sys_info['storage']['manufacturer'].startswith('unknown'):
+    sys_info['storage']['manufacturer'] = card['manufacturer']
+  if card.get('serial') and not sys_info['storage']['cid_psn']:
+    sys_info['storage']['cid_psn'] = card['serial']
+  # Internal flag (not part of the JSON contract) so main() can tell the user which card it picked
+  sys_info['_autodetected'] = autodetected
   # --raw: the whole diskutil record is the raw source on macOS (bytes/datetime values coerced to str for JSON)
   if args.raw:
     sys_info['raw'] = {'diskutil': {k: str(v) for k, v in info.items()}}
@@ -1583,6 +1677,11 @@ def main(argv=None):
              + '. This tool supports Linux (Raspberry Pi), macOS, and Windows.')
     return 2
   sys_info['generated'] = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec='seconds').replace('+00:00', 'Z')
+
+  # Tell the user when we auto-picked a removable card (no --device/--dir was given) so the target isn't a mystery
+  if sys_info.get('_autodetected'):
+    progress.out(progress.badge('INFO', 'info') + ' Auto-selected removable card ' + sys_info['_autodetected']
+                 + (' (' + args.dir + ')' if args.dir else '') + ' - pass --device/--dir to override')
 
   # Decode the CSD and cross-check the card's self-declared facts (instant, non-destructive; no-op off Linux)
   compute_consistency(sys_info)

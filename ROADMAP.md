@@ -185,9 +185,8 @@ The bash original (`archive/rpi-sdinfo.sh`) is kept for reference only and is no
   `#`-commented, but the ~116 functions use leading `#` comments rather than `"""docstrings"""`, so `pydoc` /
   `help()` / any API-doc generator shows only signatures. Convert the lead comment of each public function to a
   docstring so the inline documentation is machine-extractable.
-- **License inconsistency to resolve (blocking a clean public release).** `LICENSE` is GPL **v2** and
-  `pyproject.toml` follows it (`GPL-2.0-or-later`), but the per-file header comments say "GNU GPL **v3**". Pick
-  one and make all three agree — a legal/ownership call for Mike, not a silent code cleanup.
+- **License.** ✅ Resolved: relicensed to **Apache-2.0** across `LICENSE`, `pyproject.toml` and the per-file
+  headers (commit `2e4ed88`), clearing the earlier GPL v2/v3 inconsistency.
 - **Tag and publish.** Once the above is settled: tag `v0.9.0`, and decide whether to publish to PyPI (would make
   `pipx install rpi-sdinfo` work without the git URL) — gated on the same "safe to share" review as the upload.
 
@@ -195,7 +194,10 @@ The bash original (`archive/rpi-sdinfo.sh`) is kept for reference only and is no
 
 - `sdbench`: optional true O_DIRECT path on Linux (aligned buffers) for the most accurate device-level numbers;
   progressively-larger block sizes. ✅ Latency percentiles (not just the mean) shipped in 0.8.
-- macOS: resolve the card's product name more reliably for USB card readers, and auto-detect a removable card
-  when `--device`/`--dir` is omitted.
+- macOS: ✅ auto-detect a removable card when `--device`/`--dir` is omitted (scans for a removable/external whole
+  disk, prefers an SD-bus reader, and points the benchmark at its mount point), and ✅ resolve the card's real
+  product/make/serial from a **built-in SD slot** via `system_profiler SPCardReaderDataType`. USB card readers
+  still present as generic mass storage, so their card product name remains reader-dependent — no macOS API
+  exposes an SD card's CID through a generic USB reader.
 - `read_file(return_scope='lines')` only returns a single line; extend it to a range, and test that the `regex`
   scope returns multiple matching lines.

@@ -6,6 +6,15 @@ All notable changes to rpi-sdinfo are recorded here. The format loosely follows
 
 ## [Unreleased]
 
+### Added
+- **macOS: auto-detect the inserted card.** With no `--device`/`--dir`, `rpi-sdinfo` now scans for a removable
+  or external whole disk (preferring an SD-bus reader) and profiles *that* card instead of silently falling back
+  to the boot disk, and points the benchmark/sweep at the card's mount point. It announces the selection; pass
+  `--device`/`--dir` to override.
+- **macOS: real card identity on a built-in SD slot.** Where `diskutil` only sees the reader, the tool now asks
+  `system_profiler` (`SPCardReaderDataType`) for the inserted card's own product name, manufacturer and serial,
+  filling identity gaps `diskutil` leaves blank. USB card readers still present as generic mass storage.
+
 ## [0.9.0] - 2026-07-06
 
 Packaged for distribution, and the first version with an automated test suite.

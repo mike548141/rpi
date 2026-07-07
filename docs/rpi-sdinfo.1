@@ -55,6 +55,12 @@ or
 .IR /Volumes/CARD ).
 Windows: a drive (e.g.
 .IR E: ).
+On macOS, if neither
+.B \-\-device
+nor
+.B \-\-dir
+is given, an inserted removable card is auto-detected (preferring an SD-bus reader) and
+benchmarked in place of the boot disk.
 .TP
 .BI \-\-partition " PART"
 Linux filesystem partition to inspect (default
