@@ -10,9 +10,12 @@ All notable changes to rpi-sdinfo are recorded here. The format loosely follows
 - **CSD structural liar-checks.** `cross_check()` now flags a CSD register that is structurally malformed - a
   reserved structure version (3), a zero/undefined TRAN_SPEED, empty or missing-mandatory command classes
   (basic/read/write), or an illegal READ_BL_LEN. A genuine controller emits a spec-valid register, so garbage
-  here is a counterfeit tell. All `warn` severity (strong hints, not exit-code failures). Deliberately does
-  *not* infer the rated speed class from TRAN_SPEED - that would false-positive genuine UHS cards, whose bus
-  speed is negotiated out-of-band.
+  here is a counterfeit tell. All `warn` severity (strong hints, not exit-code failures).
+- **Bus-ceiling explainer.** When a card's rated class needs more sustained throughput than its CSD's advertised
+  bus can carry (e.g. a genuine U3/V30 card on a high-speed ~25 MB/s bus), the tool now emits an `info` note
+  explaining that UHS speed is negotiated out-of-band and the card is bus-limited on a non-UHS host - so a real
+  card measuring below its label is understood, not mistaken for a fake or silently believed fast. It never
+  fails the card: inferring a fake from TRAN_SPEED would false-positive genuine UHS cards.
 - **macOS: auto-detect the inserted card.** With no `--device`/`--dir`, `rpi-sdinfo` now scans for a removable
   or external whole disk (preferring an SD-bus reader) and profiles *that* card instead of silently falling back
   to the boot disk, and points the benchmark/sweep at the card's mount point. It announces the selection; pass

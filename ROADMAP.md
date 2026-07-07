@@ -167,10 +167,12 @@ The bash original (`archive/rpi-sdinfo.sh`) is kept for reference only and is no
   version (3), a zero/undefined TRAN_SPEED, empty or missing-mandatory command classes (basic/read/write), and
   an illegal READ_BL_LEN. A genuine controller emits a spec-valid register, so garbage here is a counterfeit
   tell (all `warn` severity — strong hints, not exit-code fails).
-  - **Deliberately NOT done — rated class vs TRAN_SPEED.** Inferring "this card can't be A2/U3" from a low
-    TRAN_SPEED is *unsound*: UHS bus speed is negotiated out-of-band (CMD6/CMD11), so a genuine UHS card
-    legitimately still reports 25/50 Mbit/s in the legacy field. Shipping it would false-positive real cards
-    and poison the tool's credibility. Left out on purpose.
+  - **Rated class vs TRAN_SPEED — surfaced as `info`, never as a fail.** Inferring "this card can't be A2/U3"
+    from a low TRAN_SPEED is *unsound*: UHS bus speed is negotiated out-of-band (CMD6/CMD11), so a genuine UHS
+    card legitimately still reports 25/50 Mbit/s in the legacy field. Failing on it would poison credibility.
+    Instead, when the rated class exceeds what the advertised bus can carry (e.g. a U3/V30 card on a high-speed
+    ~25 MB/s bus), the tool emits an **info** note explaining the ceiling — so a genuine card measuring below
+    its label is understood (bus-limited on a non-UHS host), not silently believed fast or assumed broken.
   - **Still to add — MID that never ships the branded make.** Needs a PNM→brand reverse index over the CID
     database (which is sparse), so it would rarely fire today; deferred until the DB is richer.
 - **Decode the CSD register.** ✅ Shipped in 0.7 (`decode_csd()`): structure version → SDSC/SDHC/SDXC/SDUC,

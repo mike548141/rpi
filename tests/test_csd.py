@@ -146,6 +146,51 @@ class MalformedCsd(unittest.TestCase):
       self.assertFalse(any(f['severity'] == 'fail' for f in findings))
 
 
+class BusCeilingNote(unittest.TestCase):
+  # A genuine high-class card on a default/high-speed bus is NOT a fake, but the gap between its rating and the
+  # bus it can advertise is surfaced as info so the user understands a real card measuring below its label.
+  def _findings(self, tran_speed, speed_class):
+    c_size = csize_for_capacity_v2(32 * 1024 ** 3)
+    storage = {'csd_decoded': sdinfo.decode_csd(build_csd(1, tran_speed=tran_speed, c_size=c_size)),
+               'bytes': (c_size + 1) * 512 * 1024, 'speed_class': speed_class}
+    return sdinfo.cross_check(storage)
+
+  def test_u3_on_high_speed_bus_gets_info_not_warn_or_fail(self):
+    findings = self._findings(0x5A, ['U3', 'C10'])           # rated 30 MB/s, HS bus ~25 MB/s ceiling
+    self.assertTrue(any(f['severity'] == 'info' and 'bus-limited' in f['message'] for f in findings))
+    self.assertFalse(any(f['severity'] in ('warn', 'fail') for f in findings))
+
+  def test_message_names_rated_and_ceiling(self):
+    msg = next(f['message'] for f in self._findings(0x5A, ['V30']) if f['severity'] == 'info')
+    self.assertIn('30 MB/s', msg)                            # the rated floor
+    self.assertIn('25 MB/s', msg)                            # the high-speed bus ceiling
+
+  def test_default_speed_bus_names_itself(self):
+    msg = next(f['message'] for f in self._findings(0x32, ['U3']) if f['severity'] == 'info')
+    self.assertIn('default-speed', msg)                      # 25 Mbit/s -> ~12.5 MB/s ceiling
+    self.assertIn('12.5 MB/s', msg)
+
+  def test_class10_within_bus_ceiling_no_note(self):
+    # C10/U1 need 10 MB/s; a high-speed bus clears ~25 MB/s, so there is nothing to explain
+    findings = self._findings(0x5A, ['C10', 'U1'])
+    self.assertFalse(any('bus-limited' in f['message'] for f in findings))
+
+  def test_unknown_class_no_note(self):
+    # macOS/Windows or an unrecognised card has no rated class, so there is no floor to compare against
+    self.assertFalse(any('bus-limited' in f['message'] for f in self._findings(0x32, [])))
+
+
+class RatedWriteFloor(unittest.TestCase):
+  def test_takes_the_highest_class(self):
+    self.assertEqual(sdinfo._rated_write_floor(['C10', 'U3']), 30)
+    self.assertEqual(sdinfo._rated_write_floor(['A1', 'V90']), 90)
+
+  def test_unknown_and_empty(self):
+    self.assertEqual(sdinfo._rated_write_floor([]), 0)
+    self.assertEqual(sdinfo._rated_write_floor(['bogus']), 0)
+    self.assertEqual(sdinfo._rated_write_floor(None), 0)
+
+
 class ParseMdt(unittest.TestCase):
   def test_valid(self):
     self.assertEqual(sdinfo._parse_mdt('06/2024'), (2024, 6))

@@ -585,6 +585,21 @@ def _bits(value, hi, lo):
 _TRAN_SPEED_VALUE = [0, 1.0, 1.2, 1.3, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5, 6.0, 7.0, 8.0]
 _TRAN_SPEED_UNIT = [0.1, 1.0, 10.0, 100.0]  # Mbit/s per unit code (0..3)
 
+# Minimum sustained sequential write (MB/s) each rated class guarantees. Used not to fail a card, but to explain
+# on a *genuine* card why the current bus can't deliver the label - UHS speed is negotiated out-of-band from the
+# CSD's TRAN_SPEED field, so a real U3/V30 card is bus-limited on a non-UHS host and would otherwise look slow
+# for no visible reason. See SD_CARDS.md for the class tables.
+_CLASS_WRITE_MBPS = {
+  'C2': 2, 'C4': 4, 'C6': 6, 'C10': 10,
+  'U1': 10, 'U3': 30,
+  'V6': 6, 'V10': 10, 'V30': 30, 'V60': 60, 'V90': 90,
+  'A1': 10, 'A2': 10,
+}
+
+def _rated_write_floor(speed_class):
+  # Highest sustained-write floor (MB/s) implied by the card's rated-class tokens, or 0 if none are recognised
+  return max((_CLASS_WRITE_MBPS.get(str(c).upper(), 0) for c in (speed_class or [])), default=0)
+
 def decode_csd(csd_hex):
   # Decode the 128-bit CSD register (a 32-char hex string from sysfs) into the fields we cross-check against
   # the branding. Returns None if the register is absent or malformed. Capacity maths follows the SD spec:
@@ -661,6 +676,20 @@ def cross_check(storage, now=None):
       findings.append({'severity': 'warn', 'message': 'CSD is missing mandatory command class(es) %s (basic/read/write) - malformed register' % ', '.join(map(str, missing))})
     if decoded.get('structure') == 0 and decoded.get('read_bl_len') not in (9, 10, 11):
       findings.append({'severity': 'warn', 'message': 'CSD READ_BL_LEN %s is outside the legal 9/10/11 - malformed register' % decoded.get('read_bl_len')})
+
+    # NOT a fake signal: a genuine high-class card whose CSD advertises only a default/high-speed bus. UHS speed
+    # is negotiated out-of-band (CMD6/CMD11) and simply is not reflected in TRAN_SPEED. We surface it as info so a
+    # real card that measures below its label is explained, not silently believed fast or wrongly assumed broken
+    if decoded.get('tran_speed_mbit'):
+      rated = _rated_write_floor(storage.get('speed_class'))
+      ceiling = decoded['tran_speed_mbit'] / 2.0          # 4-bit SD bus: MB/s ~= clock(MHz) x 4 lines / 8 bits
+      if rated and rated > ceiling:
+        mode = 'default-speed' if decoded['tran_speed_mbit'] <= 25 else 'high-speed'
+        findings.append({'severity': 'info', 'message':
+          'card is rated for ~%g MB/s but its CSD advertises only a %s bus (~%g MB/s). This is not a fault: UHS '
+          'speed is negotiated separately and is not shown in the CSD, so a genuine card reaches its rated speed '
+          'only on a UHS-capable host, reader and slot - over a slower interface it is bus-limited to ~%g MB/s'
+          % (rated, mode, ceiling, ceiling)})
 
   if decoded and decoded.get('capacity_bytes'):
     csd_bytes = decoded['capacity_bytes']
