@@ -7,6 +7,9 @@ All notable changes to rpi-sdinfo are recorded here. The format loosely follows
 ## [Unreleased]
 
 ### Changed
+- **`read_file` line-range selection.** The `lines` scope now accepts a range (a `(start, stop[, step])` tuple
+  or a `slice`) as well as a single int index, and an out-of-range index degrades to `''` instead of raising -
+  consistent with the function's "return '' rather than a traceback" contract. Internal helper; no CLI change.
 - **Function docstrings (documentation-as-code).** Every function's leading `#` comment is now a
   `"""docstring"""`, and the public entry points that had none gained a one-liner, so `pydoc`/`help()` and any
   API-doc tool show each function's intent instead of a bare signature. No behaviour change.

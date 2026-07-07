@@ -61,3 +61,16 @@ Convention adopted 2026-07-08 from the sibling `ros`/`tiki` repo (lean roadmap +
   ✅, CLAUDE.md open-threads (docstrings dropped), CHANGELOG (Changed). Also captured a **product-philosophy**
   note from Mike (see the new memory + below). **Next**: the standing v1.0 Pi-hardware blocker; or
   `read_file(return_scope='lines')` line-range support; or start the v0.9.0 tag / PyPI / SBOM release track.
+
+- **2026-07-08 (cont. 3)**: Also captured the **product-philosophy** point as **ADR 0004** ("honest diagnostic,
+  not a pass/fail toy" — the tool diagnoses genuine-but-faulty / worn / honestly-slow / bus-bottlenecked cards,
+  not just fakes, for a capable audience; ADR 0003 is its worked example), threaded into the README scope and a
+  CLAUDE.md design principle, plus a project memory. Then knocked off the **`read_file` line-range** cleanup:
+  the `lines` scope now takes an int (single line), a `(start, stop[, step])` tuple or a `slice` (range, joined),
+  or nothing (whole file); an out-of-range int degrades to `''` (a slice just clamps). No caller uses the `lines`
+  scope yet, so backward-compat risk is nil. The roadmap's paired ask — that `regex` returns multiple lines — was
+  already covered by an existing test; added 6 new `lines` tests. 102 tests green; `py_compile` clean. Docs
+  synced (ROADMAP ✅, CHANGELOG). Commits: `d3542ac` (ADR 0004), + this read_file commit. **Next**: the standing
+  v1.0 Pi-hardware blocker is the only big rock left that's testable *only* on hardware; the release track
+  (v0.9.0 tag / PyPI / SBOM) needs Mike's go-ahead and the anonymisation decision. Bench of small cleanups is
+  now essentially drained.

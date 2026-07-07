@@ -135,6 +135,40 @@ class ReadFile(unittest.TestCase):
     finally:
       os.unlink(path)
 
+  def _write(self, text):
+    fh = tempfile.NamedTemporaryFile('w', suffix='.txt', delete=False)
+    fh.write(text)
+    fh.close()
+    self.addCleanup(os.unlink, fh.name)
+    return fh.name
+
+  def test_lines_scope_single_index(self):
+    path = self._write('one\ntwo\nthree\n')
+    self.assertEqual(sdinfo.read_file(path, 0, 'lines'), 'one\n')
+    self.assertEqual(sdinfo.read_file(path, -1, 'lines'), 'three\n')
+
+  def test_lines_scope_out_of_range_index_is_empty(self):
+    # Out-of-range must degrade to '' (the no-traceback contract), not raise IndexError
+    path = self._write('one\ntwo\n')
+    self.assertEqual(sdinfo.read_file(path, 9, 'lines'), '')
+
+  def test_lines_scope_range_tuple(self):
+    path = self._write('one\ntwo\nthree\nfour\n')
+    self.assertEqual(sdinfo.read_file(path, (1, 3), 'lines'), 'two\nthree\n')
+
+  def test_lines_scope_range_slice_and_step(self):
+    path = self._write('one\ntwo\nthree\nfour\n')
+    self.assertEqual(sdinfo.read_file(path, slice(None, None, 2), 'lines'), 'one\nthree\n')
+
+  def test_lines_scope_range_clamps_past_end(self):
+    # A slice past the end clamps (no exception), unlike a bad int index
+    path = self._write('one\ntwo\n')
+    self.assertEqual(sdinfo.read_file(path, (1, 99), 'lines'), 'two\n')
+
+  def test_lines_scope_no_selector_returns_whole_file(self):
+    path = self._write('one\ntwo\n')
+    self.assertEqual(sdinfo.read_file(path, return_scope='lines'), 'one\ntwo\n')
+
 
 if __name__ == '__main__':
   unittest.main()

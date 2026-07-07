@@ -494,22 +494,34 @@ def f_num(num_value, dec_places=0):
   return f"{num_value:n}"
 
 def read_file(file_path, search_for='', return_scope='all', replace_with=''):
-  """Returns '' (not None) when the file is absent so callers can safely concatenate, e.g. a Pi Zero has no eth0.
-  Also returns '' (rather than a traceback) when a node exists but cannot be read - e.g. a permission-gated
-  sysfs/debugfs path such as the Bluetooth identity, which needs root.
+  """Read a file, degrading to '' (never None, never a traceback) so callers can safely concatenate.
+
+  Absent file -> '' (e.g. a Pi Zero has no eth0); a node that exists but is unreadable (a permission-gated
+  sysfs/debugfs path such as the root-only Bluetooth identity) -> '' as well. `return_scope` selects what
+  `search_for` means:
+    'all'   - whole file, with each `search_for` occurrence replaced by `replace_with` (a cheap strip/clean).
+    'lines' - pick lines by index: an int returns that single line; a (start, stop[, step]) tuple or a slice
+              returns that contiguous range joined back together; anything else (e.g. the default '') returns
+              every line. An out-of-range int index yields '' rather than raising.
+    'regex' - every line matching the `search_for` pattern, joined (may be several lines).
   """
   if os.path.isfile(file_path):
     file_contents = ''
     try:
       with open(file_path, 'r') as file_pointer:
         if return_scope == 'all':
-          # Return everything in the file
           file_contents = file_pointer.read().replace(search_for, replace_with)
         elif return_scope == 'lines':
-          # Return just the line indicated by its number
-          file_contents = file_pointer.readlines()[search_for]
+          file_lines = file_pointer.readlines()
+          if isinstance(search_for, int):
+            # Single line by index; out of range degrades to '' per this function's no-traceback contract
+            file_contents = file_lines[search_for] if -len(file_lines) <= search_for < len(file_lines) else ''
+          elif isinstance(search_for, (tuple, slice)):
+            span = search_for if isinstance(search_for, slice) else slice(*search_for)
+            file_contents = ''.join(file_lines[span])   # a slice never raises - out-of-range just clamps
+          else:
+            file_contents = ''.join(file_lines)         # no line selector given -> the whole file
         elif return_scope == 'regex':
-          # Return all lines that contains the regexp specified
           for file_line in file_pointer:
             if re.search(search_for, file_line):
               file_contents += file_line

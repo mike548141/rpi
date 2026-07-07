@@ -104,5 +104,6 @@ percentiles, the test suite) plus the post-0.9 macOS/CSD work lives in `docs/ROA
   product/make/serial from a **built-in SD slot** via `system_profiler SPCardReaderDataType`. USB card readers
   still present as generic mass storage, so their card product name remains reader-dependent — no macOS API
   exposes an SD card's CID through a generic USB reader.
-- `read_file(return_scope='lines')` only returns a single line; extend it to a range, and test that the `regex`
-  scope returns multiple matching lines.
+- ✅ `read_file(return_scope='lines')` now takes a range as well as a single index: an int returns one line, a
+  `(start, stop[, step])` tuple or a `slice` returns that range joined, and an out-of-range int degrades to `''`
+  per the no-traceback contract. The `regex` scope's multi-line return is covered by a test.
