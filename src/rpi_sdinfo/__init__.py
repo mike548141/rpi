@@ -11,4 +11,4 @@ The single source of truth for the version is ``__version__`` below; ``pyproject
 dynamically and ``cli`` imports it for ``--version`` and the JSON ``tool_version`` field.
 """
 
-__version__ = "0.9.0"
+__version__ = "0.9.1"

@@ -87,9 +87,11 @@ percentiles, the test suite) plus the post-0.9 macOS/CSD work lives in `docs/ROA
   headers (commit `2e4ed88`), clearing the earlier GPL v2/v3 inconsistency.
 - **Tag and publish.** ◑ Release plumbing shipped: `.github/workflows/release.yml` triggers on a `v*` tag,
   checks the tag matches `__version__`, builds the sdist + wheel, generates the SBOM, and publishes a GitHub
-  Release with all three attached (`workflow_dispatch` gives a no-publish dry run). **Remaining (your call):**
-  actually tag `v0.9.0`, and decide whether to also publish to PyPI (would make `pipx install rpi-sdinfo` work
-  without the git URL) — the PyPI push is deliberately *not* automated, gated on the "safe to share" review.
+  Release with all three attached (`workflow_dispatch` gives a no-publish dry run). Version is set to **0.9.1**
+  and the CHANGELOG `[0.9.1]` section is ready. **Remaining (your call):** actually push the first tag
+  (`git tag v0.9.1 && git push origin v0.9.1`), and decide whether to also publish to PyPI (would make
+  `pipx install rpi-sdinfo` work without the git URL) — the PyPI push is deliberately *not* automated, gated on
+  the "safe to share" review.
 - **Publish an SBOM.** ◑ Generator shipped: `tools/gen_sbom.py` emits a **CycloneDX 1.5** JSON SBOM, stdlib-only
   (no `cyclonedx-py` — for a zero-dep package the generator itself stays dependency-free), with an empty
   `components` list and a no-dependency root — the "provably tiny supply-chain surface" made machine-readable.

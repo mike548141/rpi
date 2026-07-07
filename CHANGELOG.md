@@ -6,22 +6,10 @@ All notable changes to rpi-sdinfo are recorded here. The format loosely follows
 
 ## [Unreleased]
 
-### Added
-- **Release workflow (`.github/workflows/release.yml`).** On a `v*` tag it verifies the tag matches
-  `__version__`, builds the sdist + wheel, generates the CycloneDX SBOM, and publishes a GitHub Release with all
-  three attached (`workflow_dispatch` gives a no-publish dry run). Publishing to PyPI stays intentionally manual.
-- **SBOM generator (`tools/gen_sbom.py`).** Emits a CycloneDX 1.5 JSON Software Bill of Materials for the
-  package - stdlib-only (no third-party generator), with an empty component list and a no-dependency root that
-  makes the zero-runtime-dependency supply chain a machine-readable fact. Dev/release tooling; adds no runtime
-  dependency. See ADR 0005.
+## [0.9.1] - 2026-07-08
 
-### Changed
-- **`read_file` line-range selection.** The `lines` scope now accepts a range (a `(start, stop[, step])` tuple
-  or a `slice`) as well as a single int index, and an out-of-range index degrades to `''` instead of raising -
-  consistent with the function's "return '' rather than a traceback" contract. Internal helper; no CLI change.
-- **Function docstrings (documentation-as-code).** Every function's leading `#` comment is now a
-  `"""docstring"""`, and the public entry points that had none gained a one-liner, so `pydoc`/`help()` and any
-  API-doc tool show each function's intent instead of a bare signature. No behaviour change.
+Post-0.9.0 hardening: stronger fake detection, honest-diagnostic polish, macOS UX, and the release toolchain
+(SBOM + a tag-triggered GitHub Release). No breaking changes.
 
 ### Added
 - **Corners sweep: congruence-busting decimal probes.** The raw-device corners sweep (`sdverify --device`) now
@@ -45,6 +33,21 @@ All notable changes to rpi-sdinfo are recorded here. The format loosely follows
 - **macOS: real card identity on a built-in SD slot.** Where `diskutil` only sees the reader, the tool now asks
   `system_profiler` (`SPCardReaderDataType`) for the inserted card's own product name, manufacturer and serial,
   filling identity gaps `diskutil` leaves blank. USB card readers still present as generic mass storage.
+- **SBOM generator (`tools/gen_sbom.py`).** Emits a CycloneDX 1.5 JSON Software Bill of Materials for the
+  package - stdlib-only (no third-party generator), with an empty component list and a no-dependency root that
+  makes the zero-runtime-dependency supply chain a machine-readable fact. Dev/release tooling; adds no runtime
+  dependency. See ADR 0005.
+- **Release workflow (`.github/workflows/release.yml`).** On a `v*` tag it verifies the tag matches
+  `__version__`, builds the sdist + wheel, generates the CycloneDX SBOM, and publishes a GitHub Release with all
+  three attached (`workflow_dispatch` gives a no-publish dry run). Publishing to PyPI stays intentionally manual.
+
+### Changed
+- **`read_file` line-range selection.** The `lines` scope now accepts a range (a `(start, stop[, step])` tuple
+  or a `slice`) as well as a single int index, and an out-of-range index degrades to `''` instead of raising -
+  consistent with the function's "return '' rather than a traceback" contract. Internal helper; no CLI change.
+- **Function docstrings (documentation-as-code).** Every function's leading `#` comment is now a
+  `"""docstring"""`, and the public entry points that had none gained a one-liner, so `pydoc`/`help()` and any
+  API-doc tool show each function's intent instead of a bare signature. No behaviour change.
 
 ## [0.9.0] - 2026-07-06
 
