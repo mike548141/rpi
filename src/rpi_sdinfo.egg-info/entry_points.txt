@@ -1,4 +1,0 @@
-[console_scripts]
-rpi-sdbench = rpi_sdinfo.bench:main
-rpi-sdinfo = rpi_sdinfo.cli:main
-rpi-sdverify = rpi_sdinfo.verify:main
