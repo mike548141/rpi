@@ -106,6 +106,46 @@ class CrossCheck(unittest.TestCase):
     self.assertFalse(any(f['severity'] == 'fail' for f in findings))
 
 
+class MalformedCsd(unittest.TestCase):
+  # Structural-validity liar-checks: a genuine SD controller emits a spec-valid CSD, so garbage in these fields
+  # is a counterfeit tell. These are warns (strong hints), not fails, and must never fire on a genuine card.
+  def _storage(self, csd_hex, reported=32 * 1000 ** 3):
+    return {'csd_decoded': sdinfo.decode_csd(csd_hex), 'bytes': reported}
+
+  def _msgs(self, storage):
+    return ' | '.join(f['message'] for f in sdinfo.cross_check(storage) if f['severity'] == 'warn')
+
+  def test_genuine_card_has_no_structural_warnings(self):
+    c_size = csize_for_capacity_v2(32 * 1024 ** 3)
+    genuine = build_csd(1, c_size=c_size)                     # default ccc/tran_speed/read_bl_len are all valid
+    msgs = self._msgs(self._storage(genuine, (c_size + 1) * 512 * 1024))
+    for term in ('reserved', 'TRAN_SPEED', 'command', 'READ_BL_LEN'):
+      self.assertNotIn(term, msgs)
+
+  def test_reserved_structure_version_warns(self):
+    self.assertIn('reserved', self._msgs(self._storage(build_csd(3, c_size=100))))
+
+  def test_zero_tran_speed_warns(self):
+    self.assertIn('TRAN_SPEED', self._msgs(self._storage(build_csd(1, tran_speed=0, c_size=100))))
+
+  def test_empty_command_classes_warns(self):
+    self.assertIn('command-classes field is empty', self._msgs(self._storage(build_csd(1, ccc=0, c_size=100))))
+
+  def test_missing_mandatory_command_class_warns(self):
+    ccc = 0x5B5 & ~(1 << 4)                                   # drop class 4 (block write) from the standard set
+    self.assertIn('mandatory command class', self._msgs(self._storage(build_csd(1, ccc=ccc, c_size=100))))
+
+  def test_illegal_read_bl_len_warns(self):
+    bad = build_csd(0, read_bl_len=15, c_size=100, c_size_mult=0)
+    self.assertIn('READ_BL_LEN', self._msgs(self._storage(bad)))
+
+  def test_no_fail_from_structural_checks(self):
+    # Structural malformations are strong hints, not exit-code failures - keep them at warn severity
+    for csd in (build_csd(3, c_size=100), build_csd(1, tran_speed=0, c_size=100), build_csd(1, ccc=0, c_size=100)):
+      findings = sdinfo.cross_check(self._storage(csd))
+      self.assertFalse(any(f['severity'] == 'fail' for f in findings))
+
+
 class ParseMdt(unittest.TestCase):
   def test_valid(self):
     self.assertEqual(sdinfo._parse_mdt('06/2024'), (2024, 6))

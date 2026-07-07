@@ -644,6 +644,24 @@ def cross_check(storage, now=None):
   decoded = storage.get('csd_decoded')
   reported = storage.get('bytes') or 0
 
+  # Structural validity of the register itself. A genuine SD controller emits a spec-valid CSD; a reflashed or
+  # no-name fake often carries garbage in these fields. Note: we deliberately do NOT infer the rated speed class
+  # from TRAN_SPEED - UHS bus speed is negotiated out-of-band (CMD6/CMD11), so a genuine UHS card legitimately
+  # still reports 25/50 Mbit/s here, and a capability check would false-positive real cards.
+  if decoded:
+    if decoded.get('structure') == 3:
+      findings.append({'severity': 'warn', 'message': 'CSD structure version is reserved (3) - not a valid SD CSD; a malformed register is a counterfeit tell'})
+    if not decoded.get('tran_speed_mbit'):
+      findings.append({'severity': 'warn', 'message': 'CSD TRAN_SPEED is zero/undefined - a malformed transfer-rate field, not a value a genuine card emits'})
+    ccc = decoded.get('ccc') or 0
+    missing = [c for c in (0, 2, 4) if not (ccc >> c) & 1]
+    if not ccc:
+      findings.append({'severity': 'warn', 'message': 'CSD command-classes field is empty (0) - a genuine card always advertises its basic/read/write classes'})
+    elif missing:
+      findings.append({'severity': 'warn', 'message': 'CSD is missing mandatory command class(es) %s (basic/read/write) - malformed register' % ', '.join(map(str, missing))})
+    if decoded.get('structure') == 0 and decoded.get('read_bl_len') not in (9, 10, 11):
+      findings.append({'severity': 'warn', 'message': 'CSD READ_BL_LEN %s is outside the legal 9/10/11 - malformed register' % decoded.get('read_bl_len')})
+
   if decoded and decoded.get('capacity_bytes'):
     csd_bytes = decoded['capacity_bytes']
     # A Standard-Capacity CSD physically cannot describe more than 2 GB (4 GB with maxed fields). Claiming more

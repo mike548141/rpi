@@ -163,8 +163,16 @@ The bash original (`archive/rpi-sdinfo.sh`) is kept for reference only and is no
     can still be exhaustively tested without needing free space.
 - **CID/CSD cross-checks.** ✅ Shipped in 0.7 (`cross_check()`): flags a Standard-Capacity CSD claiming a
   high/extended capacity (impossible), a CSD-vs-reported capacity mismatch, and a future manufacturing date.
-  Still to add: MID that never ships the branded make, and a rated speed class the CSD's TRAN_SPEED can't
-  support (e.g. an A2/U3 label on a card whose CSD only advertises legacy 25 Mbit/s).
+  ✅ Extended (post-0.9): **structural-validity liar-checks** on the register itself — reserved CSD structure
+  version (3), a zero/undefined TRAN_SPEED, empty or missing-mandatory command classes (basic/read/write), and
+  an illegal READ_BL_LEN. A genuine controller emits a spec-valid register, so garbage here is a counterfeit
+  tell (all `warn` severity — strong hints, not exit-code fails).
+  - **Deliberately NOT done — rated class vs TRAN_SPEED.** Inferring "this card can't be A2/U3" from a low
+    TRAN_SPEED is *unsound*: UHS bus speed is negotiated out-of-band (CMD6/CMD11), so a genuine UHS card
+    legitimately still reports 25/50 Mbit/s in the legacy field. Shipping it would false-positive real cards
+    and poison the tool's credibility. Left out on purpose.
+  - **Still to add — MID that never ships the branded make.** Needs a PNM→brand reverse index over the CID
+    database (which is sparse), so it would rarely fire today; deferred until the DB is richer.
 - **Decode the CSD register.** ✅ Shipped in 0.7 (`decode_csd()`): structure version → SDSC/SDHC/SDXC/SDUC,
   capacity, TRAN_SPEED bus speed, command classes, read block length - compared against the branding above.
 
