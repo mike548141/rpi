@@ -6,6 +6,12 @@ All notable changes to rpi-sdinfo are recorded here. The format loosely follows
 
 ## [Unreleased]
 
+### Added
+- **SBOM generator (`tools/gen_sbom.py`).** Emits a CycloneDX 1.5 JSON Software Bill of Materials for the
+  package - stdlib-only (no third-party generator), with an empty component list and a no-dependency root that
+  makes the zero-runtime-dependency supply chain a machine-readable fact. Dev/release tooling; adds no runtime
+  dependency. See ADR 0005.
+
 ### Changed
 - **`read_file` line-range selection.** The `lines` scope now accepts a range (a `(start, stop[, step])` tuple
   or a `slice`) as well as a single int index, and an out-of-range index degrades to `''` instead of raising -

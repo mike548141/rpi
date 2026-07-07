@@ -1,2 +1,6 @@
 __pycache__/
 *.pyc
+
+# Generated at release time by tools/gen_sbom.py; not committed (see ADR 0005)
+sbom.cdx.json
+*.cdx.json

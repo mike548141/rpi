@@ -74,3 +74,18 @@ Convention adopted 2026-07-08 from the sibling `ros`/`tiki` repo (lean roadmap +
   v1.0 Pi-hardware blocker is the only big rock left that's testable *only* on hardware; the release track
   (v0.9.0 tag / PyPI / SBOM) needs Mike's go-ahead and the anonymisation decision. Bench of small cleanups is
   now essentially drained.
+
+- **2026-07-08 (cont. 4)**: Shipped the **SBOM generator** — the one release-adjacent item that needs neither
+  hardware nor an irreversible decision. `tools/gen_sbom.py` (stdlib-only, dev/release tooling, outside `src/`
+  so never in the wheel) emits **CycloneDX 1.5** JSON: single `application` component with `purl`
+  `pkg:pypi/rpi-sdinfo@<v>`, SPDX licence `Apache-2.0`, repo as `vcs` ref; **empty `components`** and a root
+  that **depends on nothing** — the zero-runtime-dep supply chain made machine-readable (the selling point).
+  Version from the package `__version__`; name/licence/repo from `pyproject.toml` via `tomllib` (3.11+) with a
+  regex fallback for the 3.6+ floor. `serial_number`/`timestamp` injectable → deterministic under test. Chose a
+  stdlib generator over `cyclonedx-py` (overkill to describe nothing) and CycloneDX over SPDX (scanner tooling);
+  recorded in **ADR 0005**. Added `tests/test_sbom.py` (7 tests incl. the empty-deps invariant, which also trips
+  if a runtime dep ever violates ADR 0001, and the fallback parser). 109 tests green. Docs: ROADMAP item ◑ (gen
+  done, on-tag attach remaining), CHANGELOG (Added), CONTRIBUTING (how to generate), `.gitignore` (don't commit
+  the artifact). **Next**: the standing v1.0 Pi-hardware blocker; the rest of the release track (tag, PyPI,
+  wiring the SBOM into a tag CI job, artifact signing) and the crowd-upload anonymisation scheme all need Mike's
+  go-ahead — that's the genuine decision point, not more code.

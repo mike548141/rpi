@@ -87,13 +87,13 @@ percentiles, the test suite) plus the post-0.9 macOS/CSD work lives in `docs/ROA
   headers (commit `2e4ed88`), clearing the earlier GPL v2/v3 inconsistency.
 - **Tag and publish.** Once the above is settled: tag `v0.9.0`, and decide whether to publish to PyPI (would make
   `pipx install rpi-sdinfo` work without the git URL) — gated on the same "safe to share" review as the upload.
-- **Publish an SBOM.** Ship a Software Bill of Materials with each release. The **zero runtime dependencies**
-  make this cheap *and* a genuine selling point for a security-adjacent tool: the SBOM is essentially the one
-  `rpi-sdinfo` component over the Python stdlib, i.e. a provably tiny supply-chain surface. Decisions to make:
-  format (**CycloneDX** vs SPDX — lean CycloneDX JSON, best OWASP/tooling support), generation (a CI job on tag,
-  e.g. `cyclonedx-py` for the package or GitHub's dependency-graph export), and delivery (attach to the GitHub
-  release, and consider bundling it in the sdist/wheel). Pairs naturally with tag-and-publish and with signing
-  the release artifacts. Dev-tooling only — must not add a runtime dependency (ADR 0001).
+- **Publish an SBOM.** ◑ Generator shipped: `tools/gen_sbom.py` emits a **CycloneDX 1.5** JSON SBOM, stdlib-only
+  (no `cyclonedx-py` — for a zero-dep package the generator itself stays dependency-free), with an empty
+  `components` list and a no-dependency root — the "provably tiny supply-chain surface" made machine-readable.
+  Format/generation/delivery decisions recorded in [ADR 0005](docs/decisions/0005-sbom-cyclonedx.md); covered by
+  `tests/test_sbom.py`. **Remaining:** wire a release workflow to run it on tag and attach the output (and bundle
+  in the sdist/wheel) — part of the tag-and-publish track below, deliberately not built until release is
+  greenlit. Dev-tooling only — no runtime dependency (ADR 0001).
 
 ## Smaller cleanups
 

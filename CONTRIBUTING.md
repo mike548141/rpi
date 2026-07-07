@@ -50,6 +50,21 @@ sysfs / `dumpe2fs` / `diskstats` reads in `gather_linux()` — those need a real
 Pi. If you have Pi hardware, runs of `sudo rpi-sdinfo --raw` against known-genuine and
 known-fake cards are especially valuable (see `ROADMAP.md`).
 
+## Generating the SBOM
+
+`tools/gen_sbom.py` emits a CycloneDX 1.5 Software Bill of Materials (stdlib-only, no
+dependency — see [ADR 0005](docs/decisions/0005-sbom-cyclonedx.md)):
+
+```bash
+python3 tools/gen_sbom.py                    # to stdout
+python3 tools/gen_sbom.py -o sbom.cdx.json   # to a file (attached to releases)
+```
+
+Because rpi-sdinfo has zero runtime dependencies, the SBOM's `components` list is empty and
+the root depends on nothing — a provably tiny supply-chain surface. The version comes from
+the package `__version__`; the rest from `pyproject.toml`. Do **not** commit the generated
+JSON — it is a build artifact regenerated on tag.
+
 ## Pull requests
 
 1. Branch off `main`.
