@@ -99,13 +99,15 @@ percentiles, the test suite) plus the post-0.9 macOS/CSD work lives in `docs/ROA
   `tests/test_sbom.py`. ✅ Now wired into the release workflow (`.github/workflows/release.yml`), which generates
   the SBOM on a `v*` tag and attaches it to the GitHub Release alongside the sdist/wheel. Dev-tooling only — no
   runtime dependency (ADR 0001).
-- **Sign the release artifacts.** Bolt keyless signing onto the release job so the sdist, wheel and SBOM ship
-  with verifiable provenance — a natural fit for a security-adjacent tool. Lean **Sigstore/cosign** (keyless via
-  the GitHub OIDC identity, no long-lived private key to hold): either `sigstore-python` over the built files or
-  the GitHub `attestations` / build-provenance action, emitting `.sigstore`/`.sig` bundles attached to the same
-  Release. Decisions when picked up: sigstore-python vs `actions/attest-build-provenance`, and whether to also
-  publish an SLSA provenance attestation. Dev/CI-only — no runtime dependency (ADR 0001); pairs with tag-and-
-  publish and the SBOM above.
+- **Sign the release artifacts.** ✅ The release job now keyless-signs the sdist, wheel and SBOM with a
+  **GitHub build-provenance attestation** (`actions/attest-build-provenance`): a short-lived Sigstore/Fulcio
+  cert minted from the workflow's OIDC identity (no long-lived key), logged to Rekor, emitting a SLSA build
+  provenance statement over all three artifacts. The Sigstore bundle is attached to the Release for offline
+  checks too. Verify online with `gh attestation verify <file> --repo mike548141/rpi`, or offline with
+  `--bundle rpi-sdinfo.sigstore.jsonl`. Chose the GitHub-native action over `sigstore-python`/cosign (no extra
+  CI dep, no key to hold, and SLSA provenance for free) — recorded in
+  [ADR 0006](docs/decisions/0006-artifact-signing-build-provenance.md). Dev/CI-only — no runtime dependency
+  (ADR 0001). Signs only on a real tag push, so the `workflow_dispatch` dry run never mints a cert.
 
 ## Smaller cleanups
 

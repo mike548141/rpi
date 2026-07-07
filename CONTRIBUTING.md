@@ -74,9 +74,18 @@ To release:
 2. Tag it: `git tag vX.Y.Z && git push origin vX.Y.Z`.
 
 The `Release` workflow (`.github/workflows/release.yml`) then checks the tag matches
-`__version__`, builds the sdist + wheel, generates the SBOM, and publishes a GitHub Release
-with all three attached. Use the workflow's **Run workflow** button for a no-publish dry run.
-Publishing to **PyPI is intentionally manual** (not automated) — see `ROADMAP.md`.
+`__version__`, builds the sdist + wheel, generates the SBOM, **keyless-signs all three with a
+GitHub build-provenance attestation** (ADR 0006), and publishes a GitHub Release with the
+artifacts and the Sigstore bundle attached. Use the workflow's **Run workflow** button for a
+no-publish dry run (it does not sign). Publishing to **PyPI is intentionally manual** (not
+automated) — see `ROADMAP.md`.
+
+Verify a downloaded artifact's provenance:
+
+```sh
+gh attestation verify rpi_sdinfo-X.Y.Z-py3-none-any.whl --repo mike548141/rpi   # online (Rekor)
+gh attestation verify rpi_sdinfo-X.Y.Z-py3-none-any.whl --bundle rpi-sdinfo.sigstore.jsonl   # offline
+```
 
 ## Pull requests
 

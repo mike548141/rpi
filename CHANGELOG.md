@@ -6,6 +6,15 @@ All notable changes to rpi-sdinfo are recorded here. The format loosely follows
 
 ## [Unreleased]
 
+### Added
+- **Signed release artifacts (keyless build provenance).** The release workflow now signs the sdist, wheel and
+  SBOM with a GitHub build-provenance attestation (`actions/attest-build-provenance`) - a short-lived
+  Sigstore/Fulcio certificate minted from the workflow's OIDC identity (no long-lived key), logged to Rekor,
+  carrying a SLSA build-provenance statement. The Sigstore bundle is attached to the Release too, so artifacts
+  verify both online (`gh attestation verify <file> --repo mike548141/rpi`) and offline
+  (`--bundle rpi-sdinfo.sigstore.jsonl`). Dev/CI-only, no runtime dependency. See
+  [ADR 0006](docs/decisions/0006-artifact-signing-build-provenance.md).
+
 ## [0.9.1] - 2026-07-08
 
 Post-0.9.0 hardening: stronger fake detection, honest-diagnostic polish, macOS UX, and the release toolchain
