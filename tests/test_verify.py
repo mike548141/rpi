@@ -36,6 +36,21 @@ class CornerOffsets(unittest.TestCase):
   def test_tiny_capacity(self):
     self.assertEqual(sdverify.corner_offsets(256, 512), [0])
 
+  def test_includes_common_decimal_boundaries(self):
+    # A large reported capacity must also probe the non-power-of-two decimal capacity boundaries below it,
+    # so a fake that wraps at a round decimal size (with no power-of-two structure) is still caught.
+    block = sdverify.DEFAULT_BLOCK_KB * 1024
+    offsets = sdverify.corner_offsets(512 * 1000 * 1000 * 1000, block)
+    for boundary in (8 * 1000 * 1000 * 1000, 100 * 1000 * 1000 * 1000, 256 * 1000 * 1000 * 1000):
+      self.assertIn(boundary, offsets)
+    # Boundaries at or above the reported capacity are not probed (they are not a wrap *below* it)
+    self.assertNotIn(512 * 1000 * 1000 * 1000, offsets)
+
+  def test_decimal_boundaries_are_512_aligned(self):
+    # Probing the exact boundary only stays legal for raw-device I/O if it is block-aligned; every n*10^9 is
+    for boundary in sdverify.COMMON_FAKE_CAPACITIES_BYTES:
+      self.assertEqual(boundary % 512, 0)
+
 
 class FakeDevice:
   # A counterfeit that truncates the block address at `wrap` bytes: every access aliases modulo wrap,
@@ -71,6 +86,19 @@ class CornersSweepDetection(unittest.TestCase):
     # overwriting block 0's pattern, so the read-back of 0 must mismatch.
     good, first_bad = self._sweep(wrap=2048)
     self.assertIsNotNone(first_bad)
+
+  def test_non_power_of_two_decimal_wrap_is_caught(self):
+    # A fake with a real 8 GB chip reporting 512 GB wraps at a non-power-of-two boundary. The congruence-
+    # busting decimal probe at 8e9 aliases onto block 0, so the sweep must flag it. (Big offsets, but the
+    # FakeDevice keys physical writes in a dict, so only the ~30 probed blocks are ever materialised.)
+    cap, block = 512 * 1000 * 1000 * 1000, sdverify.DEFAULT_BLOCK_KB * 1024
+    wrap = 8 * 1000 * 1000 * 1000
+    dev = FakeDevice(wrap=wrap)
+    offsets = sdverify.corner_offsets(cap, block)
+    self.assertIn(wrap, offsets)                       # the busting probe is present...
+    sdverify.write_offsets(dev.pwrite, offsets, block, cap)
+    good, first_bad = sdverify.verify_offsets(dev.pread, offsets, block, cap)
+    self.assertIsNotNone(first_bad)                    # ...and the wrap is caught
 
 
 class PlanSweep(unittest.TestCase):

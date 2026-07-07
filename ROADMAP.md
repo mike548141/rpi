@@ -37,9 +37,11 @@ percentiles, the test suite) plus the post-0.9 macOS/CSD work lives in `docs/ROA
   0 and block R alias onto one physical cell, so the (0, R) pair is always probed — a guaranteed catch for any
   power-of-two address-truncation fake (the standard kind) in ~log₂(N) probes rather than a full-card write.
   Destructive, so gated behind `--yes` and a mounted-device refusal. Still to refine:
-  - **Non-power-of-two wraps** can slip past the corners probes (a fake that wraps at, say, exactly 100 GB with
-    no power-of-two structure); the thorough free-space sweep still catches those, so corners is a fast
-    first-pass, not a replacement. Could add a few congruence-busting probes for common non-binary sizes.
+  - **Non-power-of-two wraps.** ✅ The corners sweep now also probes each common decimal capacity boundary below
+    the reported size (`COMMON_FAKE_CAPACITIES_BYTES`), so a fake that wraps at a round decimal size (e.g. a real
+    8 GB chip reporting 512 GB) aliases that boundary onto block 0 and is caught. A *truly arbitrary* wrap (no
+    round boundary) can still slip past both the power-of-two and decimal probes; the thorough free-space sweep
+    remains the exhaustive backstop, so corners stays a fast first-pass, not a replacement.
   - **Wire the corners sweep into `rpi-sdinfo`** (e.g. `--capacity-check --raw --device …`) once it can be tested
     on a real removable card - deliberately not auto-wired yet, since a destructive raw write to the wrong
     device must not ship untested on hardware.

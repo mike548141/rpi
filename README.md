@@ -27,10 +27,10 @@ identifiers, performance, and failure rates.
     and reads it all back. A counterfeit that reports a huge size but has a small chip fails verification at its
     true capacity. Only adds its own test files and deletes them again.
   - **Quick, destructive corners sweep** (`rpi-sdverify --device …`): probes block 0, every power-of-two offset,
-    and the last block of the *reported* capacity. A fake truncates the block address at a power-of-two
-    boundary, so block 0 and that boundary alias onto one physical cell — guaranteeing detection in ~log₂(N)
-    probes (29 for a 512 GB card) instead of writing the whole card. Writes the raw device, so it is gated
-    behind `--yes` and refuses a mounted device.
+    each common decimal capacity boundary below the reported size, and the last block of the *reported* capacity.
+    A fake truncates the block address at its real capacity, so block 0 and that boundary alias onto one physical
+    cell — guaranteeing detection in ~log₂(N) probes (plus a handful of decimal ones) instead of writing the
+    whole card. Writes the raw device, so it is gated behind `--yes` and refuses a mounted device.
 - **Cross-checks the card's own story** (Raspberry Pi only, instant, no writes). Decodes the CSD register
   (SDSC/SDHC/SDXC/SDUC capacity, bus speed, command classes) and flags internal contradictions — above all a
   Standard-Capacity CSD on a card claiming tens of GB, which is impossible per the SD spec and the tell-tale of

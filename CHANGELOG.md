@@ -7,6 +7,11 @@ All notable changes to rpi-sdinfo are recorded here. The format loosely follows
 ## [Unreleased]
 
 ### Added
+- **Corners sweep: congruence-busting decimal probes.** The raw-device corners sweep (`sdverify --device`) now
+  also probes each common decimal capacity boundary below the reported size (8/16/32/…/512 GB, etc.), not only
+  the power-of-two offsets. A counterfeit whose real chip wraps at a round decimal boundary has no power-of-two
+  structure, so the old probe set could miss it; probing the boundary itself makes it alias onto block 0 and be
+  caught. Still a fast first pass - a truly arbitrary wrap needs the exhaustive free-space sweep.
 - **CSD structural liar-checks.** `cross_check()` now flags a CSD register that is structurally malformed - a
   reserved structure version (3), a zero/undefined TRAN_SPEED, empty or missing-mandatory command classes
   (basic/read/write), or an illegal READ_BL_LEN. A genuine controller emits a spec-valid register, so garbage

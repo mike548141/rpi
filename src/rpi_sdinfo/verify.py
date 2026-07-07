@@ -79,6 +79,18 @@ PATTERN_KEY = b'rpi-sdverify/1'
 DEFAULT_FILE_MB = 1024      # Size of each test file (many small files rather than one huge one)
 DEFAULT_BLOCK_KB = 4096     # IO + pattern granularity: 4 MiB balances hashing cost against syscall overhead
 
+# Common counterfeit real-capacity boundaries, in bytes. A fake whose real flash is one of these DECIMAL sizes
+# wraps its block address at a boundary that is not a power of two, so the power-of-two probe offsets can miss
+# it: no probed pair happens to be congruent modulo the wrap (see corner_offsets). Probing each boundary C
+# itself busts that congruence - on a card that wraps at C, byte offset C aliases onto physical 0 (C mod C ==
+# 0), overwriting block 0, so the read-back of block 0 mismatches. These are the sizes SD cards are actually
+# sold as; a fake's real chip (and its wrap) is almost always one of them. Every n*10^9 is a multiple of 512,
+# so probing the exact boundary stays block-aligned for raw-device I/O. Binary/GiB reals need no entry here -
+# they are already powers of two and thus already in the power-of-two offset set.
+COMMON_FAKE_CAPACITIES_BYTES = tuple(
+    g * 1000 * 1000 * 1000 for g in
+    (1, 2, 4, 8, 16, 30, 32, 50, 60, 64, 100, 120, 128, 200, 240, 250, 256, 400, 500, 512, 1000, 2000))
+
 # Never fill the filesystem to the brim - leave the larger of this many bytes or a small fraction free so the
 # card (and the OS, if this is the boot volume) is not wedged by a full disk
 SAFETY_MARGIN_BYTES = 64 * 1024 * 1024
@@ -216,7 +228,13 @@ def corner_offsets(capacity_bytes, block_bytes):
   # alias onto the same physical cell. Because R itself is one of the power-of-two offsets we probe, the pair
   # (0, R) is always in the set - guaranteeing a detectable collision for any such wrap, with only ~log2(N)
   # probes instead of writing the whole card. Evenly-spaced probes would miss it unless two happened to be
-  # congruent mod R, which is exactly the luck we must not depend on
+  # congruent mod R, which is exactly the luck we must not depend on.
+  #
+  # A non-power-of-two wrap (e.g. a real chip of exactly 100 GB) has no power-of-two structure, so none of the
+  # offsets above need land congruent mod R. To bust that we also probe each common DECIMAL capacity boundary
+  # below the reported size: if the card really wraps at one of them, that boundary aliases onto block 0 and is
+  # caught (see COMMON_FAKE_CAPACITIES_BYTES). A truly arbitrary wrap can still slip past both - the thorough
+  # free-space sweep remains the exhaustive backstop; this stays a fast first pass.
   if capacity_bytes < block_bytes:
     return [0]
   last = ((capacity_bytes - block_bytes) // block_bytes) * block_bytes
@@ -225,6 +243,9 @@ def corner_offsets(capacity_bytes, block_bytes):
   while step <= last:
     offsets.add(step)
     step *= 2
+  for boundary in COMMON_FAKE_CAPACITIES_BYTES:
+    if block_bytes <= boundary <= last:
+      offsets.add(boundary)
   return sorted(offsets)
 
 def write_offsets(pwrite, offsets, block_bytes, capacity_bytes, on_progress=None):
