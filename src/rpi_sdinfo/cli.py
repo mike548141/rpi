@@ -1267,7 +1267,6 @@ def _render_linux_stats(console, sys_info):
   cpu = sys_info['stats']['cpu']
   memory = sys_info['stats']['memory']
   disk = sys_info['stats']['disk']
-  device = sys_info['device']
 
   console.section('Live stats')
   load = f_num(cpu['load_1m'], 2) + '  ' + f_num(cpu['load_5m'], 2) + '  ' + f_num(cpu['load_15m'], 2)
@@ -1519,7 +1518,8 @@ def _db_row(sys_info, overall_pass):
   perf = sys_info.get('perf', {})
   grade = sys_info.get('grade', {})
   decoded = storage.get('csd_decoded') or {}
-  bool_or_none = lambda flag: (1 if flag else 0) if flag is not None else None
+  def bool_or_none(flag):
+    return (1 if flag else 0) if flag is not None else None
   return {
     'generated': sys_info.get('generated'),
     'tool_version': VERSION,

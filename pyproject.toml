@@ -31,6 +31,10 @@ dynamic = ["version"]
 Repository = "https://github.com/mike548141/rpi"
 Issues = "https://github.com/mike548141/rpi/issues"
 
+# Dev-only tooling (linting). Never shipped in the wheel; does not touch the zero-runtime-deps rule.
+[project.optional-dependencies]
+dev = ["ruff"]
+
 [project.scripts]
 rpi-sdinfo = "rpi_sdinfo.cli:main"
 rpi-sdbench = "rpi_sdinfo.bench:main"
@@ -41,3 +45,15 @@ version = { attr = "rpi_sdinfo.__version__" }
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.ruff]
+# CI floors at 3.8 (oldest Python GitHub still ships); the code targets 3.6+.
+target-version = "py38"
+line-length = 110
+
+[tool.ruff.lint]
+# E/F/W = pycodestyle + pyflakes, C4 = comprehension cleanups. E501 (line length) is off by
+# design: the code carries long prose comments that explain the SD-spec "why". Kept lean on
+# purpose - no import-sorting/upgrade rules that would fight the stdlib-minimal, 3.6-floor style.
+select = ["E", "F", "W", "C4"]
+ignore = ["E501"]

@@ -19,7 +19,6 @@
 import os
 import sys
 import threading
-import time
 
 #======================================
 # Capability detection
@@ -180,7 +179,6 @@ class Console:
     colour = palette.get(kind, 'cyan')
     inner = '  ' + text + '  '
     top = self.g['tl'] + self.g['h'] * len(inner) + self.g['tr']
-    mid = self.g['v'] + inner + self.g['v']
     bot = self.g['bl'] + self.g['h'] * len(inner) + self.g['br']
     self.out('  ' + self.style(top, colour))
     self.out('  ' + self.style(self.g['v'], colour) + self.style(inner, 'bold', colour) + self.style(self.g['v'], colour))

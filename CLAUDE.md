@@ -3,6 +3,15 @@
 Orientation for any future session. Canonical detail lives in the docs linked below; this file is the
 map, not a copy. Keep it short and current.
 
+## Start-of-session ritual
+
+1. Read [ROADMAP.md](ROADMAP.md) (kept lean — pending work + standing themes).
+2. `tail -80 docs/SESSIONS.md` — the append-only session log; the last few entries are where the last session
+   left off and what's next. **Append an entry before finishing a session** (newest last, never edit prior ones).
+3. Grep the companions on demand, never whole: [docs/ROADMAP-DONE.md](docs/ROADMAP-DONE.md) (per-version
+   detail behind roadmap lines), [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) (the shape), and
+   [docs/decisions/](docs/decisions/) (ADRs — read before re-opening a settled call).
+
 ## What this repo is
 
 `rpi-sdinfo` — a zero-dependency, cross-platform (Raspberry Pi Linux / macOS / Windows) CLI that identifies,
@@ -13,7 +22,9 @@ detection** (capacity fraud + CID/CSD metadata contradictions); everything else 
 - **Scope & expectations** (what it is / is not / honest limitations): see the "Scope & expectations" section
   of [README.md](README.md). Short version: a portable *sanity check*, not a certified benchmark or a
   replacement for `f3`/h2testw/`smartctl` — its edge is breadth in one command plus CSD liar-detection.
-- **Status, done/planned, open decisions:** [ROADMAP.md](ROADMAP.md) is the source of truth.
+- **Status, pending work, standing themes:** [ROADMAP.md](ROADMAP.md) (lean); completed-work detail in
+  [docs/ROADMAP-DONE.md](docs/ROADMAP-DONE.md).
+- **Design shape & decisions:** [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) + [docs/decisions/](docs/decisions/).
 - **History of changes:** [CHANGELOG.md](CHANGELOG.md). **Contributor rules:** [CONTRIBUTING.md](CONTRIBUTING.md).
 - **SD card domain knowledge** (CID/CSD, class symbols, fakes): [SD_CARDS.md](SD_CARDS.md).
 
@@ -26,6 +37,10 @@ detection** (capacity fraud + CID/CSD metadata contradictions); everything else 
 - **Python 3.6+ floor.** Avoid newer features (e.g. the percentile helper is hand-rolled, not
   `statistics.quantiles`).
 - **Keep docs in sync in the same change** — README, ROADMAP, `docs/rpi-sdinfo.1`, CHANGELOG.
+- **Comments say _why_, not _what_** — platform quirks, SD-spec reasons, non-obvious constraints earn a comment;
+  restating the code does not. `#!#` marks a TODO (more `#` = higher priority).
+- **Record real decisions as ADRs.** If you reject a plausible alternative or rest a design on evidence, add a
+  short numbered file under [docs/decisions/](docs/decisions/) (Status/Context/Decision/Rejected/Consequences).
 
 ## Working conventions in this repo
 
@@ -34,7 +49,9 @@ detection** (capacity fraud + CID/CSD metadata contradictions); everything else 
 - **Tests:** `python3 -m unittest discover -s tests` (stdlib `unittest`, no deps, ~3 s). Add/adjust tests with
   behaviour changes and keep the suite green. The package must stay importable via `src/` on the path (tests do
   this through `tests/_loader.py`).
-- **CI** (`.github/workflows/ci.yml`) runs the suite on Linux/macOS/Windows × Py 3.8–3.13. It does **not**
+- **Lint:** `ruff check .` (dev-only tool, config in `pyproject.toml`; install via `pip install -e ".[dev]"`).
+  Keep it clean — CI runs it. No mypy (the code is un-annotated on a 3.6 floor by choice).
+- **CI** (`.github/workflows/ci.yml`) runs ruff + the suite on Linux/macOS/Windows × Py 3.8–3.13. It does **not**
   exercise the Pi sysfs reads — no SD card in CI.
 - **Permissions:** keep `.claude/settings.json`'s Bash allow-list broad and prefer the Read/Grep/Edit tools over
   shell text-munging — the user is strongly averse to permission prompts.
@@ -44,6 +61,6 @@ detection** (capacity fraud + CID/CSD metadata contradictions); everything else 
 - **No Pi hardware in the dev environment.** Development is on macOS, so `gather_linux()` and `sdbench`'s
   Linux IO path **cannot be hardware-tested here** — this is the #1 v1.0 blocker. Flag it; don't claim the Linux
   path is verified.
-- **Open decisions (in ROADMAP, the user's call):** the LICENSE-vs-file-header GPL **v2/v3** inconsistency
-  (resolve before a public release); converting ~116 functions' `#` lead comments to `"""docstrings"""` for
-  documentation-as-code; tagging `v0.9.0` and whether to publish to PyPI.
+- **Open threads (in ROADMAP):** converting ~116 functions' `#` lead comments to `"""docstrings"""` for
+  documentation-as-code; tagging `v0.9.0` and whether to publish to PyPI. (Licence is settled — Apache-2.0, ADR
+  0002.)

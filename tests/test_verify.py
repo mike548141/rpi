@@ -1,6 +1,5 @@
 # sdverify pure logic: the offset-keyed pattern, the corners-probe set, and - the important one - a
 # simulated power-of-two address-truncation fake, proving the (0, R) alias is always caught.
-import os
 import shutil
 import tempfile
 import unittest
