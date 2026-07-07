@@ -10,6 +10,7 @@ docs (grep on demand, never load whole):
   rests on evidence (e.g. why a fake is *not* inferred from TRAN_SPEED).
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — the gather→compute→render shape and the two fake-detection
   strategies.
+- [`docs/MODEL-ECONOMICS.md`](docs/MODEL-ECONOMICS.md) — which model does what, and session/token hygiene.
 - [`CHANGELOG.md`](CHANGELOG.md) — user-facing change history.
 
 Done through 0.9 (packaging, native benchmark, capacity sweep, CSD decode + cross-checks, SQLite history, latency
@@ -82,6 +83,13 @@ percentiles, the test suite) plus the post-0.9 macOS/CSD work lives in `docs/ROA
   headers (commit `2e4ed88`), clearing the earlier GPL v2/v3 inconsistency.
 - **Tag and publish.** Once the above is settled: tag `v0.9.0`, and decide whether to publish to PyPI (would make
   `pipx install rpi-sdinfo` work without the git URL) — gated on the same "safe to share" review as the upload.
+- **Publish an SBOM.** Ship a Software Bill of Materials with each release. The **zero runtime dependencies**
+  make this cheap *and* a genuine selling point for a security-adjacent tool: the SBOM is essentially the one
+  `rpi-sdinfo` component over the Python stdlib, i.e. a provably tiny supply-chain surface. Decisions to make:
+  format (**CycloneDX** vs SPDX — lean CycloneDX JSON, best OWASP/tooling support), generation (a CI job on tag,
+  e.g. `cyclonedx-py` for the package or GitHub's dependency-graph export), and delivery (attach to the GitHub
+  release, and consider bundling it in the sdist/wheel). Pairs naturally with tag-and-publish and with signing
+  the release artifacts. Dev-tooling only — must not add a runtime dependency (ADR 0001).
 
 ## Smaller cleanups
 

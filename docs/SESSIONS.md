@@ -25,7 +25,9 @@ Convention adopted 2026-07-08 from the sibling `ros`/`tiki` repo (lean roadmap +
   (this file), `docs/ARCHITECTURE.md`, `docs/decisions/` with ADRs 0001 (stdlib-only), 0002 (Apache-2.0),
   0003 (no fake-inference-from-TRAN_SPEED); added `ruff` (dev-only) with a CI lint job and fixed the 5 real
   issues it found (dead `import time`/`os`, unused `mid`/`device`, a lambda→def). Skipped mypy (untyped, 3.6
-  floor) and the ARCHITECTURE-in-shipped-tree/private-doc split (N/A — no secrets). Commits: `6306f78`
-  (macOS), `9224068` (CSD liar-checks), `599ed57` (bus-ceiling), + this conventions commit. 93 tests green;
-  `ruff check .` clean. **Next**: still the standing v1.0 blocker (Pi hardware test); the cleanest
-  testable-here item is the congruence-busting non-power-of-two capacity probes in `verify.py`.
+  floor) and the ARCHITECTURE-in-shipped-tree/private-doc split (N/A — no secrets). Then (same session) also
+  adopted `docs/MODEL-ECONOMICS.md` (Opus builds / Fable reviews, session+token hygiene, measured overhead)
+  and added an SBOM-publishing item to the roadmap's release-polish section. Commits: `6306f78` (macOS),
+  `9224068` (CSD liar-checks), `599ed57` (bus-ceiling), `1989582` (conventions), + this model-econ/SBOM commit.
+  93 tests green; `ruff check .` clean. **Next**: still the standing v1.0 blocker (Pi hardware test); the
+  cleanest testable-here item is the congruence-busting non-power-of-two capacity probes in `verify.py`.

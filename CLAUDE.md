@@ -25,6 +25,7 @@ detection** (capacity fraud + CID/CSD metadata contradictions); everything else 
 - **Status, pending work, standing themes:** [ROADMAP.md](ROADMAP.md) (lean); completed-work detail in
   [docs/ROADMAP-DONE.md](docs/ROADMAP-DONE.md).
 - **Design shape & decisions:** [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) + [docs/decisions/](docs/decisions/).
+- **Model choice & token/session hygiene:** [docs/MODEL-ECONOMICS.md](docs/MODEL-ECONOMICS.md).
 - **History of changes:** [CHANGELOG.md](CHANGELOG.md). **Contributor rules:** [CONTRIBUTING.md](CONTRIBUTING.md).
 - **SD card domain knowledge** (CID/CSD, class symbols, fakes): [SD_CARDS.md](SD_CARDS.md).
 
