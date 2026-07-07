@@ -97,6 +97,13 @@ percentiles, the test suite) plus the post-0.9 macOS/CSD work lives in `docs/ROA
   `tests/test_sbom.py`. ✅ Now wired into the release workflow (`.github/workflows/release.yml`), which generates
   the SBOM on a `v*` tag and attaches it to the GitHub Release alongside the sdist/wheel. Dev-tooling only — no
   runtime dependency (ADR 0001).
+- **Sign the release artifacts.** Bolt keyless signing onto the release job so the sdist, wheel and SBOM ship
+  with verifiable provenance — a natural fit for a security-adjacent tool. Lean **Sigstore/cosign** (keyless via
+  the GitHub OIDC identity, no long-lived private key to hold): either `sigstore-python` over the built files or
+  the GitHub `attestations` / build-provenance action, emitting `.sigstore`/`.sig` bundles attached to the same
+  Release. Decisions when picked up: sigstore-python vs `actions/attest-build-provenance`, and whether to also
+  publish an SLSA provenance attestation. Dev/CI-only — no runtime dependency (ADR 0001); pairs with tag-and-
+  publish and the SBOM above.
 
 ## Smaller cleanups
 
