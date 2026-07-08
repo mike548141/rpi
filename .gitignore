@@ -9,3 +9,9 @@ dist/
 # Generated at release time by tools/gen_sbom.py; not committed (see ADR 0005)
 sbom.cdx.json
 *.cdx.json
+
+# macOS litter
+.DS_Store
+
+# Claude Code personal settings (shared allowlist IS committed)
+.claude/settings.local.json
