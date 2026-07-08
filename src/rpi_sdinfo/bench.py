@@ -74,6 +74,10 @@ DEFAULT_RUNS = 3            # Repeat the whole benchmark this many times to aver
 SEQ_BLOCK = 512 * 1024      # 512 KiB sequential write block, as per the A1 test
 RAND_BLOCK = 4 * 1024       # 4 KiB random IO block, as per the A1 test
 
+# Block sizes for the optional --block-sweep diagnostic: sequential write throughput measured at each. Spans
+# below and above a typical flash page/erase-block granularity so the throughput-vs-block-size curve is visible.
+SWEEP_BLOCKS = (4 * 1024, 16 * 1024, 64 * 1024, 256 * 1024, 1024 * 1024)
+
 #======================================
 # Low level, cache-bypassing IO helpers
 #--------------------------------------
@@ -217,6 +221,34 @@ def benchmark_once(path, size_bytes, duration_s=DEFAULT_SECONDS, on_phase=None):
   rand_read = random_io(path, size_bytes, 'read', duration_s)
   return {'seq_write': seq_write, 'rand_write': rand_write, 'rand_read': rand_read}
 
+def _sweep_blocks(size_bytes, block_sizes=SWEEP_BLOCKS):
+  """The block sizes actually used for a sweep of a size_bytes file: each requested size clamped to the file
+  size and de-duplicated, so a file smaller than the largest block collapses the redundant passes into one and
+  the sweep never asks sequential_write for a block bigger than the payload"""
+  return sorted({min(block_size, size_bytes) for block_size in block_sizes})
+
+def _fmt_block(block_bytes):
+  """Human label for a sweep block size: whole MiB where it divides cleanly, else KiB"""
+  if block_bytes >= 1024 * 1024 and block_bytes % (1024 * 1024) == 0:
+    return '%d MiB' % (block_bytes // (1024 * 1024))
+  return '%d KiB' % (block_bytes // 1024)
+
+def block_size_sweep(path, size_bytes, block_sizes=SWEEP_BLOCKS, on_phase=None):
+  """Measure sequential write throughput at a range of block sizes over one file, smallest block first.
+  The throughput-vs-block-size curve is diagnostic: a genuine card climbs then plateaus as the block grows
+  past the controller's page/erase granularity, so a curve that stays flat, collapses at small blocks, or
+  never scales is a tell for a worn or counterfeit controller. Non-destructive (reuses the one test file).
+  `on_phase(block_bytes)` fires before each block size (progress only). Returns one dict per block size.
+  """
+  sweep = []
+  for block_bytes in _sweep_blocks(size_bytes, block_sizes):
+    if on_phase:
+      on_phase(block_bytes)
+    metrics = sequential_write(path, size_bytes, block_bytes)
+    sweep.append({'block_bytes': block_bytes, 'mbps': metrics['mbps'],
+                  'iops': metrics['iops'], 'lat': metrics['lat']})
+  return sweep
+
 def empty_results():
   """The list-of-samples structure rpi-sdinfo aggregates over. Keys mirror the old fio result shape.
   `*_latency` stays the per-run mean (ms) for compatibility; `*_latency_pct` adds the per-run percentile dicts
@@ -290,6 +322,7 @@ def main(argv=None):
   parser.add_argument('--runs', type=int, default=DEFAULT_RUNS, help='Number of benchmark runs to average (default: %(default)s)')
   parser.add_argument('--size-mb', type=int, default=DEFAULT_SIZE_MB, help='Test file size in MiB (default: %(default)s)')
   parser.add_argument('--seconds', type=int, default=DEFAULT_SECONDS, help='Duration of each random IO test (default: %(default)s)')
+  parser.add_argument('--block-sweep', action='store_true', help='Also sweep sequential write throughput across a range of block sizes (diagnostic curve)')
   parser.add_argument('--keep', action='store_true', help='Keep the test file instead of deleting it')
   parser.add_argument('--json', action='store_true', help='Emit machine-readable JSON to stdout (progress on stderr)')
   args = parser.parse_args(argv)
@@ -318,8 +351,15 @@ def main(argv=None):
                 f'{status.style("wr", "grey")} {rw["iops"]:6.0f} IOPS   '
                 f'{status.style("rd", "grey")} {rr["iops"]:6.0f} IOPS')
 
+  def on_sweep_phase(block_bytes):
+    spinner.update(f'Block sweep  {_fmt_block(block_bytes)}...')
+
+  sweep = None
   try:
     results = run(test_file, args.runs, size_bytes, args.seconds, on_run=on_run, on_phase=on_phase)
+    if args.block_sweep:
+      sweep = block_size_sweep(test_file, size_bytes, on_phase=on_sweep_phase)
+      spinner.clear()
   finally:
     spinner.stop()
     if not args.keep and os.path.isfile(test_file):
@@ -327,8 +367,11 @@ def main(argv=None):
 
   means = summary(results)
   if args.json:
-    print(json.dumps({'dir': args.dir, 'runs': args.runs, 'size_mb': args.size_mb,
-                      'seconds': args.seconds, 'mean': means, 'samples': results}, indent=2))
+    payload = {'dir': args.dir, 'runs': args.runs, 'size_mb': args.size_mb,
+               'seconds': args.seconds, 'mean': means, 'samples': results}
+    if sweep is not None:
+      payload['block_sweep'] = sweep
+    print(json.dumps(payload, indent=2))
     return 0
 
   status.section('Mean over all runs')
@@ -340,6 +383,11 @@ def main(argv=None):
   for label, key in (('Sequential write', 'seq_write'), ('Random 4 KiB write', 'rand_write'), ('Random 4 KiB read', 'rand_read')):
     lat = means[key]['lat']
     status.kv(label, f'p50 {lat["p50_ms"]:.2f}  {status.g["dot"]}  p95 {lat["p95_ms"]:.2f}  {status.g["dot"]}  p99 {lat["p99_ms"]:.2f}', note=f'max {lat["max_ms"]:.2f}')
+
+  if sweep is not None:
+    status.section('Block-size sweep', 'sequential write throughput vs block size (1 pass each)')
+    for entry in sweep:
+      status.kv(f'{_fmt_block(entry["block_bytes"])} block', f'{entry["mbps"]:.1f} MBps', value_style='bold', note=f'p95 {entry["lat"]["p95_ms"]:.2f} ms')
   status.out('')
   return 0
 

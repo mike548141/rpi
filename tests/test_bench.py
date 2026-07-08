@@ -1,5 +1,7 @@
 # sdbench pure-maths: the hand-rolled percentile helper (kept off statistics.quantiles for the 3.6
 # floor) and the latency distribution built on top of it.
+import os
+import tempfile
 import unittest
 
 import _loader  # noqa: F401 - puts src/ on sys.path so rpi_sdinfo imports
@@ -67,6 +69,60 @@ class ResultPackaging(unittest.TestCase):
     empty = sdbench.empty_results()
     self.assertIn('write', empty)
     self.assertIn('read', empty)
+
+
+class SweepBlocks(unittest.TestCase):
+  def test_full_range_survives_large_file(self):
+    # A file bigger than the largest block keeps every requested block size
+    blocks = sdbench._sweep_blocks(64 * 1024 * 1024)
+    self.assertEqual(blocks, list(sdbench.SWEEP_BLOCKS))
+
+  def test_clamps_and_dedups_small_file(self):
+    # A 32 KiB file collapses 64 KiB/256 KiB/1 MiB into a single 32 KiB pass, keeping 4/16/32
+    blocks = sdbench._sweep_blocks(32 * 1024)
+    self.assertEqual(blocks, [4 * 1024, 16 * 1024, 32 * 1024])
+
+  def test_tiny_file_is_single_pass(self):
+    self.assertEqual(sdbench._sweep_blocks(1024), [1024])
+
+  def test_sorted_ascending(self):
+    blocks = sdbench._sweep_blocks(1024 * 1024, block_sizes=(1024 * 1024, 4 * 1024, 64 * 1024))
+    self.assertEqual(blocks, sorted(blocks))
+
+
+class FmtBlock(unittest.TestCase):
+  def test_kib_and_mib(self):
+    self.assertEqual(sdbench._fmt_block(4 * 1024), '4 KiB')
+    self.assertEqual(sdbench._fmt_block(256 * 1024), '256 KiB')
+    self.assertEqual(sdbench._fmt_block(1024 * 1024), '1 MiB')
+    self.assertEqual(sdbench._fmt_block(2 * 1024 * 1024), '2 MiB')
+
+
+class BlockSizeSweep(unittest.TestCase):
+  def test_one_entry_per_block_over_real_file(self):
+    # Small real IO: a 256 KiB file swept with three block sizes yields three well-formed entries
+    fd, path = tempfile.mkstemp()
+    os.close(fd)
+    try:
+      sizes = (4 * 1024, 64 * 1024, 256 * 1024)
+      sweep = sdbench.block_size_sweep(path, 256 * 1024, block_sizes=sizes)
+      self.assertEqual([e['block_bytes'] for e in sweep], list(sizes))
+      for entry in sweep:
+        self.assertIn('mbps', entry)
+        self.assertIn('lat', entry)
+        self.assertGreaterEqual(entry['mbps'], 0.0)
+    finally:
+      os.remove(path)
+
+  def test_phase_callback_fires_per_block(self):
+    fd, path = tempfile.mkstemp()
+    os.close(fd)
+    seen = []
+    try:
+      sdbench.block_size_sweep(path, 128 * 1024, block_sizes=(4 * 1024, 128 * 1024), on_phase=seen.append)
+    finally:
+      os.remove(path)
+    self.assertEqual(seen, [4 * 1024, 128 * 1024])
 
 
 if __name__ == '__main__':

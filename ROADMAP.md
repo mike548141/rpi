@@ -111,8 +111,11 @@ percentiles, the test suite) plus the post-0.9 macOS/CSD work lives in `docs/ROA
 
 ## Smaller cleanups
 
-- `sdbench`: optional true O_DIRECT path on Linux (aligned buffers) for the most accurate device-level numbers;
-  progressively-larger block sizes. ✅ Latency percentiles (not just the mean) shipped in 0.8.
+- `sdbench`: optional true O_DIRECT path on Linux (aligned buffers) for the most accurate device-level numbers.
+  ✅ Latency percentiles (not just the mean) shipped in 0.8. ✅ **Progressively-larger block sizes** shipped as
+  `rpi-sdbench --block-sweep` (post-0.9.1): an opt-in sequential-write throughput-vs-block-size curve (4 KiB →
+  1 MiB), diagnostic of a controller whose small-block writes collapse or never scale. The O_DIRECT path still
+  needs a real Pi to validate.
 - macOS: ✅ auto-detect a removable card when `--device`/`--dir` is omitted (scans for a removable/external whole
   disk, prefers an SD-bus reader, and points the benchmark at its mount point), and ✅ resolve the card's real
   product/make/serial from a **built-in SD slot** via `system_profiler SPCardReaderDataType`. USB card readers

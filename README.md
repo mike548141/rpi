@@ -122,6 +122,9 @@ sudo rpi-sdinfo --raw
 # Just a native benchmark of a path, standalone
 rpi-sdbench --dir /Volumes/MYCARD
 
+# Add a sequential-write throughput-vs-block-size curve (a flat or collapsing curve is a worn/fake tell)
+rpi-sdbench --dir /Volumes/MYCARD --block-sweep
+
 # Just a native capacity-fraud sweep of a path, standalone (non-destructive, fills free space)
 rpi-sdverify --dir /Volumes/MYCARD
 
