@@ -1336,8 +1336,15 @@ def compute_perf(sys_info, args, spinner, progress):
                   + progress.style('wr', 'grey') + ' ' + ('%6.0f' % rw['iops']) + ' IOPS   '
                   + progress.style('rd', 'grey') + ' ' + ('%6.0f' % rr['iops']) + ' IOPS')
 
+  def on_sweep_phase(block_bytes):
+    spinner.update('Block sweep  ' + sdbench._fmt_block(block_bytes) + '…')
+
   try:
     perf = sdbench.run(test_file, args.runs, size_bytes, args.seconds, on_run=on_run, on_phase=on_phase)
+    # Opt-in throughput-vs-block-size curve, run after the A1 suite while the test file is still around
+    if getattr(args, 'block_sweep', False):
+      perf['block_sweep'] = sdbench.block_size_sweep(test_file, size_bytes, on_phase=on_sweep_phase)
+      spinner.clear()
   finally:
     spinner.stop()
     if os.path.isfile(test_file):
@@ -1363,6 +1370,17 @@ def _render_metric(console, label, samples, units, dec):
   value = f_num(best_median(samples), dec) + ' ' + units
   note = 'mean ' + f_num(statistics.mean(samples), dec) + ' ' + console.g['dot'] + ' sd ' + f_num(stdev, dec)
   console.kv(label, value, value_style='bold', note=note)
+
+def render_block_sweep(console, sys_info):
+  """The optional block-size sweep: sequential write throughput at each block size, so the reader can see the
+  throughput-vs-block-size curve (a flat, collapsing, or non-scaling curve is a worn/counterfeit tell)"""
+  sweep = sys_info.get('perf', {}).get('block_sweep')
+  if not sweep:
+    return
+  console.section('Block-size sweep', note='sequential write throughput vs block size ' + console.g['dot'] + ' 1 pass each')
+  for entry in sweep:
+    console.kv(sdbench._fmt_block(entry['block_bytes']) + ' block', f_num(entry['mbps'], 1) + ' MBps',
+               value_style='bold', note='p95 ' + f_num(entry['lat']['p95_ms'], 2) + ' ms')
 
 #======================================
 # Grade the results against the rated speed class
@@ -1713,6 +1731,7 @@ def parse_args(argv=None):
   parser.add_argument('--runs', type=int, default=max_runs, help='Number of benchmark runs to average (default: %(default)s)')
   parser.add_argument('--size-mb', type=int, default=sdbench.DEFAULT_SIZE_MB, help='Test file size in MiB (default: %(default)s)')
   parser.add_argument('--seconds', type=int, default=sdbench.DEFAULT_SECONDS, help='Duration of each random IO test (default: %(default)s)')
+  parser.add_argument('--block-sweep', action='store_true', help='Also measure sequential write throughput across a range of block sizes (a diagnostic curve; a flat or collapsing curve is a worn/fake tell). Non-destructive')
   parser.add_argument('--no-benchmark', action='store_true', help='Only gather and print card detail, skip the performance test')
   parser.add_argument('--capacity-check', action='store_true', help='Also run a capacity-fraud sweep (fills free space, writes+verifies to unmask fake cards). Slow; adds flash wear')
   parser.add_argument('--capacity-mb', type=int, default=None, help='Cap the capacity sweep to this many MiB instead of filling all free space (for a quick partial check)')
@@ -1797,6 +1816,7 @@ def main(argv=None):
     if render:
       render_benchmark(out, sys_info)
       render_grade(out, sys_info)
+      render_block_sweep(out, sys_info)
 
   # Optional, opt-in capacity-fraud sweep. Gated behind a confirmation (or --yes) because it fills free space
   if args.capacity_check:

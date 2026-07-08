@@ -7,12 +7,13 @@ All notable changes to rpi-sdinfo are recorded here. The format loosely follows
 ## [Unreleased]
 
 ### Added
-- **`rpi-sdbench --block-sweep`: sequential-write throughput vs block size.** An opt-in diagnostic that measures
-  one sequential-write pass at each of a range of block sizes (4 KiB → 1 MiB) and reports the throughput curve.
+- **`--block-sweep`: sequential-write throughput vs block size.** An opt-in diagnostic that measures one
+  sequential-write pass at each of a range of block sizes (4 KiB → 1 MiB) and reports the throughput curve.
   A genuine card climbs then plateaus as the block grows past the controller's page/erase granularity, so a
   curve that stays flat, collapses at small blocks, or never scales is a tell for a worn or counterfeit
-  controller. Off by default (the A1 suite is unchanged); shown in the text report and carried in the JSON under
-  a `block_sweep` key. Non-destructive - reuses the one test file.
+  controller. Available on both `rpi-sdbench` (top-level JSON `block_sweep` key) and the combined `rpi-sdinfo`
+  (under the JSON `benchmark.block_sweep` key); shown as a "Block-size sweep" section in the text report of each.
+  Off by default (the A1 suite is unchanged), non-destructive - reuses the one test file.
 - **Signed release artifacts (keyless build provenance).** The release workflow now signs the sdist, wheel and
   SBOM with a GitHub build-provenance attestation (`actions/attest-build-provenance`) - a short-lived
   Sigstore/Fulcio certificate minted from the workflow's OIDC identity (no long-lived key), logged to Rekor,

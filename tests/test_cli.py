@@ -37,6 +37,23 @@ class SdbenchCli(unittest.TestCase):
         self.assertIn(phase, doc['mean'])
         self.assertIn('lat', doc['mean'][phase])
       self.assertIn('samples', doc)
+      self.assertNotIn('block_sweep', doc)  # off by default
+    finally:
+      shutil.rmtree(tmp, ignore_errors=True)
+
+  def test_block_sweep_curve(self):
+    tmp = tempfile.mkdtemp()
+    try:
+      proc = run('bench', ['--json', '--runs', '1', '--size-mb', '2',
+                           '--seconds', '1', '--block-sweep', '--dir', tmp])
+      self.assertEqual(proc.returncode, 0, proc.stderr)
+      doc = json.loads(proc.stdout)
+      sweep = doc['block_sweep']
+      # Ascending block sizes, each with a throughput and a latency distribution
+      self.assertEqual([e['block_bytes'] for e in sweep], sorted(e['block_bytes'] for e in sweep))
+      for entry in sweep:
+        self.assertGreaterEqual(entry['mbps'], 0.0)
+        self.assertIn('p95_ms', entry['lat'])
     finally:
       shutil.rmtree(tmp, ignore_errors=True)
 
@@ -60,6 +77,19 @@ class SdinfoCli(unittest.TestCase):
     proc = run('sdinfo', ['--help'])
     self.assertEqual(proc.returncode, 0, proc.stderr)
     self.assertIn('usage', proc.stdout.lower())
+
+  def test_block_sweep_in_benchmark_block(self):
+    # The combined tool carries the sweep under benchmark.block_sweep when --block-sweep is given
+    tmp = tempfile.mkdtemp()
+    try:
+      proc = run('sdinfo', ['--json', '--runs', '1', '--size-mb', '2',
+                            '--seconds', '1', '--block-sweep', '--dir', tmp])
+      self.assertEqual(proc.returncode, 0, proc.stderr)
+      doc = json.loads(proc.stdout)
+      self.assertIn('block_sweep', doc['benchmark'])
+      self.assertTrue(doc['benchmark']['block_sweep'])
+    finally:
+      shutil.rmtree(tmp, ignore_errors=True)
 
   def test_db_query_missing_db_is_clean_error(self):
     # --db-query on a path with no database must fail cleanly (exit 2 + a plain message),

@@ -132,7 +132,7 @@ rpi-sdverify --dir /Volumes/MYCARD
 rpi-sdverify --device /dev/disk4 --yes
 ```
 
-Useful options: `--device`, `--partition`, `--dir`, `--runs`, `--size-mb`, `--seconds`, `--no-benchmark`,
+Useful options: `--device`, `--partition`, `--dir`, `--runs`, `--size-mb`, `--seconds`, `--block-sweep`, `--no-benchmark`,
 `--capacity-check`, `--capacity-mb`, `--yes`, `--format text|json` (or `--json`), `--quiet`, `--raw`,
 `--save-db [PATH]`, `--db-query [PATH]`, `--color`/`--no-color`, `--version` (`--help` for the full list). Colour follows the
 [`NO_COLOR`](https://no-color.org) and `CLICOLOR_FORCE` conventions and switches itself off when output is piped

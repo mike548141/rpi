@@ -81,6 +81,13 @@ Test file size in MiB.
 .BI \-\-seconds " N"
 Duration of each random IO test.
 .TP
+.B \-\-block\-sweep
+Also measure sequential write throughput at a range of block sizes (4 KiB to 1 MiB) and report the
+throughput-vs-block-size curve. A genuine card climbs then plateaus as the block grows past the controller's
+page/erase granularity, so a flat, collapsing, or non-scaling curve is a tell for a worn or counterfeit
+controller. Non-destructive; off by default. Also available standalone as
+.BR "rpi-sdbench \-\-block-sweep" .
+.TP
 .B \-\-no\-benchmark
 Only gather and print card detail; skip the performance test.
 .TP
