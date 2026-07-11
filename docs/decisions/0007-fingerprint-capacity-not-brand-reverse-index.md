@@ -61,3 +61,29 @@ no destructive write to see. The check:
   invented mappings (an invented entry would poison detection).
 - A contributor tempted to re-raise "flag brand≠MID" should read this ADR first: the answer is no, and the reason
   is OEM rebadging, not a thin table.
+
+## Addendum (2026-07-12) — reject the *binary* reverse index, not the signal
+
+*Mike's steer, same day: the decision above over-corrected. "Reject the reverse index" was too broad — what is
+unsound is the **binary** form (brand≠MID ⇒ fake), not the brand↔MID relationship itself, which is real,
+learnable data. The rejection stands only for the binary trigger; the relationship is adopted in scored form.*
+
+- **Learn the brand set, don't assume it.** The unsoundness came from *assuming* a MID ships only its maker's
+  own brand. The fix is to *learn*, per MID (and per OID), the set of brands legitimately observed shipping under
+  it — the free-text OEM string (`'AgfaPhoto, Delkin, … Sony'`) becomes structured, countable data that grows
+  with every real card. A well-populated pairing then nudges toward genuine; a pairing never seen under a
+  heavily-observed maker nudges toward suspect.
+- **A score, never a verdict.** The signal feeds a **heuristic suspicion score**, not a fake/genuine flag. This
+  is fully consistent with [ADR 0004](0004-honest-diagnostic-not-a-pass-fail-toy.md): soft signals aggregate into
+  an *explained* score (always shown with its contributing reasons, never a bare light/number), while only
+  spec-impossible facts remain hard `fail`s that drive the exit code. Absence of evidence is not evidence — an
+  unknown pairing pulls near-neutral until the maker is well-observed, so a genuine oddball card is not punished
+  for a thin table.
+- **Honesty bound:** it is a *suspicion index*, not a calibrated P(fake). With no labelled ground-truth we must
+  not print a probability ("73% fake" claims more than the evidence bears); the honest artefact is a heuristic
+  score with named signals underneath it.
+
+The scoring model itself (weights, thresholds, where a "sold-as" brand beyond the OID comes from, whether the
+score ever influences the exit code) is a larger design carried in the roadmap and will earn its own ADR when
+built. This addendum only records that the brand↔MID signal is **kept, in learned + scored form** — the earlier
+blanket "rejected" is narrowed to the binary trigger.

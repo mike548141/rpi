@@ -64,11 +64,22 @@ percentiles, the test suite) plus the post-0.9 macOS/CSD work lives in `docs/ROA
     capacity, so a card wearing that exact identity while reporting a grossly different size is flagged (`warn`
     past a 25% band; a clone flashed to lie about capacity, caught with no destructive write). Fires rarely today
     but is sound every time it does, and strengthens as the DB grows.
-  - **Rejected — brand-vs-MID reverse index.** The old "MID that never ships the branded make" idea is *unsound*,
-    not just DB-sparse: OEM/ODM rebadging means a genuine card legitimately carries another maker's MID (the DB's
-    own Phison→Sony/Lexar/PNY OEM entry proves it), so a brand≠MID mismatch is not a fake tell. Recorded in
-    [ADR 0007](docs/decisions/0007-fingerprint-capacity-not-brand-reverse-index.md); the sound version is the
-    fingerprint check above.
+  - **Brand↔MID as a learned, *scored* signal (not a binary tell).** The naive "brand≠MID ⇒ fake" trigger is
+    unsound (OEM/ODM rebadging — the DB's own Phison→Sony/Lexar/PNY entry proves a genuine card carries another
+    maker's MID). But the brand↔MID *relationship* is real, learnable data: structure the free-text OEM string
+    into a countable **set of brands observed shipping under each MID/OID**, growing with every real card, and let
+    a well-populated pairing nudge toward genuine / a never-seen pairing nudge toward suspect. Feeds a **heuristic
+    suspicion score**, never a verdict. Design constraints (from [ADR 0007 addendum](docs/decisions/0007-fingerprint-capacity-not-brand-reverse-index.md)):
+    - **Hybrid, so [ADR 0004](docs/decisions/0004-honest-diagnostic-not-a-pass-fail-toy.md) holds** — spec-impossible facts stay hard `fail`s that drive the
+      exit code; soft signals (brand-set, capacity-vs-fingerprint, register oddities, date, TRAN_speed context)
+      aggregate into a *separate, explained* score, always shown with its contributing reasons, never a bare light.
+    - **Suspicion index, not P(fake)** — no labelled ground truth to calibrate a probability, so never print a
+      percentage; a heuristic score with named signals is the honest artefact.
+    - **Unknown ≠ suspicious early** — an unseen pairing pulls near-neutral until the maker is well-observed, so a
+      genuine oddball isn't punished for a thin table.
+    - Build incrementally: first the structured brand-set data model + a neutral "consistent with known brands for
+      this maker" **info** finding (zero risk, starts accumulating value); the aggregate score comes later, once
+      the table is rich enough for weights to mean anything, and earns its own ADR then.
 - **Decode the CSD register.** ✅ Shipped in 0.7 (`decode_csd()`): structure version → SDSC/SDHC/SDXC/SDUC,
   capacity, TRAN_SPEED bus speed, command classes, read block length - compared against the branding above.
 
