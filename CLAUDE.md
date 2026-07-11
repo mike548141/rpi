@@ -1,4 +1,4 @@
-## Doctrine — inherited from atelier (pinned `atelier@1588fda`)
+## Doctrine — inherited from atelier (pinned `atelier@9c63bfc`)
 
 This repo works by the atelier operating model. The safety floor here is
 **inlined so it binds even if atelier is never read**; all richer doctrine lives
@@ -16,7 +16,7 @@ in atelier and is read on demand — never wholesale.
   new trust surface (deploy keys, webhooks, OAuth/app grants). Everything
   recoverable — commit/push/PR included — just proceed.
 - **Source & drift:** canonical doctrine is `../atelier/docs/method/`. At
-  session start run `git -C "../atelier" log --oneline 1588fda..HEAD`; any
+  session start run `git -C "../atelier" log --oneline 9c63bfc..HEAD`; any
   output means the house doctrine moved — read it, then bump the pin above
   deliberately.
 - **This repo's visibility:** PRIVATE (a push is not publication; making it public is a floor action). Verify:
