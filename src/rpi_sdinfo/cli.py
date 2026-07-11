@@ -128,7 +128,7 @@ locale.setlocale(locale.LC_ALL, '')
 
 # The crowd-sourced CID identity table (make/brand/product per MID/OID/PNM) and its structural validator live
 # in cid_db.py so the database grows as a data diff, not a code change. _lookup() below walks it.
-from .cid_db import manufacturer, validate_cid_db  # noqa: F401  (validate_cid_db is used by the test suite)
+from .cid_db import manufacturer, validate_cid_db, leaf_capacity_bytes  # noqa: F401  (validate_cid_db: test suite)
 
 # Expected performance classes defined by SD-3C
 # https://www.sdcard.org/developers/sd-standard-overview/application-performance-class/
@@ -483,6 +483,24 @@ def cross_check(storage, now=None):
   if storage.get('cid_pnm') and storage.get('manufacturer') in (None, '', 'unknown'):
     findings.append({'severity': 'info', 'message': "product '%s' is not in the CID database yet (unverified make)" % storage['cid_pnm']})
 
+  # Known-good fingerprint cross-check. When the full CID (MID/OID/PNM/PRV) exactly matches a *verified* product
+  # in the database, that product's own label states its capacity - so a card wearing that exact identity while
+  # reporting a grossly different size is a strong counterfeit tell (a clone that copied a real card's registers
+  # but was flashed to lie about capacity), and it needs no destructive write to see. We deliberately do NOT do
+  # the reverse - inferring a fake from a make/brand vs MID mismatch is unsound, because OEM/ODM rebadging means a
+  # genuine card legitimately carries another maker's MID (see ADR 0007). Only an exact-fingerprint capacity
+  # contradiction is sound here, and only 'warn': the DB entry could itself be wrong, so never a hard 'fail'.
+  match = storage.get('cid_db_match')
+  if isinstance(match, dict) and reported:
+    known = leaf_capacity_bytes(match.get('label'))
+    # Loose 25% band: tolerate genuine marketing-GB vs usable-bytes slack and rounding, catch only gross (2x+)
+    # capacity lies - the corners/free-space sweep remains the backstop for subtle wraps
+    if known and abs(reported - known) > known * 0.25:
+      findings.append({'severity': 'warn', 'message':
+        "CID matches the known product '%s' (~%s GB) but the card reports %s GB - a capacity mismatch against a "
+        'verified fingerprint; likely a clone flashed to misreport its size'
+        % (match['label'], f_num(known / 1000 ** 3, 0), f_num(reported / 1000 ** 3, 1))})
+
   # The kernel reported erase_size as 0 (card not block-addressed): the capacity above rests on an assumed
   # 512-byte block, so make that assumption visible rather than presenting the figure as measured fact
   if storage.get('block_size_assumed'):
@@ -617,6 +635,9 @@ def gather_linux(args):
   oem = sys_info['storage']['oem']
   sys_info['storage']['label'] = _lookup(manufacturer, card_type, mid, oid, pnm, hwrev, 'label', default=oem)
   sys_info['storage']['speed_class'] = _lookup(manufacturer, card_type, mid, oid, pnm, hwrev, 'speed_class', default=[])
+  # Stash the fully-identified leaf (default None) so cross_check can tell a *verified* fingerprint match from a
+  # make/oem fallback - only an exact MID/OID/PNM/PRV hit is ground truth for the capacity cross-check below
+  sys_info['storage']['cid_db_match'] = _lookup(manufacturer, card_type, mid, oid, pnm, hwrev, default=None)
 
   # Analyse - card read/write and removable state
   read_only, force_ro = sys_info['storage']['read_only'], sys_info['storage']['force_read_only']

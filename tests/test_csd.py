@@ -106,6 +106,41 @@ class CrossCheck(unittest.TestCase):
     self.assertFalse(any(f['severity'] == 'fail' for f in findings))
 
 
+class FingerprintCapacity(unittest.TestCase):
+  # The known-good fingerprint capacity cross-check: an exact CID match to a verified product whose label states a
+  # capacity, versus what the card reports. Sound only in this direction (see ADR 0007) - no CSD needed.
+  KNOWN = {'label': 'SanDisk Ultra 64 GB microSDXC U1', 'speed_class': ['U1']}
+
+  def _findings(self, reported_bytes, match=None):
+    storage = {'bytes': reported_bytes}
+    if match is not None:
+      storage['cid_db_match'] = match
+    return sdinfo.cross_check(storage)
+
+  def test_gross_capacity_lie_against_known_product_warns(self):
+    # CID says 64 GB SanDisk, card reports 512 GB -> a clone flashed to over-report; warn, never a hard fail
+    findings = self._findings(512 * 1000 ** 3, self.KNOWN)
+    hits = [f for f in findings if 'verified fingerprint' in f['message']]
+    self.assertEqual(len(hits), 1)
+    self.assertEqual(hits[0]['severity'], 'warn')
+    self.assertFalse(any(f['severity'] == 'fail' for f in findings))
+
+  def test_matching_capacity_no_warning(self):
+    # A genuine 64 GB card reports slightly under marketing GB (usable bytes) - inside the 25% band, so silent
+    findings = self._findings(int(64 * 1000 ** 3 * 0.94), self.KNOWN)
+    self.assertFalse(any('verified fingerprint' in f['message'] for f in findings))
+
+  def test_no_fingerprint_match_no_warning(self):
+    # No exact CID match (make/oem fallback only) -> the check must not fire at all
+    findings = self._findings(512 * 1000 ** 3, match=None)
+    self.assertFalse(any('verified fingerprint' in f['message'] for f in findings))
+
+  def test_label_without_parseable_size_no_warning(self):
+    # An eMMC leaf whose label states no GB size -> nothing to compare against, so no warning
+    findings = self._findings(512 * 1000 ** 3, {'label': 'ChromeBook Internal eMMC'})
+    self.assertFalse(any('verified fingerprint' in f['message'] for f in findings))
+
+
 class MalformedCsd(unittest.TestCase):
   # Structural-validity liar-checks: a genuine SD controller emits a spec-valid CSD, so garbage in these fields
   # is a counterfeit tell. These are warns (strong hints), not fails, and must never fire on a genuine card.
