@@ -57,9 +57,18 @@ on:
   pull_request:
   workflow_dispatch:
 
-# Least privilege: the floor only reads trees.
+# Least privilege: the floor only reads trees (contents:read also lets the
+# signature step's gh-api plane read commit verification state).
 permissions:
   contents: read
+
+# Adoption boundary for commit-signature verification (SIGNING.md, ADR 0007):
+# the last UNSIGNED commit — everything after it must be signed. EMPTY = verify
+# ALL history, the right default for a repo BORN signed (scaffolded by create-repo
+# with commit.gpgsign on). A repo RETROFITTED onto signing sets this to its
+# pre-signing HEAD so its unsigned past is not flagged as bad.
+env:
+  SIGN_BOUNDARY: "d437715"
 
 # Cost hygiene — a newer push to the same ref cancels the superseded run.
 concurrency:
@@ -75,12 +84,14 @@ jobs:
         uses: actions/checkout@v5
         with:
           path: repo
+          fetch-depth: 0   # signature verification needs full history (rev-list)
 
       - name: Check out atelier's scanners
         uses: actions/checkout@v5
         with:
           repository: mike548141/atelier
           path: atelier
+          fetch-depth: 0   # so `git show <pin>:allowed_signers` resolves any pin
           # ref: <SHA>   # pin here for reproducible CI; default floats to main
 
       - uses: actions/setup-python@v6
@@ -95,6 +106,7 @@ jobs:
           python3 atelier/tools/secretscan.py --selftest
           python3 atelier/tools/leakscan.py --selftest
           python3 atelier/tools/linkscan.py --selftest
+          python3 atelier/tools/signscan.py --selftest
 
       - name: secretscan (full cover)
         run: python3 atelier/tools/secretscan.py --root repo repo
@@ -108,3 +120,49 @@ jobs:
       # Publish gate — uncomment when this repo has a LICENSE / before going public.
       # - name: licenscan (assert your licence)
       #   run: python3 atelier/tools/licenscan.py --expect Apache-2.0 repo
+
+      # --- commit-signature verification (SIGNING.md, ADR 0007) --------------
+      # WARN-FIRST: reports unverified commits, does NOT fail the build while the
+      # fleet settles. To make it BLOCK once every active machine signs: drop
+      # `--warn` from the machine plane, and change the gh-plane `::warning::` to
+      # `::error::` + `exit 1`.
+      #
+      # TRUST LIST AT THE PIN, never floating main (2026-07-12 review G7): a
+      # floated trust root would let anyone with write to atelier's main mint
+      # trust for every child. The list is read from atelier AS OF this repo's own
+      # CLAUDE.md pin — so a new signing key only takes effect here after a
+      # visible, reviewed pin bump, exactly the blast-radius property the
+      # dedicated key buys. (Contrast the scanners above, which deliberately float
+      # main: newest scanner = safest; a trust root is the opposite call.)
+      - name: Resolve the trust list at this repo's atelier pin
+        run: |
+          PIN=$(grep -oE 'atelier@[0-9a-f]{7,40}' repo/CLAUDE.md | head -1 | cut -d@ -f2)
+          if [ -z "$PIN" ]; then
+            echo "::warning::no atelier pin in CLAUDE.md — skipping signature verification"; exit 0
+          fi
+          if ! git -C atelier show "$PIN:allowed_signers" > "$RUNNER_TEMP/allowed_signers" 2>/dev/null; then
+            echo "::warning::atelier@$PIN has no allowed_signers (pin predates signing) — bump the pin to verify signatures"; exit 0
+          fi
+          echo "TRUST=$RUNNER_TEMP/allowed_signers" >> "$GITHUB_ENV"
+
+      - name: Verify commit signatures — machine-key plane (warn-first)
+        if: env.TRUST != ''
+        run: |
+          python3 atelier/tools/signscan.py \
+            --allowed-signers "$TRUST" --boundary "$SIGN_BOUNDARY" --repo repo --warn
+
+      - name: Verify commit signatures — GitHub-server plane (warn-first)
+        if: env.TRUST != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Commits signscan deferred (committed by GitHub's web-flow identity —
+          # merge/squash): assert GitHub's own verification via the API. gh is
+          # preinstalled on the runner; the default token can read this.
+          DEFERRED=$(python3 atelier/tools/signscan.py \
+            --allowed-signers "$TRUST" --boundary "$SIGN_BOUNDARY" --repo repo --json \
+            | python3 -c 'import json,sys; [print(r["sha"]) for r in json.load(sys.stdin)["results"] if r["plane"]=="github"]')
+          for SHA in $DEFERRED; do
+            V=$(gh api "repos/${{ github.repository }}/commits/$SHA" --jq '.commit.verification.verified' 2>/dev/null || echo error)
+            [ "$V" = "true" ] || echo "::warning::server commit $SHA not GitHub-verified (got: $V)"
+          done
