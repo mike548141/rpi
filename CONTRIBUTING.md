@@ -99,3 +99,18 @@ gh attestation verify rpi_sdinfo-X.Y.Z-py3-none-any.whl --bundle rpi-sdinfo.sigs
 The CID → real-product table (make / model / speed class) is crowd-sourced and incomplete.
 A verified `CID → product + measured performance` mapping is a genuinely useful contribution
 and makes the fake-detection stronger for everyone.
+
+The table lives in its own file, [`src/rpi_sdinfo/cid_db.py`](src/rpi_sdinfo/cid_db.py) — a
+contribution is a **data diff** there, not a change to the tool. To add a card:
+
+- Run `rpi-sdinfo` on a **card you trust is genuine** and note its CID. Add a leaf under
+  `manufacturer[type][MID][OID][PNM][PRV]` with a `'label'` (and `'speed_class'` if rated),
+  and record the raw CID in a trailing `# CID:...` comment — that provenance is the point.
+  **Only add mappings backed by a real observed CID.** An invented entry poisons detection
+  rather than strengthening it (the fingerprint capacity cross-check, [ADR 0007](docs/decisions/0007-fingerprint-capacity-not-brand-reverse-index.md),
+  trusts these entries as ground truth).
+- The label states the capacity in GB (e.g. `'SanDisk Ultra 64 GB microSDXC U1'`); the tool
+  parses it, so keep the `N GB` form. No separate capacity field is needed.
+- `python3 -m unittest discover -s tests` runs the structural validator over the whole table
+  (`validate_cid_db`) — a malformed key or an unknown speed-class token fails the build, so
+  run it before you push.

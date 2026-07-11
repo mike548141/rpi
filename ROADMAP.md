@@ -59,8 +59,16 @@ percentiles, the test suite) plus the post-0.9 macOS/CSD work lives in `docs/ROA
     Instead, when the rated class exceeds what the advertised bus can carry (e.g. a U3/V30 card on a high-speed
     ~25 MB/s bus), the tool emits an **info** note explaining the ceiling — so a genuine card measuring below
     its label is understood (bus-limited on a non-UHS host), not silently believed fast or assumed broken.
-  - **Still to add — MID that never ships the branded make.** Needs a PNM→brand reverse index over the CID
-    database (which is sparse), so it would rarely fire today; deferred until the DB is richer.
+  - **Known-good fingerprint capacity cross-check.** ✅ Shipped (post-0.9.1): when the full CID
+    (MID/OID/PNM/PRV) exactly matches a *verified* product in the database, that product's label states its
+    capacity, so a card wearing that exact identity while reporting a grossly different size is flagged (`warn`
+    past a 25% band; a clone flashed to lie about capacity, caught with no destructive write). Fires rarely today
+    but is sound every time it does, and strengthens as the DB grows.
+  - **Rejected — brand-vs-MID reverse index.** The old "MID that never ships the branded make" idea is *unsound*,
+    not just DB-sparse: OEM/ODM rebadging means a genuine card legitimately carries another maker's MID (the DB's
+    own Phison→Sony/Lexar/PNY OEM entry proves it), so a brand≠MID mismatch is not a fake tell. Recorded in
+    [ADR 0007](docs/decisions/0007-fingerprint-capacity-not-brand-reverse-index.md); the sound version is the
+    fingerprint check above.
 - **Decode the CSD register.** ✅ Shipped in 0.7 (`decode_csd()`): structure version → SDSC/SDHC/SDXC/SDUC,
   capacity, TRAN_SPEED bus speed, command classes, read block length - compared against the branding above.
 
@@ -73,7 +81,10 @@ percentiles, the test suite) plus the post-0.9 macOS/CSD work lives in `docs/ROA
   stronger anonymisation scheme than the current fixed-salt PBKDF2 over the serial (a public salt over a
   low-entropy serial is brute-forceable) — decide what is safe to share before any upload ships.
 - **Grow the CID database.** The MID/OID → product table is crowd-sourced and incomplete; every verified
-  `CID → real product + measured performance` mapping makes fake-detection stronger.
+  `CID → real product + measured performance` mapping makes fake-detection stronger. ✅ The table now lives in
+  its own file (`src/rpi_sdinfo/cid_db.py`) so a contribution is a data diff, not a code change, gated by a
+  structural validator (`validate_cid_db`) the suite runs on every change. Still just needs *more real cards* —
+  each verified fingerprint also arms the capacity cross-check above.
 
 ## Documentation & release polish (post-0.9)
 

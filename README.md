@@ -35,7 +35,9 @@ identifiers, performance, and failure rates.
   (SDSC/SDHC/SDXC/SDUC capacity, bus speed, command classes) and flags internal contradictions — above all a
   Standard-Capacity CSD on a card claiming tens of GB, which is impossible per the SD spec and the tell-tale of
   a small card reflashed to lie. Also warns on a CSD-vs-reported capacity mismatch or a future manufacturing
-  date. Shown as a `CONSISTENCY` section; a hard contradiction fails the exit code.
+  date, and — when the full CID matches a *known* product in the card database — on a capacity that contradicts
+  that verified fingerprint (a clone flashed to lie about its size, caught with no write). Shown as a
+  `CONSISTENCY` section; a hard contradiction fails the exit code.
 - **Reads nicely, scripts cleanly.** A colourful, sectioned terminal report for humans (with a live progress
   spinner during the benchmark), and `--format json` for other software — the JSON document is the *only* thing
   on stdout, so `rpi-sdinfo --json | jq` just works.

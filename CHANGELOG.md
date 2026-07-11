@@ -7,6 +7,19 @@ All notable changes to rpi-sdinfo are recorded here. The format loosely follows
 ## [Unreleased]
 
 ### Added
+- **Known-good fingerprint capacity cross-check.** When a card's full CID (MID/OID/PNM/PRV) exactly matches a
+  verified product in the database, that product's label states its capacity — so a card wearing that exact
+  identity while reporting a grossly different size is flagged (a clone that copied a real card's registers but
+  was flashed to lie about capacity), with no destructive write. A `warn` past a loose 25% band, never a `fail`
+  (the DB entry could be wrong). Deliberately one-directional: inferring a fake from a brand-vs-MID mismatch is
+  unsound, because OEM/ODM rebadging means a genuine card legitimately carries another maker's MID. See
+  [ADR 0007](docs/decisions/0007-fingerprint-capacity-not-brand-reverse-index.md).
+- **CID database is now its own file with a structural validator.** The crowd-sourced identity table moved out of
+  `cli.py` into [`src/rpi_sdinfo/cid_db.py`](src/rpi_sdinfo/cid_db.py) — a contribution is now a data diff, not a
+  code change, and a future shared/uploadable database has one place to serialise from. A `validate_cid_db()`
+  checks the table structure (MID/OID/PRV key shapes, leaf labels, known speed-class tokens, label-vs-capacity
+  agreement); the test suite gates every change against it, so a malformed contribution fails CI instead of
+  silently breaking a lookup. No behaviour change from the move itself.
 - **`--block-sweep`: sequential-write throughput vs block size.** An opt-in diagnostic that measures one
   sequential-write pass at each of a range of block sizes (4 KiB → 1 MiB) and reports the throughput curve.
   A genuine card climbs then plateaus as the block grows past the controller's page/erase granularity, so a
