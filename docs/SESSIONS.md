@@ -166,3 +166,12 @@ Convention adopted 2026-07-08 from the sibling `ros`/`tiki` repo (lean roadmap +
   crowd-upload **anonymisation scheme** (a real privacy call for a possibly-public tool: what's safe to share,
   and replacing the brute-forceable fixed-salt PBKDF2 over a low-entropy serial). That anonymisation decision is
   the natural next thing to *decide* before more code is worth writing.
+
+- **2026-07-11** — **Adopted into the atelier fleet** (standardise-existing pass,
+  pinned `atelier@1588fda`). Prepended the inherited **doctrine block** (apex +
+  always-confirm floor + drift check) above the existing onramp; added the
+  scanner-floor CI (`.github/workflows/floor.yml`, atelier's public tools run as
+  a sibling on every push/PR) and installed the fail-closed pre-commit hook
+  (`hooks.atelierTools` → `../atelier/tools`, proven blocking a planted key).
+  No other change — rpi was already close to the house standard. Tree scanned
+  clean. Next: the crowd-upload anonymisation decision (unchanged).

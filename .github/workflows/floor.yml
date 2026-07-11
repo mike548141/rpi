@@ -1,0 +1,110 @@
+name: floor
+
+# The scanner floor for a child repo — the CI half of the pre-commit scan hook.
+# The hook only guards the clone it's installed in (git transports neither hooks
+# nor config), so a fresh clone, a teammate's machine, or a web edit can commit
+# unscanned. This job is the backstop: it re-runs the publish/leak scans on every
+# push + PR, on a runner nobody had to configure.
+#
+# ONE SOURCE, NO VENDORED COPY. A child repo holds no scanners — they live in
+# atelier (mike548141/atelier, public per ADR 0005), zero-dep stdlib Python. This
+# job checks atelier out beside the repo and runs its tools/ against the repo's
+# tree. No secret, no copy, no drift: the scanner a push is checked against is
+# atelier's current one. (Adopters: point `repository:` at your own atelier fork.)
+#
+# WHY `atelier@main`, NOT A PINNED SHA. The scanners are a security *floor*, and
+# newest is safest: a tightened scanner that newly flags this repo has found a
+# latent issue that was always there, not spooky drift. Floating also keeps the
+# single doctrine-version pin in CLAUDE.md the *only* SHA to keep in sync — a
+# second stamped SHA here would be a new drift surface for no gain. Want
+# reproducible CI instead? Uncomment `ref:` below and bump it with the CLAUDE.md
+# pin.
+#
+# HONEST SCOPE — this proves what CI *can* prove, not everything the local hook
+# proves (mirrors atelier's own ci.yml):
+#   - secretscan runs at FULL cover — no machine-local state needed.
+#   - leakscan runs STRUCTURAL-ONLY. Its literal person/estate term list is
+#     machine-local by design (~/.claude, never in any repo), so CI cannot hold
+#     it and MUST NOT. A degraded structural pass is the correct, honest CI
+#     cover; full leakscan cover lives on the real-machine pre-commit hook. We
+#     deliberately do NOT pass --require-terms.
+#   - linkscan runs whole-tree (internal-link integrity).
+#   - licenscan is a *publish* gate, not an always-on floor: with no LICENSE it
+#     hard-fails ("all-rights-reserved") — correct before going public, wrong for
+#     a private/pre-licence repo. It's left commented; enable it when this repo
+#     settles a licence / before it goes public.
+#
+# The scan is scoped to the repo's own tree (checked out at `repo/`), NOT the
+# whole workspace — atelier's tree carries deliberate fake-secret test fixtures
+# that would false-positive if scanned. Keeping the two checkouts as siblings and
+# pointing the tools at `repo/` only is load-bearing, not cosmetic.
+#
+# FALSE POSITIVE in this repo's own tree (e.g. a deliberate fake-secret test
+# fixture of your own, or a committed build-output dir full of generated
+# markdown)? Two hatches, both travelling with the repo: append the scanner's
+# allow-marker to the flagged line (`secretscan:allow: <reason>` /
+# `leakscan:allow:` / `linkscan:allow:`), or add a root-relative path glob to
+# `.secretscanignore` / `.leakscanignore` / `.linkscanignore` at the repo root.
+# The failing run's output prints the same options.
+
+# Every push, not just main (2026-07-11 review N4): a push to ANY branch is
+# already publication — the commit is on the remote whether or not it is ever
+# PR'd or merged, and a feature branch that never sees a PR was previously
+# scanned by nothing. A same-repo PR branch runs twice (push + PR event);
+# that costs seconds and is the right side of the trade for a safety floor.
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+# Least privilege: the floor only reads trees.
+permissions:
+  contents: read
+
+# Cost hygiene — a newer push to the same ref cancels the superseded run.
+concurrency:
+  group: floor-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  floor:
+    name: scanner floor (leak · secret · link)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out this repo
+        uses: actions/checkout@v5
+        with:
+          path: repo
+
+      - name: Check out atelier's scanners
+        uses: actions/checkout@v5
+        with:
+          repository: mike548141/atelier
+          path: atelier
+          # ref: <SHA>   # pin here for reproducible CI; default floats to main
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      # Prove the instruments before trusting their pass (2026-07-11 review
+      # N5, mirroring atelier's own ci.yml): a fetched scanner that cannot
+      # detect its own fixtures must go red here, not pass green below.
+      - name: scanner selftests
+        run: |
+          python3 atelier/tools/secretscan.py --selftest
+          python3 atelier/tools/leakscan.py --selftest
+          python3 atelier/tools/linkscan.py --selftest
+
+      - name: secretscan (full cover)
+        run: python3 atelier/tools/secretscan.py --root repo repo
+
+      - name: leakscan (structural-only — see header)
+        run: python3 atelier/tools/leakscan.py --root repo repo
+
+      - name: linkscan (internal-link integrity, whole tree)
+        run: python3 atelier/tools/linkscan.py --root repo repo
+
+      # Publish gate — uncomment when this repo has a LICENSE / before going public.
+      # - name: licenscan (assert your licence)
+      #   run: python3 atelier/tools/licenscan.py --expect Apache-2.0 repo
