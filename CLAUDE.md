@@ -76,8 +76,9 @@ detection** (capacity fraud + CID/CSD metadata contradictions); everything else 
 
 ## Working conventions in this repo
 
-- **Commit as work completes; don't wait to be asked.** History commits directly to `main`. Only *push* when
-  asked. Use the repo's message style + the `Co-Authored-By` trailer.
+- **Commit as work completes; don't wait to be asked.** History commits directly to `main`, and the owner's
+  standing grant (2026-07-10, all repos) covers **push at discretion** too — this repo is PRIVATE, so a push is
+  not publication. Use the repo's message style + the `Co-Authored-By` trailer.
 - **Tests:** `python3 -m unittest discover -s tests` (stdlib `unittest`, no deps, ~3 s). Add/adjust tests with
   behaviour changes and keep the suite green. The package must stay importable via `src/` on the path (tests do
   this through `tests/_loader.py`).
