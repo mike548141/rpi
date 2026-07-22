@@ -1,8 +1,11 @@
 # sdverify pure logic: the offset-keyed pattern, the corners-probe set, and - the important one - a
 # simulated power-of-two address-truncation fake, proving the (0, R) alias is always caught.
+import io
+import os
 import shutil
 import tempfile
 import unittest
+from unittest import mock
 
 import _loader  # noqa: F401 - puts src/ on sys.path so rpi_sdinfo imports
 from rpi_sdinfo import verify as sdverify
@@ -99,6 +102,96 @@ class CornersSweepDetection(unittest.TestCase):
     sdverify.write_offsets(dev.pwrite, offsets, block, cap)
     good, first_bad = sdverify.verify_offsets(dev.pread, offsets, block, cap)
     self.assertIsNotNone(first_bad)                    # ...and the wrap is caught
+
+
+class FullSweepDetection(unittest.TestCase):
+  # The full sweep writes EVERY block then reads every block back, so a wrap anywhere is caught - including an
+  # arbitrary (non-power-of-two, non-decimal) wrap the corners probe set can slip past.
+  def _run_full(self, cap, block, wrap):
+    dev = FakeDevice(wrap=wrap)
+    sdverify.write_full(dev.pwrite, block, cap)
+    return sdverify.verify_full(dev.pread, block, cap)
+
+  def test_genuine_device_verifies_clean(self):
+    good, first_bad = self._run_full(32768, 512, wrap=None)
+    self.assertIsNone(first_bad)
+    self.assertEqual(good, 32768)                      # every byte of the capacity verified
+
+  def test_arbitrary_wrap_corners_miss_but_full_catches(self):
+    # A fake whose real chip is 33 blocks reports 64. 33 is neither a power of two nor a round decimal size,
+    # and it is chosen so none of the corner probe offsets ({0,1,2,4,8,16,32,63} blocks) share a physical
+    # cell modulo 33 - so the corners sweep writes each to a distinct cell and wrongly passes. The full sweep
+    # writes all 64 blocks, so blocks 33..63 wrap onto and overwrite blocks 0..30: the read-back mismatches.
+    block = 512
+    cap = 64 * block
+    wrap = 33 * block
+    self.assertTrue(wrap & (wrap - 1))                          # not a power of two
+    self.assertNotIn(wrap, sdverify.COMMON_FAKE_CAPACITIES_BYTES)  # not a round decimal boundary either
+
+    offsets = sdverify.corner_offsets(cap, block)
+    dev_corners = FakeDevice(wrap=wrap)
+    sdverify.write_offsets(dev_corners.pwrite, offsets, block, cap)
+    _, corners_bad = sdverify.verify_offsets(dev_corners.pread, offsets, block, cap)
+    self.assertIsNone(corners_bad)                     # corners genuinely miss this wrap...
+
+    _, full_bad = self._run_full(cap, block, wrap)
+    self.assertIsNotNone(full_bad)                     # ...but the full sweep catches it
+
+  def test_full_streams_last_partial_block(self):
+    # A capacity that is not a whole multiple of the block must still verify to the last byte
+    good, first_bad = self._run_full(4096 + 137, 4096, wrap=None)
+    self.assertIsNone(first_bad)
+    self.assertEqual(good, 4096 + 137)
+
+
+class RunDeviceFull(unittest.TestCase):
+  # run_device_full end-to-end against a regular file (its documented testing affordance), no real device.
+  def _tmpfile(self, size):
+    fd, path = tempfile.mkstemp()
+    try:
+      os.ftruncate(fd, size)
+    finally:
+      os.close(fd)
+    self.addCleanup(lambda: os.path.exists(path) and os.remove(path))
+    return path
+
+  def test_honest_file_passes(self):
+    path = self._tmpfile(64 * 1024)
+    result = sdverify.run_device_full(path, block_bytes=4096)
+    self.assertEqual(result['mode'], 'device-full')
+    self.assertTrue(result['ok'])
+    self.assertIsNone(result['first_bad_offset'])
+    self.assertEqual(result['verified_bytes'], 64 * 1024)
+    self.assertEqual(result['usable_estimate_bytes'], 64 * 1024)
+
+  def test_capacity_override_honoured(self):
+    # A file sized larger than the branded capacity: --capacity-mb style override limits the sweep span
+    path = self._tmpfile(128 * 1024)
+    result = sdverify.run_device_full(path, capacity_bytes=32 * 1024, block_bytes=4096)
+    self.assertEqual(result['reported_total_bytes'], 32 * 1024)
+    self.assertEqual(result['swept_bytes'], 32 * 1024)
+    self.assertTrue(result['ok'])
+
+  def test_cli_smoke_full_on_file(self):
+    path = self._tmpfile(32 * 1024)
+    with mock.patch('sys.stdout', new=io.StringIO()):  # swallow the JSON report, keep test output clean
+      rc = sdverify.main(['--device', path, '--full', '--yes', '--block-kb', '4', '--json'])
+    self.assertEqual(rc, 0)                            # honest file, full sweep, clean exit
+
+  def test_full_without_device_errors(self):
+    self.assertEqual(sdverify.main(['--full', '--yes']), 2)
+
+  def test_mounted_refusal_blocks_full(self):
+    # A block device that looks mounted must be refused before any write, in full mode exactly as in corners.
+    # Fake a block-device stat + a positive mount check so no real device (and no real write) is needed.
+    path = self._tmpfile(32 * 1024)
+    class BlockStat:
+      st_mode = 0o060000                               # S_IFBLK: makes _run_device_cli treat it as a device
+    with mock.patch.object(sdverify.os.path, 'isfile', return_value=False), \
+         mock.patch.object(sdverify.os, 'stat', return_value=BlockStat()), \
+         mock.patch.object(sdverify, 'looks_mounted', return_value=True):
+      rc = sdverify.main(['--device', path, '--full', '--yes'])
+    self.assertEqual(rc, 2)                            # refused before any write
 
 
 class PlanSweep(unittest.TestCase):

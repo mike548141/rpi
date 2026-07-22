@@ -22,7 +22,7 @@ identifiers, performance, and failure rates.
 - Grades the measured performance against the card's rated speed class, falling back to **A1** (the Raspberry Pi
   baseline) when the class is unknown. Prints PASS/FAIL per metric and exits non-zero on failure, so it is usable
   in scripts.
-- **Unmasks fake cards** two ways (native `rpi-sdverify`, the pure-Python cousin of `f3` / `h2testw`):
+- **Unmasks fake cards** three ways (native `rpi-sdverify`, the pure-Python cousin of `f3` / `h2testw`):
   - **Thorough, non-destructive** (`--capacity-check`): fills the card's free space with offset-stamped data
     and reads it all back. A counterfeit that reports a huge size but has a small chip fails verification at its
     true capacity. Only adds its own test files and deletes them again.
@@ -31,6 +31,13 @@ identifiers, performance, and failure rates.
     A fake truncates the block address at its real capacity, so block 0 and that boundary alias onto one physical
     cell — guaranteeing detection in ~log₂(N) probes (plus a handful of decimal ones) instead of writing the
     whole card. Writes the raw device, so it is gated behind `--yes` and refuses a mounted device.
+  - **Exhaustive, destructive full sweep** (`rpi-sdverify --device … --full`): writes the offset-stamped pattern
+    to *every* block of the reported capacity, then reads every block back. Unlike the free-space fill it needs
+    no free space — a nearly-full card is tested by overwriting it — and unlike corners it assumes nothing about
+    where the wrap lands, so it catches an *arbitrary* wrap (neither a power of two nor a round decimal size)
+    that the corner and decimal probes can miss. The backstop to the corners first-pass: exhaustive but slow
+    (hours on a big card, a full write + full read), the raw-device equivalent in spirit of an `f3` / h2testw
+    full fill. Same gates as corners (`--yes`, mounted-device refusal).
 - **Cross-checks the card's own story** (Raspberry Pi only, instant, no writes). Decodes the CSD register
   (SDSC/SDHC/SDXC/SDUC capacity, bus speed, command classes) and flags internal contradictions — above all a
   Standard-Capacity CSD on a card claiming tens of GB, which is impossible per the SD spec and the tell-tale of
@@ -132,9 +139,13 @@ rpi-sdverify --dir /Volumes/MYCARD
 
 # Quick fake sniff of a raw device (DESTRUCTIVE: overwrites the card; unmount it first)
 rpi-sdverify --device /dev/disk4 --yes
+
+# Exhaustive raw-device sweep - writes and verifies EVERY block (DESTRUCTIVE, slow: hours on a big card).
+# Needs no free space and catches arbitrary wraps corners can miss; the backstop, not the first pass.
+rpi-sdverify --device /dev/disk4 --full --yes
 ```
 
-Useful options: `--device`, `--partition`, `--dir`, `--runs`, `--size-mb`, `--seconds`, `--block-sweep`, `--no-benchmark`,
+Useful options: `--device`, `--full`, `--partition`, `--dir`, `--runs`, `--size-mb`, `--seconds`, `--block-sweep`, `--no-benchmark`,
 `--capacity-check`, `--capacity-mb`, `--yes`, `--format text|json` (or `--json`), `--quiet`, `--raw`,
 `--save-db [PATH]`, `--db-query [PATH]`, `--color`/`--no-color`, `--version` (`--help` for the full list). Colour follows the
 [`NO_COLOR`](https://no-color.org) and `CLICOLOR_FORCE` conventions and switches itself off when output is piped
@@ -222,8 +233,10 @@ believed fast (see [ADR 0004](docs/decisions/0004-honest-diagnostic-not-a-pass-f
 **What it is not:** a certified benchmark or a forensic capacity tester. It does not try to out-do the
 specialists at their one job — [`f3`](https://github.com/AltraMayor/f3) / h2testw for exhaustive capacity
 fraud, `smartctl` for SMART, `fio` for rigorous throughput. Its value is *breadth in a single portable
-command* plus the CSD-metadata liar-detection those tools don't do. For a definitive verdict on a suspect
-card, confirm with a full `f3` sweep.
+command* plus the CSD-metadata liar-detection those tools don't do. The `--device --full` sweep does now match
+their write-the-whole-card approach for the cases where you want it, but it is **file-tested only, not yet
+validated against a real card on real hardware** (see limitations below), so for a definitive verdict on a
+suspect card, still confirm with a full `f3` sweep.
 
 **Honest limitations (as of 0.9):**
 

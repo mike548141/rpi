@@ -7,6 +7,17 @@ All notable changes to rpi-sdinfo are recorded here. The format loosely follows
 ## [Unreleased]
 
 ### Added
+- **Raw-device full sweep (`rpi-sdverify --device … --full`).** An exhaustive, DESTRUCTIVE backstop to the fast
+  corners probe: it writes the offset-keyed pattern to *every* block of the reported capacity, then reads every
+  block back. Because it makes no assumption about where a fake's address wrap lands, it catches an *arbitrary*
+  wrap (neither a power of two nor a round decimal size) that the corner and decimal probes can miss; and
+  because it overwrites the device, it needs no free space, so a nearly-full card is fully verified in place.
+  Write-all-then-verify-all (not per-block write+read) so a tail block that wraps onto an earlier one is caught
+  on read-back. Streams block by block with byte-level progress and holds no device data in RAM (the expected
+  bytes are recomputed from each offset via `pattern_block`). Same gates as corners — `--yes` required, mounted
+  device refused, `--capacity-mb` / `--block-kb` honoured; `--full` without `--device` is an error. The
+  raw-device equivalent, in spirit, of an `f3` / h2testw full fill. Slow (hours on a big card). **File-tested
+  only — not yet validated against a real card on hardware** (tracked with the Pi-hardware blocker).
 - **Known-good fingerprint capacity cross-check.** When a card's full CID (MID/OID/PNM/PRV) exactly matches a
   verified product in the database, that product's label states its capacity — so a card wearing that exact
   identity while reporting a grossly different size is flagged (a clone that copied a real card's registers but
