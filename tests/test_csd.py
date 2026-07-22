@@ -106,6 +106,38 @@ class CrossCheck(unittest.TestCase):
     self.assertFalse(any(f['severity'] == 'fail' for f in findings))
 
 
+class BrandSetContext(unittest.TestCase):
+  # The neutral brand-set info finding (ADR 0007 addendum): when the card's MID has brands observed in the table,
+  # surface that set so a human can compare it against the physical label. Info only, never a verdict; an unknown
+  # or thin MID stays silent (unknown != suspicious).
+  def _brand_findings(self, **storage):
+    return [f for f in sdinfo.cross_check(storage) if 'shipping under' in f['message']]
+
+  def test_known_mid_emits_neutral_info(self):
+    hits = self._brand_findings(type='SD', cid_mid='0x000027', bytes=32 * 1000 ** 3)
+    self.assertEqual(len(hits), 1)
+    self.assertEqual(hits[0]['severity'], 'info')
+    # It lists the observed brand set and stays explicitly neutral - no verdict, no "suspect" wording.
+    self.assertIn('Lexar', hits[0]['message'])
+    self.assertIn('not by itself suspicious', hits[0]['message'])
+    self.assertNotIn('fake', hits[0]['message'].lower())
+
+  def test_unknown_mid_is_silent(self):
+    self.assertEqual(self._brand_findings(type='SD', cid_mid='0x0000ff', bytes=32 * 1000 ** 3), [])
+
+  def test_no_mid_is_silent(self):
+    # macOS/Windows carry no MID, so there is nothing to compare - the finding must not fire.
+    self.assertEqual(self._brand_findings(type='SD', bytes=32 * 1000 ** 3), [])
+
+  def test_thin_product_only_mid_is_silent(self):
+    # A MID we hold only product leaves for (no catalogued brand) reads neutral, not suspicious.
+    self.assertEqual(self._brand_findings(type='SD', cid_mid='0x000012', bytes=2 * 1000 ** 3), [])
+
+  def test_never_affects_severity_or_exit(self):
+    findings = sdinfo.cross_check({'type': 'SD', 'cid_mid': '0x000027', 'bytes': 32 * 1000 ** 3})
+    self.assertFalse(any(f['severity'] in ('warn', 'fail') for f in findings))
+
+
 class FingerprintCapacity(unittest.TestCase):
   # The known-good fingerprint capacity cross-check: an exact CID match to a verified product whose label states a
   # capacity, versus what the card reports. Sound only in this direction (see ADR 0007) - no CSD needed.

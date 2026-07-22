@@ -7,6 +7,15 @@ All notable changes to rpi-sdinfo are recorded here. The format loosely follows
 ## [Unreleased]
 
 ### Added
+- **Brand↔MID as a learned brand-set signal (first slice: neutral context, no score).** The free-text make/OEM
+  brand lists in the CID table are now folded into a countable **set of brands observed shipping under each MID**
+  (and MID/OID), derived live from the table so it grows with the data — `brand_sets()` / `brands_observed()` in
+  [`cid_db.py`](src/rpi_sdinfo/cid_db.py), gated by a `validate_brand_sets()` structural validator the suite runs.
+  `cross_check()` emits a neutral **`info`** note giving that observed brand set, so a human can compare it against
+  the brand printed on the card in their hand. Deliberately *not* a verdict: the physical label isn't
+  machine-readable, so the tool never judges the match, and an unseen/thin pairing stays silent — unknown is not
+  suspicious. No score, no exit-code effect. The aggregate suspicion score is a later slice with its own ADR. See
+  [ADR 0007](docs/decisions/0007-fingerprint-capacity-not-brand-reverse-index.md) (addendum).
 - **Known-good fingerprint capacity cross-check.** When a card's full CID (MID/OID/PNM/PRV) exactly matches a
   verified product in the database, that product's label states its capacity — so a card wearing that exact
   identity while reporting a grossly different size is flagged (a clone that copied a real card's registers but

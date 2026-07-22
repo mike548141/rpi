@@ -44,6 +44,9 @@ about its size fails verification at its true capacity.
 On a Raspberry Pi, the CSD register is decoded and checked for internal contradictions \(em
 above all a Standard-Capacity CSD on a card claiming tens of GB, which is impossible per the
 SD specification and the signature of a small card reflashed to lie about its size.
+As neutral context, it also reports the set of brands the card database has observed shipping
+under the card's maker id, to compare against the brand on the card's own label; this is
+information only and never a verdict.
 .SH OPTIONS
 .TP
 .BI \-\-device " DEV"

@@ -128,7 +128,7 @@ locale.setlocale(locale.LC_ALL, '')
 
 # The crowd-sourced CID identity table (make/brand/product per MID/OID/PNM) and its structural validator live
 # in cid_db.py so the database grows as a data diff, not a code change. _lookup() below walks it.
-from .cid_db import manufacturer, validate_cid_db, leaf_capacity_bytes  # noqa: F401  (validate_cid_db: test suite)
+from .cid_db import manufacturer, validate_cid_db, leaf_capacity_bytes, brands_observed  # noqa: F401  (validate_cid_db: test suite)
 
 # Expected performance classes defined by SD-3C
 # https://www.sdcard.org/developers/sd-standard-overview/application-performance-class/
@@ -500,6 +500,19 @@ def cross_check(storage, now=None):
         "CID matches the known product '%s' (~%s GB) but the card reports %s GB - a capacity mismatch against a "
         'verified fingerprint; likely a clone flashed to misreport its size'
         % (match['label'], f_num(known / 1000 ** 3, 0), f_num(reported / 1000 ** 3, 1))})
+
+  # Brand-set context - learned, never a verdict (ADR 0007 addendum). The crowd-sourced table records, for this
+  # card's maker id, the set of brands observed shipping under it (OEM/ODM rebadging is normal, so one MID
+  # legitimately carries many brands). We surface that set as info so a human can compare it against the brand
+  # printed on the card in their hand - the physical label is not machine-readable, so the tool never judges the
+  # match, only supplies the context. A maker id we hold no catalogued brands for yields nothing here: an unseen
+  # pairing is neutral, never a suspicion signal, and this note never touches severity or the exit code (ADR 0004).
+  observed = brands_observed(storage.get('type'), storage.get('cid_mid'))
+  if observed:
+    findings.append({'severity': 'info', 'message':
+      'CID maker id %s is recorded in the card database shipping under: %s. Compare this against the brand on the '
+      "card's own label - it is context, not a verdict, and a brand not listed here is not by itself suspicious"
+      % (storage.get('cid_mid'), ', '.join(observed))})
 
   # The kernel reported erase_size as 0 (card not block-addressed): the capacity above rests on an assumed
   # 512-byte block, so make that assumption visible rather than presenting the figure as measured fact
