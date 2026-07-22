@@ -65,8 +65,7 @@ percentiles, the test suite) plus the post-0.9 macOS/CSD work lives in `docs/ROA
     capacity, so a card wearing that exact identity while reporting a grossly different size is flagged (`warn`
     past a 25% band; a clone flashed to lie about capacity, caught with no destructive write). Fires rarely today
     but is sound every time it does, and strengthens as the DB grows.
-  - **Brand↔MID as a learned, *scored* signal (not a binary tell).** `[~ claimed 2026-07-22-1021 UTC, wt:
-    rpi-brand-set — first slice only: structured brand-set data model + neutral info finding]` The naive "brand≠MID ⇒ fake" trigger is
+  - **Brand↔MID as a learned, *scored* signal (not a binary tell).** The naive "brand≠MID ⇒ fake" trigger is
     unsound (OEM/ODM rebadging — the DB's own Phison→Sony/Lexar/PNY entry proves a genuine card carries another
     maker's MID). But the brand↔MID *relationship* is real, learnable data: structure the free-text OEM string
     into a countable **set of brands observed shipping under each MID/OID**, growing with every real card, and let
