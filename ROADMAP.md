@@ -70,7 +70,13 @@ percentiles, the test suite) plus the post-0.9 macOS/CSD work lives in `docs/ROA
     maker's MID). But the brand↔MID *relationship* is real, learnable data: structure the free-text OEM string
     into a countable **set of brands observed shipping under each MID/OID**, growing with every real card, and let
     a well-populated pairing nudge toward genuine / a never-seen pairing nudge toward suspect. Feeds a **heuristic
-    suspicion score**, never a verdict. Design constraints (from [ADR 0007 addendum](docs/decisions/0007-fingerprint-capacity-not-brand-reverse-index.md)):
+    suspicion score**, never a verdict.
+    ✅ **First slice shipped:** the structured brand-set data model (`brand_sets()` / `brands_observed()` +
+    `validate_brand_sets()` in `cid_db.py`, derived live from the make/OEM fields so it grows with the table) and a
+    neutral `info` finding in `cross_check()` that surfaces the observed brand set for a human to compare against
+    the card's physical label — never a verdict, silent on an unseen/thin pairing (unknown ≠ suspicious), no score
+    and no exit-code effect. ◑ **Still to come (own ADR):** the aggregate suspicion score itself. Design
+    constraints (from [ADR 0007 addendum](docs/decisions/0007-fingerprint-capacity-not-brand-reverse-index.md)):
     - **Hybrid, so [ADR 0004](docs/decisions/0004-honest-diagnostic-not-a-pass-fail-toy.md) holds** — spec-impossible facts stay hard `fail`s that drive the
       exit code; soft signals (brand-set, capacity-vs-fingerprint, register oddities, date, TRAN_speed context)
       aggregate into a *separate, explained* score, always shown with its contributing reasons, never a bare light.

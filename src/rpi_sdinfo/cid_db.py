@@ -376,3 +376,161 @@ def validate_cid_db(tree=None, known_speed_classes=None):
           walk_prv('%s/%s' % (oat, pk), pnode)
 
   return problems
+
+
+#======================================
+# Brand-set signal (learned, never a verdict)
+#--------------------------------------
+#
+# ADR 0007's addendum: the naive "brand != MID => fake" trigger is unsound (OEM/ODM rebadging means a genuine card
+# legitimately carries another maker's MID - the DB's own Phison -> Sony/Lexar/PNY OEM line proves it), but the
+# brand<->MID *relationship* is real, learnable data. So the free-text make/OEM brand lists already in the table
+# are folded into a countable set of brands observed shipping under each MID (and, where an OEM line narrows it,
+# each MID/OID). Derived live from `manufacturer` below, so the set grows with the table - there is no parallel
+# hand-maintained list to drift out of sync. This first slice feeds only a neutral *info* context (cli.cross_check):
+# an unseen pairing produces nothing and reads neutral, never a suspicion signal. The aggregate suspicion score is
+# a later slice with its own ADR.
+
+# A curated make/OEM field is a comma / "or"-delimited list of brand names ("AgfaPhoto, Delkin, ... or Verbatim",
+# "Kingston, Toshiba, or Viking"). Split on either token; \b anchors keep "or" from matching inside a name
+# (Corsair, Polaroid). A parenthetical grade qualifier is stripped so a brand collapses across variants
+# ("Angelbird (V60)" and "Angelbird (V90)" -> one "Angelbird").
+_BRAND_SPLIT_RE = _re.compile(r',|\bor\b', _re.IGNORECASE)
+_PAREN_RE = _re.compile(r'\s*\([^)]*\)')
+
+# A separator or bracket surviving in a token means the parse leaked; used by the validator to catch a regression.
+_BRAND_LEAK_RE = _re.compile(r',|\bor\b', _re.IGNORECASE)
+
+# Non-brand placeholders that sit in the make/OEM fields as "we don't know" rather than a real brand. They must
+# never enter a brand set - an unknown maker is not a brand literally called "Unknown".
+_NON_BRANDS = frozenset(('unknown', ''))
+
+
+def brands_from_field(text):
+  """Parse one free-text make/OEM field into a sorted list of distinct brand names ([] when it names none).
+
+  Only the make and OEM fields are parsed for brands: they are curated, delimited brand lists. Product *labels*
+  are prose ('SanDisk Ultra 64 GB microSDXC U1') where the brand boundary is a guess, so they are deliberately
+  NOT mined here - inventing a "brand" out of a label fragment would poison the very signal this feeds, against
+  the honesty floor (never invent brand data; ADR 0007). Placeholders like 'Unknown' are dropped.
+  """
+  if not text:
+    return []
+  seen = []
+  for part in _BRAND_SPLIT_RE.split(text):
+    brand = _PAREN_RE.sub('', part).strip()
+    if brand.lower() in _NON_BRANDS:
+      continue
+    if brand not in seen:
+      seen.append(brand)
+  return sorted(seen)
+
+
+def brand_sets(tree=None):
+  """Derive the brand-set model from the CID table: {card_type: {MID: {'brands': [...], 'by_oid': {OID: [...]}}}}.
+
+  Per MID, 'brands' is the union of every brand named in that MID's make field and in every OEM line beneath it -
+  the full set of brands observed shipping under that maker id. 'by_oid' keeps the per-OEM-line sets for the finer
+  MID/OID granularity a later scored signal will want. A MID that names no brand (an unknown maker, a product-only
+  entry with no OEM string) yields an empty set and simply does not appear: an absent pairing is neutral, never
+  suspicious (ADR 0004 / ADR 0007). Derived, not maintained, so it tracks the table automatically.
+  """
+  if tree is None:
+    tree = manufacturer
+  model = {}
+  for card_type, mids in (tree or {}).items():
+    if not isinstance(mids, dict):
+      continue
+    for mid, entry in mids.items():
+      if not isinstance(entry, dict):
+        continue
+      brands = set(brands_from_field(entry.get('manufacturer', '')))
+      by_oid = {}
+      for key, node in entry.items():
+        if key == 'manufacturer' or not isinstance(node, dict):
+          continue
+        oid_brands = brands_from_field(node.get('oem', ''))
+        if oid_brands:
+          by_oid[key] = oid_brands
+          brands.update(oid_brands)
+      if brands:
+        model.setdefault(card_type, {})[mid] = {'brands': sorted(brands), 'by_oid': by_oid}
+  return model
+
+
+_BRAND_SETS_CACHE = None
+
+
+def brands_observed(card_type, mid, oid=None):
+  """Brands observed shipping under a card's MID (or, when oid is given and the table narrows it, its MID/OID).
+
+  Returns a sorted list, empty when the pairing is unknown or thin - the caller then says nothing, so an unseen
+  pairing reads neutral, never as a suspicion signal (ADR 0007 addendum). Cached: the model is derived once from
+  the static table on first use.
+  """
+  global _BRAND_SETS_CACHE
+  if _BRAND_SETS_CACHE is None:
+    _BRAND_SETS_CACHE = brand_sets()
+  entry = _BRAND_SETS_CACHE.get(card_type, {}).get(mid)
+  if not entry:
+    return []
+  if oid is not None and oid in entry['by_oid']:
+    return list(entry['by_oid'][oid])
+  return list(entry['brands'])
+
+
+def _check_brand_token(problems, where, brand):
+  """Flag one brand token that a clean parse should never emit (empty, a placeholder, or a parse leak)."""
+  if not isinstance(brand, str) or not brand.strip():
+    problems.append('%s: brand token %r is empty or not a string' % (where, brand))
+    return
+  if brand.strip().lower() in _NON_BRANDS:
+    problems.append('%s: brand token %r is a placeholder, not a brand' % (where, brand))
+  if _BRAND_LEAK_RE.search(brand) or '(' in brand or ')' in brand:
+    problems.append('%s: brand token %r still contains a separator/bracket (parse leak)' % (where, brand))
+
+
+def validate_brand_sets(model=None):
+  """Structurally validate the brand-set model (empty list == clean), the analogue of validate_cid_db.
+
+  Because the model is *derived*, this guards the derivation itself: a regression that let a separator, bracket,
+  placeholder or empty string leak into a brand set would quietly corrupt the signal, so CI checks the shipped
+  model stays clean on every change. Accepts a model dict so the rejection classes can be tested directly.
+  """
+  if model is None:
+    model = brand_sets()
+  problems = []
+  for card_type, mids in (model or {}).items():
+    if card_type not in ('SD', 'MMC'):
+      problems.append('top-level key %r is not SD or MMC' % card_type)
+    if not isinstance(mids, dict):
+      problems.append('%s: expected a dict of MID -> entry' % card_type)
+      continue
+    for mid, entry in mids.items():
+      at = '%s/%s' % (card_type, mid)
+      if not _MID_RE.match(str(mid)):
+        problems.append('%s: MID key is not zero-padded lowercase hex like 0x000003' % at)
+      if not isinstance(entry, dict) or 'brands' not in entry:
+        problems.append('%s: entry has no brands set' % at)
+        continue
+      brands = entry.get('brands')
+      if not isinstance(brands, (list, tuple)) or not brands:
+        problems.append('%s: brands must be a non-empty list' % at)
+      else:
+        for brand in brands:
+          _check_brand_token(problems, at, brand)
+      by_oid = entry.get('by_oid', {})
+      if not isinstance(by_oid, dict):
+        problems.append('%s: by_oid must be a dict' % at)
+        continue
+      for oid, oid_brands in by_oid.items():
+        oat = '%s/%s' % (at, oid)
+        if not _OID_RE.match(str(oid)):
+          problems.append('%s: OID key is not hex like 0x5344' % oat)
+        if not isinstance(oid_brands, (list, tuple)) or not oid_brands:
+          problems.append('%s: by_oid brands must be a non-empty list' % oat)
+        else:
+          for brand in oid_brands:
+            _check_brand_token(problems, oat, brand)
+
+  return problems
