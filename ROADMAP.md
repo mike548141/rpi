@@ -92,8 +92,12 @@ percentiles, the test suite) plus the post-0.9 macOS/CSD work lives in `docs/ROA
 - **Crowd-sourced upload.** `[~ claimed 2026-07-22-1021 UTC, wt: rpi-anon-scheme — anonymisation-scheme
   design + draft ADR for Mike's ruling; no upload code]` Optional POST to an API / S3 bucket so results (CID, CSD, capacity, measured
   performance, pass/fail) build a shared database of card identifiers and real-world failure rates. Needs a
-  stronger anonymisation scheme than the current fixed-salt PBKDF2 over the serial (a public salt over a
-  low-entropy serial is brute-forceable) — decide what is safe to share before any upload ships.
+  purpose-built anonymisation scheme, not a subset of the local row: the card serial (PSN) is only 32 bits, so
+  any public-salt hash over it is brute-forceable, and shipping the full CID uploads a unique per-card
+  fingerprint outright (the local fixed-salt PBKDF2 hashes the *Pi host* serial, not the card, and does no
+  upload-anonymisation work). Draft design + threat model + recommendation:
+  [docs/decisions/0008-crowd-upload-anonymisation.md](docs/decisions/0008-crowd-upload-anonymisation.md)
+  (Proposed — awaiting Mike's ruling on what is safe to share; no upload ships before it).
 - **Grow the CID database.** The MID/OID → product table is crowd-sourced and incomplete; every verified
   `CID → real product + measured performance` mapping makes fake-detection stronger. ✅ The table now lives in
   its own file (`src/rpi_sdinfo/cid_db.py`) so a contribution is a data diff, not a code change, gated by a
