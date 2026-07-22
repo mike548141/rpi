@@ -107,6 +107,17 @@ Skip the confirmation prompt for the capacity sweep (required when non-interacti
 or
 .BR \-\-quiet ).
 .TP
+.B \-\-full
+With
+.BR "rpi-sdverify \-\-device" ,
+run an exhaustive DESTRUCTIVE full-capacity sweep \(em write then verify
+.I every
+block of the reported capacity \(em instead of the fast corner probe. Needs no free space (a nearly-full card
+is tested by overwriting it) and catches an arbitrary wrap the corner and decimal probes can miss, but takes
+hours on a big card (a full write plus a full read). Requires
+.BR \-\-yes ,
+and refuses a mounted device.
+.TP
 .BI \-\-format " text|json"
 Output format. In
 .I json
@@ -171,6 +182,9 @@ Unmask a fake by filling and verifying the whole card:
 .TP
 Fast, destructive raw-device fake sniff (unmount first):
 .B rpi-sdverify \-\-device /dev/disk4 \-\-yes
+.TP
+Exhaustive, destructive raw-device sweep of every block (slow; catches arbitrary wraps):
+.B rpi-sdverify \-\-device /dev/disk4 \-\-full \-\-yes
 .SH FILES
 .TP
 .I ~/.rpi-sdinfo/results.db

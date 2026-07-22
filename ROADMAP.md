@@ -46,8 +46,13 @@ percentiles, the test suite) plus the post-0.9 macOS/CSD work lives in `docs/ROA
     on a real removable card - deliberately not auto-wired yet, since a destructive raw write to the wrong
     device must not ship untested on hardware.
   - Raw-device *full* sweep (not just corners) where we have the device and privileges, so a nearly-full card
-    can still be exhaustively tested without needing free space. `[~ claimed 2026-07-22-1035 UTC, wt:
-    rpi-full-sweep]`
+    can still be exhaustively tested without needing free space. ✅ Shipped **file-tested** as
+    `rpi-sdverify --device … --full`: writes then verifies *every* block of the reported capacity
+    (write-all-then-verify-all, streamed block-by-block, no device data held in RAM), so a nearly-full card is
+    tested by overwriting it and an *arbitrary* wrap the corners/decimal probes miss is caught. Same gates as
+    corners (`--yes`, mounted-device refusal). **Hardware validation still owed** — like the corners raw-write
+    path, it has not been run against a real removable card; that joins the Pi-hardware blocker watch above
+    before it can be trusted end-to-end or auto-wired into `rpi-sdinfo`.
 - **CID/CSD cross-checks.** ✅ Shipped in 0.7 (`cross_check()`): flags a Standard-Capacity CSD claiming a
   high/extended capacity (impossible), a CSD-vs-reported capacity mismatch, and a future manufacturing date.
   ✅ Extended (post-0.9): **structural-validity liar-checks** on the register itself — reserved CSD structure

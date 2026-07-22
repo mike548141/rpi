@@ -38,7 +38,15 @@
 # tested - guaranteeing the fake is caught in ~log2(N) probes (29 for a 512 GB card) rather than a full write.
 # It cannot be done at the filesystem level (the allocator would hide the aliasing), so it writes the raw
 # device directly and is gated behind --yes plus a mounted-device refusal. It reliably catches the standard
-# power-of-two fake; an odd non-power-of-two wrap can still need the thorough free-space sweep above.
+# power-of-two fake; an odd non-power-of-two wrap can still need the exhaustive sweep below.
+#
+# The exhaustive raw-device backstop is the DESTRUCTIVE "full" sweep (--device --full): it writes the
+# offset-keyed pattern to EVERY block of the reported capacity, then reads every block back. Unlike the
+# free-space sweep it needs no free space (a nearly-full card is tested by overwriting it), and unlike the
+# corners sweep it makes no assumption about where the wrap lands - so it catches an *arbitrary* wrap (neither
+# a power of two nor a round decimal size) that both the corner and decimal probes can miss. The price is a
+# full-capacity write plus a full-capacity read - hours on a big card - which is why corners stays the fast
+# default and full is opt-in. It is the raw-device equivalent, in spirit, of an f3/h2testw full fill.
 #
 # Usage (standalone):
 #   rpi-sdverify --dir /Volumes/CARD [--file-size-mb 1024] [--block-kb 4096] [--capacity-mb N] [--keep] [--json]
@@ -46,6 +54,9 @@
 #     Without --capacity-mb the whole free space is swept; test files are removed unless --keep is given.
 #   rpi-sdverify --device /dev/disk4 --yes [--capacity-mb N] [--block-kb 4096] [--json]
 #     DESTRUCTIVE quick corners sweep of a raw block device. Overwrites the device; refuses a mounted one.
+#   rpi-sdverify --device /dev/disk4 --full --yes [--capacity-mb N] [--block-kb 4096] [--json]
+#     DESTRUCTIVE exhaustive full-capacity sweep of a raw block device: writes and verifies every block.
+#     Slow (hours on a big card) but catches arbitrary wraps corners can miss. Refuses a mounted device.
 #
 # Exit codes: 0 genuine (all written data verified) · 1 fraud/corruption detected · 2 usage/IO error
 
@@ -287,6 +298,22 @@ def _device_size(path, file_descriptor):
     pass
   return os.stat(path).st_size
 
+def _device_io(file_descriptor):
+  """Build the (pwrite, pread) pair that both raw-device sweeps inject into the shared write/verify helpers.
+  pwrite loops until the whole buffer lands (a short pwrite is legal); pread evicts the cache for that span
+  first so a fake cannot pass by serving back the bytes we just wrote from the page cache
+  """
+  def pwrite(offset, data):
+    view = memoryview(data)
+    while view:
+      view = view[os.pwrite(file_descriptor, view, offset + (len(data) - len(view))):]
+
+  def pread(offset, length):
+    sdbench._evict_read_cache(file_descriptor, offset, length)
+    return sdbench._pread(file_descriptor, length, offset)
+
+  return pwrite, pread
+
 def run_device(device_path, capacity_bytes=None, block_bytes=DEFAULT_BLOCK_KB * 1024,
                on_progress=None, on_phase=None):
   """Quick corners sweep against a raw device (or a regular file, for testing). DESTRUCTIVE on a real device.
@@ -312,14 +339,7 @@ def run_device(device_path, capacity_bytes=None, block_bytes=DEFAULT_BLOCK_KB * 
     offsets = corner_offsets(total, block_bytes)
     result['corners'] = offsets
 
-    def pwrite(offset, data):
-      view = memoryview(data)
-      while view:
-        view = view[os.pwrite(file_descriptor, view, offset + (len(data) - len(view))):]
-
-    def pread(offset, length):
-      sdbench._evict_read_cache(file_descriptor, offset, length)
-      return sdbench._pread(file_descriptor, length, offset)
+    pwrite, pread = _device_io(file_descriptor)
 
     if on_phase:
       on_phase('write')
@@ -344,6 +364,109 @@ def run_device(device_path, capacity_bytes=None, block_bytes=DEFAULT_BLOCK_KB * 
     result['ok'] = False
     result['usable_estimate_bytes'] = result['first_bad_offset']
     result['reason'] = 'probe at offset %d read back wrong - address wraps below the reported capacity (counterfeit)' % result['first_bad_offset']
+  return result
+
+#======================================
+# Raw-device FULL sweep (exhaustive backstop)
+#--------------------------------------
+#
+# The corners sweep is fast but assumes the wrap sits on a power-of-two or a common decimal boundary. The full
+# sweep makes no such assumption: it writes every block of the reported capacity, then reads every block back,
+# so a wrap anywhere is caught. Like corners it needs the raw device (a filesystem allocator would hide the
+# aliasing) and is DESTRUCTIVE. Two properties matter for a big card: it holds no payload in RAM (the expected
+# bytes are recomputed from the offset via pattern_block, so memory stays O(one block) whatever the capacity),
+# and it streams block by block so progress can be reported over a multi-hour run.
+
+def write_full(pwrite, block_bytes, capacity_bytes, on_progress=None):
+  """Write the offset-keyed pattern to EVERY block of capacity_bytes via the injected pwrite(offset, data).
+  The whole device is written before any of it is verified (see verify_full and run_device_full): a wrap fake
+  maps a high block onto an already-written low physical cell, so the corruption only exists once every write
+  is laid down - a per-block write-then-read would re-read the just-written block from its aliased cell and
+  wrongly pass. Streams block by block; each block's bytes come from pattern_block(offset), never stored
+  """
+  offset = 0
+  while offset < capacity_bytes:
+    length = min(block_bytes, capacity_bytes - offset)
+    pwrite(offset, pattern_block(offset, length))
+    offset += length
+    if on_progress:
+      on_progress('write', offset, capacity_bytes)
+
+def verify_full(pread, block_bytes, capacity_bytes, on_progress=None):
+  """Read every block back via the injected pread(offset, length) and compare to the pattern regenerated from
+  its absolute offset. Returns (good_bytes, first_bad_offset): good_bytes is the contiguous run that verified
+  from offset 0, first_bad_offset is the byte offset of the first mismatch (None if everything verified). The
+  expected bytes are recomputed from the offset, so no copy of the device is ever held in memory
+  """
+  good = 0
+  offset = 0
+  while offset < capacity_bytes:
+    length = min(block_bytes, capacity_bytes - offset)
+    data = pread(offset, length)
+    expected = pattern_block(offset, length)
+    if data != expected:
+      # Compare byte-for-byte to find exactly where the good data ends inside this block
+      matched = 0
+      for a, b in zip(data, expected):
+        if a != b:
+          break
+        matched += 1
+      return good + matched, offset + matched
+    good += length
+    offset += length
+    if on_progress:
+      on_progress('verify', offset, capacity_bytes)
+  return good, None
+
+def run_device_full(device_path, capacity_bytes=None, block_bytes=DEFAULT_BLOCK_KB * 1024,
+                    on_progress=None, on_phase=None):
+  """Exhaustive DESTRUCTIVE sweep against a raw device (or a regular file, for testing): write the offset-keyed
+  pattern to every block of the reported capacity, then read every block back. Needs no free space and catches
+  an arbitrary wrap the corners/decimal probes can miss, at the cost of a full write + full read (hours on a
+  big card). capacity_bytes overrides the detected size. Returns the run()/run_device() result shape with mode
+  'device-full'; never raises on a mismatch - that is reported in the result
+  """
+  if on_phase:
+    on_phase('open')
+  flags = os.O_RDWR | sdbench.O_BINARY
+  if hasattr(os, 'O_DSYNC') and sys.platform != 'darwin':
+    flags |= os.O_DSYNC
+  file_descriptor = os.open(device_path, flags)
+  result = {
+    'dir': device_path, 'mode': 'device-full', 'block_bytes': block_bytes,
+    'reported_total_bytes': 0, 'swept_bytes': 0, 'verified_bytes': 0,
+    'first_bad_offset': None, 'short': False, 'usable_estimate_bytes': None,
+    'ok': False, 'reason': '',
+  }
+  try:
+    sdbench._disable_cache(file_descriptor)
+    total = capacity_bytes or _device_size(device_path, file_descriptor)
+    result['reported_total_bytes'] = total
+    pwrite, pread = _device_io(file_descriptor)
+
+    if on_phase:
+      on_phase('write')
+    write_full(pwrite, block_bytes, total, on_progress)
+    os.fsync(file_descriptor)
+
+    if on_phase:
+      on_phase('verify')
+    good, first_bad = verify_full(pread, block_bytes, total, on_progress)
+    result['swept_bytes'] = total
+    result['verified_bytes'] = good
+    result['first_bad_offset'] = first_bad
+  finally:
+    os.fsync(file_descriptor)
+    os.close(file_descriptor)
+
+  if result['first_bad_offset'] is None:
+    result['ok'] = True
+    result['usable_estimate_bytes'] = result['reported_total_bytes']
+    result['reason'] = 'every block across the full reported capacity was written and verified'
+  else:
+    result['ok'] = False
+    result['usable_estimate_bytes'] = result['first_bad_offset']
+    result['reason'] = 'block at offset %d read back wrong - address wraps below the reported capacity (counterfeit)' % result['first_bad_offset']
   return result
 
 #======================================
@@ -475,8 +598,27 @@ def _device_progress(quiet):
     sys.stderr.flush()
   return on_progress
 
+def _device_bytes_progress(quiet):
+  """Progress line for the full raw sweep, which streams bytes (not a fixed probe count): percent plus human
+  bytes done / total, so a multi-hour write or read pass visibly shows it is alive
+  """
+  last = [0.0]
+  def on_progress(phase, done, total):
+    if quiet or not total:
+      return
+    now = time.perf_counter()
+    if now - last[0] < 0.2 and done < total:
+      return
+    last[0] = now
+    pct = (100.0 * done / total) if total else 0.0
+    sys.stderr.write('\r  %-7s %5.1f%%  %s / %s   ' % (phase, pct, _human(done), _human(total)))
+    sys.stderr.flush()
+  return on_progress
+
 def _run_device_cli(args, quiet):
-  """DESTRUCTIVE quick corners sweep against a raw device (or a plain file, for testing)"""
+  """DESTRUCTIVE raw-device sweep against a raw device (or a plain file, for testing): the fast corner-probe by
+  default, or the exhaustive full-capacity write+verify with --full. Both share the same safety gates
+  """
   is_block = False
   try:
     is_block = os.path.isfile(args.device) is False and os.stat(args.device).st_mode & 0o170000 == 0o060000
@@ -493,21 +635,43 @@ def _run_device_cli(args, quiet):
 
   cap = args.capacity_mb * 1024 * 1024 if args.capacity_mb is not None else None
 
-  def on_phase(name):
-    if not quiet:
-      sys.stderr.write('\n' + {'open': 'Opening device…', 'write': 'Writing corner probes…',
-                               'verify': 'Reading probes back…'}.get(name, name) + '\n')
-  try:
-    result = run_device(args.device, cap, args.block_kb * 1024,
-                        on_progress=_device_progress(quiet), on_phase=on_phase)
-  except OSError as error:
-    sys.stderr.write('\nsdverify: IO error on ' + args.device + ': ' + str(error) + '\n')
-    return 2
+  if args.full:
+    def on_phase(name):
+      if not quiet:
+        sys.stderr.write('\n' + {'open': 'Opening device…', 'write': 'Writing every block…',
+                                 'verify': 'Reading every block back…'}.get(name, name) + '\n')
+    try:
+      result = run_device_full(args.device, cap, args.block_kb * 1024,
+                               on_progress=_device_bytes_progress(quiet), on_phase=on_phase)
+    except OSError as error:
+      sys.stderr.write('\nsdverify: IO error on ' + args.device + ': ' + str(error) + '\n')
+      return 2
+  else:
+    def on_phase(name):
+      if not quiet:
+        sys.stderr.write('\n' + {'open': 'Opening device…', 'write': 'Writing corner probes…',
+                                 'verify': 'Reading probes back…'}.get(name, name) + '\n')
+    try:
+      result = run_device(args.device, cap, args.block_kb * 1024,
+                          on_progress=_device_progress(quiet), on_phase=on_phase)
+    except OSError as error:
+      sys.stderr.write('\nsdverify: IO error on ' + args.device + ': ' + str(error) + '\n')
+      return 2
   if not quiet:
     sys.stderr.write('\n')
 
   if args.json:
     print(json.dumps(result, indent=2))
+  elif result['mode'] == 'device-full':
+    print('')
+    print('FULL SWEEP  ' + result['dir'] + '  (every block of the reported capacity written and verified)')
+    print('  Reported capacity:  ' + _human(result['reported_total_bytes']))
+    print('  Written + verified: ' + _human(result['verified_bytes']))
+    if result['first_bad_offset'] is not None:
+      print('  First bad offset:   ' + _human(result['first_bad_offset']))
+      print('  Usable estimate:    ' + _human(result['usable_estimate_bytes']))
+    print('')
+    print(('  GENUINE - ' if result['ok'] else '  FAKE - ') + result['reason'])
   else:
     print('')
     print('CORNERS SWEEP  ' + result['dir'] + '  (' + str(len(result['corners'])) + ' probes across the reported capacity)')
@@ -521,10 +685,11 @@ def _run_device_cli(args, quiet):
   return 0 if result['ok'] else 1
 
 def main(argv=None):
-  """rpi-sdverify entry point: run the free-space or raw-device corners sweep and return the exit code."""
+  """rpi-sdverify entry point: run the free-space, raw-device corners, or raw-device full sweep; return the exit code."""
   parser = argparse.ArgumentParser(description='Native, dependency-free SD/MMC capacity-fraud sweep (f3/h2testw style).')
   parser.add_argument('--dir', default=tempfile.gettempdir(), help='Directory on the card to sweep (default: system temp dir). Point this at the mounted card.')
   parser.add_argument('--device', default=None, help='DESTRUCTIVE quick mode: raw block device (e.g. /dev/disk4 or /dev/mmcblk0) to probe with a fast power-of-two "corners" sweep instead of filling free space. Overwrites the device. Needs --yes.')
+  parser.add_argument('--full', action='store_true', help='With --device: exhaustive DESTRUCTIVE full-capacity sweep - write then verify EVERY block - instead of the fast corners probe. Needs no free space and catches arbitrary wraps corners can miss, but takes hours on a big card. Needs --yes.')
   parser.add_argument('--file-size-mb', type=int, default=DEFAULT_FILE_MB, help='Size of each test file in MiB (default: %(default)s)')
   parser.add_argument('--block-kb', type=int, default=DEFAULT_BLOCK_KB, help='IO/pattern block size in KiB (default: %(default)s)')
   parser.add_argument('--capacity-mb', type=int, default=None, help='Cap the free-space sweep, or override the probed capacity in --device mode, in MiB')
@@ -535,7 +700,12 @@ def main(argv=None):
 
   quiet = args.json
 
-  # DESTRUCTIVE raw-device corners mode (guaranteed to unmask power-of-two address-truncation fakes, fast)
+  # --full is a modifier on the raw-device mode; it means nothing without a device to sweep
+  if args.full and args.device is None:
+    sys.stderr.write('sdverify: --full requires --device (it is a raw-device sweep mode)\n')
+    return 2
+
+  # DESTRUCTIVE raw-device mode: fast corners probe by default, exhaustive full-capacity sweep with --full
   if args.device is not None:
     return _run_device_cli(args, quiet)
 
