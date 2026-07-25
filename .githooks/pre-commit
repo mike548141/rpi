@@ -1,0 +1,92 @@
+#!/bin/sh
+# atelier pre-commit hook — runs the mechanical scanners before a commit lands.
+#
+# Install (preferred, and the only form that survives a fresh clone):
+#     cp tools/pre-commit.sample .githooks/pre-commit
+#     chmod +x .githooks/pre-commit && git config core.hooksPath .githooks
+# Install (legacy, per-clone only):
+#     cp tools/pre-commit.sample .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit
+#
+# THIS FILE NAMES NO SCANNER, AND THAT IS THE POINT (ADR 0008, 2026-07-25).
+# It used to list each scanner as its own `run_scan` line — so every clone in the
+# estate carried a copy of the policy, and a check added to atelier reached none
+# of them. The list now lives in atelier's tools/floor.py, the same registry the
+# CI floor reads. Adding a scanner there reaches every hook and every CI run at
+# once. If you are about to add a scanner line below, add it to the registry
+# instead — that is the difference between fixing one clone and fixing the estate.
+#
+# WHERE THE SCANNERS LIVE. They are atelier's tools — one source; children do NOT
+# vendor a copy. In atelier itself that is $repo_root/tools. A repo scaffolded by
+# create-repo has no scanners of its own, so it points here at atelier's copy via
+# `hooks.atelierTools` (create-repo bakes this in) or the ATELIER_TOOLS env var.
+#
+# FAIL CLOSED. A gate whose whole job is to block bad commits must NOT pass
+# silently when its scanner is missing — that defeats it exactly when it matters
+# (a child with no in-repo scanners). This was a real defect, found on 2026-07-10
+# when a scaffolded repo committed a live-shaped AWS key with a green exit. A
+# missing floor.py BLOCKS here; a missing individual scanner BLOCKS inside
+# floor.py. `tools/test_precommit.py` pins that contract with real commits.
+#
+# WHAT THIS REPO DECIDES — in `.atelier-floor.json` at the repo root, never here:
+# where its records live, the licence it asserts, and any check it runs advisory
+# or disabled (with a stated reason). Those are visible estate-wide via
+# `floorfleet`. To opt out of a check, declare it there — deleting a line here
+# would be invisible the moment it was done, which is the failure mode the whole
+# design replaces.
+#
+# HOOKS STILL DON'T TRAVEL BY THEMSELVES. git transports neither hooks nor
+# config. `core.hooksPath .githooks` at least makes the hook FILE tracked and
+# current, so a fresh clone needs one `git config` rather than a copy that is
+# already out of date — but that one command is still manual, and until it is run
+# the clone commits unguarded. `floorfleet` is what catches a clone that never
+# ran it; CI is the backstop that catches what the clone missed.
+#
+# TRUST NOTE. ATELIER_TOOLS / hooks.atelierTools point this hook at code it
+# executes on every commit. That is the same trust class as the hook file itself
+# (per-clone, per-machine, set by whoever set the hook up) — point them only at a
+# tools dir you own. Env wins over config so a test/CI run can redirect without
+# touching the repo's config.
+
+repo_root=$(git rev-parse --show-toplevel)
+# Resolve atelier's tools dir: env wins, then the baked git config, then in-repo
+# (atelier itself). create-repo sets `git config hooks.atelierTools <atelier>/tools`.
+tools_dir="${ATELIER_TOOLS:-$(git config --get hooks.atelierTools 2>/dev/null)}"
+tools_dir="${tools_dir:-$repo_root/tools}"
+status=0
+
+if [ ! -f "$tools_dir/floor.py" ]; then
+    echo >&2 "pre-commit: floor.py not found under $tools_dir — BLOCKING (fail closed)."
+    echo >&2 "  The scanners live in atelier's tools/. Point them out with:"
+    echo >&2 "    git config hooks.atelierTools <atelier-path>/tools   (create-repo bakes this in)"
+    echo >&2 "  or set ATELIER_TOOLS in the environment."
+    exit 1
+fi
+
+python3 "$tools_dir/floor.py" --plane hook --root "$repo_root" --tools "$tools_dir" || status=1
+
+# Signing pre-flight (SIGNING.md, ADR 0007). If this repo signs commits with an
+# SSH key, a passphrase-protected key that isn't loaded in the agent makes the
+# imminent `git commit` fail with a cryptic "couldn't load key / incorrect
+# passphrase". Surface the one-line remedy HERE instead — only when the scanners
+# passed (a scanner block aborts before signing anyway) and only when a quick
+# non-interactive test-sign actually fails, so a ready key prints nothing. This
+# is a HINT, never a block: the OS keychain may still load the key on demand.
+if [ "$status" -eq 0 ] &&
+   [ "$(git config --get commit.gpgsign 2>/dev/null)" = "true" ] &&
+   [ "$(git config --get gpg.format 2>/dev/null)" = "ssh" ]; then
+    signkey=$(git config --get user.signingkey 2>/dev/null)
+    if [ -n "$signkey" ] &&
+       ! printf 'preflight' | SSH_ASKPASS_REQUIRE=never ssh-keygen -Y sign -n git -f "$signkey" >/dev/null 2>&1; then
+        echo >&2 "pre-commit: signing key not ready — this commit will likely fail to sign."
+        echo >&2 "  Load it into the agent (once per login), then retry:"
+        echo >&2 "    ssh-add --apple-use-keychain \"${signkey%.pub}\"   # macOS; drop the flag on Linux"
+        echo >&2 "  (SIGNING.md - Operational notes)"
+    fi
+fi
+
+if [ "$status" -ne 0 ]; then
+    echo >&2
+    echo "To bypass in a genuine emergency (discouraged): git commit --no-verify" >&2
+fi
+
+exit "$status"
