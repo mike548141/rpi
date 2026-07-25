@@ -15,7 +15,7 @@ classifiers = [
   "Environment :: Console",
   "Intended Audience :: System Administrators",
   "Intended Audience :: End Users/Desktop",
-  "License :: OSI Approved :: Apache Software License",
+  "License :: OSI Approved :: Apache Software License",  # licenscan:allow: canonical PyPI trove classifier for Apache-2.0 — correct packaging practice, not an SPDX id; the SPDX declaration is the `license` field above
   "Operating System :: POSIX :: Linux",
   "Operating System :: MacOS",
   "Operating System :: Microsoft :: Windows",
