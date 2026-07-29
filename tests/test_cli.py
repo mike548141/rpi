@@ -79,12 +79,16 @@ class SdinfoCli(unittest.TestCase):
     self.assertIn('usage', proc.stdout.lower())
 
   def test_block_sweep_in_benchmark_block(self):
-    # The combined tool carries the sweep under benchmark.block_sweep when --block-sweep is given
+    # The combined tool carries the sweep under benchmark.block_sweep when --block-sweep is given.
+    # Exit 1 is a legitimate outcome here, not an error: with no card class known, sdinfo grades the
+    # medium against the A1 floor (ADR 0004 — honest grading), and a shared CI runner's disk can
+    # genuinely dip below A1 under O_DSYNC. This test's contract is the JSON shape, not the speed of
+    # whatever disk CI lends us; exit 2 (a real failure) still fails the assertion.
     tmp = tempfile.mkdtemp()
     try:
       proc = run('sdinfo', ['--json', '--runs', '1', '--size-mb', '2',
                             '--seconds', '1', '--block-sweep', '--dir', tmp])
-      self.assertEqual(proc.returncode, 0, proc.stderr)
+      self.assertIn(proc.returncode, (0, 1), proc.stderr)
       doc = json.loads(proc.stdout)
       self.assertIn('block_sweep', doc['benchmark'])
       self.assertTrue(doc['benchmark']['block_sweep'])
