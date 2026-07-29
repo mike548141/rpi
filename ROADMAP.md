@@ -142,10 +142,10 @@ percentiles, the test suite) plus the post-0.9 macOS/CSD work lives in `docs/ROA
   `tests/test_sbom.py`. ✅ Now wired into the release workflow (`.github/workflows/release.yml`), which generates
   the SBOM on a `v*` tag and attaches it to the GitHub Release alongside the sdist/wheel. Dev-tooling only — no
   runtime dependency (ADR 0001).
-- **Sign the release artifacts.** ✅ The release job now keyless-signs the sdist, wheel and SBOM with a
+- **Sign the release artefacts.** ✅ The release job now keyless-signs the sdist, wheel and SBOM with a
   **GitHub build-provenance attestation** (`actions/attest-build-provenance`): a short-lived Sigstore/Fulcio
   cert minted from the workflow's OIDC identity (no long-lived key), logged to Rekor, emitting a SLSA build
-  provenance statement over all three artifacts. The Sigstore bundle is attached to the Release for offline
+  provenance statement over all three artefacts. The Sigstore bundle is attached to the Release for offline
   checks too. Verify online with `gh attestation verify <file> --repo mike548141/rpi`, or offline with
   `--bundle rpi-sdinfo.sigstore.jsonl`. Chose the GitHub-native action over `sigstore-python`/cosign (no extra
   CI dep, no key to hold, and SLSA provenance for free) — recorded in
@@ -179,15 +179,25 @@ Done already: private vulnerability reporting enabled + [SECURITY.md](SECURITY.m
 
 ## Floor & doctrine hygiene (to do)
 
-- **Bump the atelier pin.** 341 commits of doctrine drift since `9e7e031` (measured 2026-07-29), including
-  rulings that already bind children (C1 advisory schema, E6 floor posture). Read the drift, then bump the pin
-  in CLAUDE.md deliberately. A session of its own.
-- **Migrate `.atelier-floor.json` to the post-C1 spelling.** The advisory entries are the legacy bare list; C1
-  requires `{why, review-by}` per entry, and the legacy form becomes a hard error at C1 phase 2. Owner call on
-  the review date — or clear the debt instead (8 US spellings, ~40 over-width lines) and drop the advisory
-  state.
+- ✅ **Bump the atelier pin.** Done 2026-07-30: `9e7e031` → `e45549a`. The drift also exposed that this repo's
+  inlined floor was never the canonical seven bullets — concurrency, session rhythm and estate resources were
+  all missing, a pre-existing retrofit gap nothing was watching (stampscan, the scanner built to catch exactly
+  this, is deliberately unwired). Detail in `docs/SESSIONS.md`.
+- ✅ **Migrate `.atelier-floor.json` to the post-C1 spelling.** Done 2026-07-30 on the owner's call: spellscan's
+  debt was *cleared* (15 US spellings, all `artifact`→`artefact` prose) and the check returned to **enforced**;
+  only wrapscan is now declared advisory, with a stated reason and `review-by: 2026-10-31`.
+  🚩 **The debt figure this item carried was wrong** — "~40 over-width lines" was in fact **716** in `docs/`
+  (259 in the append-only session log, ~291 in ADRs). The spelling count was right. Recorded rather than
+  quietly fixed: an understated debt is what made "clear it instead" look cheap.
+- **Clear or exempt the wrapscan debt before 2026-10-31.** 716 over-width lines in `docs/`. The live question
+  is not "rewrap everything" but whether the frozen records (`docs/SESSIONS.md`, ADRs) should carry a
+  `.wrapscanignore` glob — a permanent structural fact — leaving the advisory to cover only live prose. An
+  expired `review-by` reds the fleet board and blocks nothing, so this is a board debt, not a gate.
 - **Raise in atelier.** The floor's ci plane invokes leakscan without `--require-terms`, so every child run
   reports "cover not guaranteed"; the fix belongs in atelier's registry, not here.
+- **Rename `docs/MODEL-ECONOMICS.md` → `docs/ECONOMICS.md`?** Cosmetic estate consistency only — atelier renamed
+  its own in `b639513` and swept every reference. This repo's file is its own document, not a doctrine pointer,
+  so nothing is stale; it is purely whether the estate spells the concept one way. Low value, non-zero link churn.
 
 ## Smaller cleanups
 

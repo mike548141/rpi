@@ -63,7 +63,7 @@ python3 tools/gen_sbom.py -o sbom.cdx.json   # to a file (attached to releases)
 Because rpi-sdinfo has zero runtime dependencies, the SBOM's `components` list is empty and
 the root depends on nothing — a provably tiny supply-chain surface. The version comes from
 the package `__version__`; the rest from `pyproject.toml`. Do **not** commit the generated
-JSON — it is a build artifact regenerated on tag.
+JSON — it is a build artefact regenerated on tag.
 
 ## Cutting a release
 
@@ -76,11 +76,11 @@ To release:
 The `Release` workflow (`.github/workflows/release.yml`) then checks the tag matches
 `__version__`, builds the sdist + wheel, generates the SBOM, **keyless-signs all three with a
 GitHub build-provenance attestation** (ADR 0006), and publishes a GitHub Release with the
-artifacts and the Sigstore bundle attached. Use the workflow's **Run workflow** button for a
+artefacts and the Sigstore bundle attached. Use the workflow's **Run workflow** button for a
 no-publish dry run (it does not sign). Publishing to **PyPI is intentionally manual** (not
 automated) — see `ROADMAP.md`.
 
-Verify a downloaded artifact's provenance:
+Verify a downloaded artefact's provenance:
 
 ```sh
 gh attestation verify rpi_sdinfo-X.Y.Z-py3-none-any.whl --repo mike548141/rpi   # online (Rekor)

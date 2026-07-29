@@ -86,14 +86,14 @@ Convention adopted 2026-07-08 from the sibling `ros`/`tiki` repo (lean roadmap +
   recorded in **ADR 0005**. Added `tests/test_sbom.py` (7 tests incl. the empty-deps invariant, which also trips
   if a runtime dep ever violates ADR 0001, and the fallback parser). 109 tests green. Docs: ROADMAP item ◑ (gen
   done, on-tag attach remaining), CHANGELOG (Added), CONTRIBUTING (how to generate), `.gitignore` (don't commit
-  the artifact). **Next**: the standing v1.0 Pi-hardware blocker; the rest of the release track (tag, PyPI,
+  the artefact). **Next**: the standing v1.0 Pi-hardware blocker; the rest of the release track (tag, PyPI,
   wiring the SBOM into a tag CI job, artifact signing) and the crowd-upload anonymisation scheme all need Mike's
   go-ahead — that's the genuine decision point, not more code.
 
 - **2026-07-08 (cont. 5)**: Asked Mike where to go next; he picked **release plumbing for v0.9.0**. Added
   `.github/workflows/release.yml`: triggers on a `v*` tag, **guards that the tag matches `__version__`** (a
   release can't ship a version the code disagrees with), builds sdist + wheel (`python -m build`), generates the
-  SBOM (`tools/gen_sbom.py -o dist/rpi-sdinfo.cdx.json`), uploads them as workflow artifacts, and publishes a
+  SBOM (`tools/gen_sbom.py -o dist/rpi-sdinfo.cdx.json`), uploads them as workflow artefacts, and publishes a
   GitHub Release with the tarball/wheel/SBOM attached via `softprops/action-gh-release@v2` +
   `generate_release_notes`. `workflow_dispatch` gives a no-publish dry run. **PyPI push is deliberately NOT
   automated** — left manual pending the safe-to-share review (Mike's call). Validated locally before writing the
@@ -133,7 +133,7 @@ Convention adopted 2026-07-08 from the sibling `ros`/`tiki` repo (lean roadmap +
   `.github/workflows/release.yml` via `actions/attest-build-provenance@v2`: a short-lived Sigstore/Fulcio cert
   minted from the job's OIDC identity (no long-lived key to hold), logged to Rekor, emitting a SLSA
   build-provenance statement over the sdist, wheel and SBOM. Added `id-token: write` + `attestations: write`
-  perms; staged the Sigstore bundle into `dist/` and attached it to the Release so artifacts verify **offline**
+  perms; staged the Sigstore bundle into `dist/` and attached it to the Release so artefacts verify **offline**
   (`gh attestation verify <file> --bundle rpi-sdinfo.sigstore.jsonl`) as well as online (`… --repo
   mike548141/rpi`). Guarded on `github.event_name == 'push'` so the `workflow_dispatch` dry run never mints a
   cert. Chose the GitHub-native action over `sigstore-python`/cosign (no extra CI dep, no key, SLSA provenance
@@ -303,3 +303,43 @@ Convention adopted 2026-07-08 from the sibling `ros`/`tiki` repo (lean roadmap +
   grades a pass. Fix: the test now accepts exit 0 or 1 (graded-slow is a legitimate verdict; exit 2 still
   fails) — its contract is the JSON shape, not CI disk speed. `sdbench`'s own CLI tests are not exposed (it
   measures, never grades, always exits 0 in JSON mode). 182 tests green locally.
+
+- **2026-07-30 (cont.)** — **Atelier pin caught up: `9e7e031` → `e45549a`, 341 commits of drift read.** 🎉 The
+  drift check now returns empty. What actually bore on this repo, and one thing nobody was looking for:
+  **The expected doctrine movement.** `00-APEX.md` gained **adaptation** as a second apex element — learn and
+  improve yourself and your tools as you work — placed *below* honesty because adaptation runs on evidence and
+  honesty is what makes evidence trustworthy (an agent adapting on flattered reports gets worse while believing
+  it improves). The Laws gained Asimov's **Zeroth** above the three: no harm to humanity, read first, standing
+  outside their numbering. The always-stop floor gained the **informed-confirmation** clause — an approval given
+  without a plain-language account of what/why/impact is not a decision the doctrine recognises. `RECORD.md`
+  gained the **pushed-floor** rule: an all-clear that closes with a push carries the *pushed* run's result, not
+  the local scan. `MODEL-ECONOMICS.md` → `ECONOMICS.md`.
+  🔎 **The thing nobody was looking for.** This repo's inlined floor was never the canonical **seven** bullets —
+  it carried four (apex, always-stop, source & drift, visibility). Missing outright: **concurrency** (assume
+  another session is live; worktree by default for write-heavy work; UTC record names), **session rhythm**
+  (claim before starting, stay in lane, put-away before the close) and **estate resources** (point up to the
+  private estate root, never re-derive or copy down). That is a **pre-existing retrofit gap, not drift** — the
+  block predates PROPAGATION's SR2 structural rule, and `stampscan` (S4), the scanner built to detect exactly
+  this restatement drift, is deliberately **not wired** (3 MAJOR outstanding). So nothing was ever going to
+  report it, and the pin ritual only surfaced it because a human read the delta. All three bullets restored; the
+  estate-resources one in this repo's **public** form — reference the root by local-path convention, never by
+  name (`0810efe` binds that rule to the public *property*, not to a role). Verified before writing: the root's
+  name appears nowhere in this tree.
+  ✅ **`.atelier-floor.json` migrated to the post-C1 spelling**, on Mike's call of two offered: *clear spellscan,
+  declare wrapscan*. spellscan's debt was cleared outright — 15 US spellings, every one a plain-prose
+  `artifact`→`artefact` (the suspected GitHub/SLSA API-term exception did not survive contact: all 15 read as
+  ordinary nouns, so no allow-marker was needed) — and the check is back to **enforced**. `wrapscan` alone is
+  now declared advisory with a stated reason and `review-by: 2026-10-31`. No 🟡 legacy declarations remain.
+  🚩 **A debt figure in the last entry's roadmap was wrong, and is corrected rather than quietly fixed.** The
+  hygiene item read "8 US spellings, ~40 over-width lines". The spelling count was right (8 in `docs/`, 15
+  tree-wide); the wrapscan figure is **716** in `docs/` — 259 in this session log alone and ~291 more in ADRs,
+  roughly 18× the stated number. The two counts I first took also disagreed with each other (1100 vs 716) until
+  reconciled: the floor invokes wrapscan with `--root`, which scans `docs/` only, so 716 is the figure the gate
+  actually acts on. Worth naming as a shape, not just an arithmetic slip — the understatement is what made
+  "clear the debt instead" look like a cheap alternative when it is a session's work at best.
+  **Verified**: floor green on the hook plane (spellscan ✅ enforced, wrapscan ⚠️ declared); drift check empty;
+  `floorfleet --status` had rpi already ✅ wired / shim:current / hook:tracked / run:passing before and after —
+  the enforcement half needed nothing, only the doctrine half was stale.
+  **Next**: the wrapscan debt before 2026-10-31 (likely a `.wrapscanignore` glob over the frozen records rather
+  than a mass rewrap); the roadmap's public-repo hardening items; the standing v1.0 Pi-hardware blocker,
+  untouched by any of this.

@@ -77,10 +77,10 @@ All notable changes to rpi-sdinfo are recorded here. The format loosely follows
   controller. Available on both `rpi-sdbench` (top-level JSON `block_sweep` key) and the combined `rpi-sdinfo`
   (under the JSON `benchmark.block_sweep` key); shown as a "Block-size sweep" section in the text report of each.
   Off by default (the A1 suite is unchanged), non-destructive - reuses the one test file.
-- **Signed release artifacts (keyless build provenance).** The release workflow now signs the sdist, wheel and
+- **Signed release artefacts (keyless build provenance).** The release workflow now signs the sdist, wheel and
   SBOM with a GitHub build-provenance attestation (`actions/attest-build-provenance`) - a short-lived
   Sigstore/Fulcio certificate minted from the workflow's OIDC identity (no long-lived key), logged to Rekor,
-  carrying a SLSA build-provenance statement. The Sigstore bundle is attached to the Release too, so artifacts
+  carrying a SLSA build-provenance statement. The Sigstore bundle is attached to the Release too, so artefacts
   verify both online (`gh attestation verify <file> --repo mike548141/rpi`) and offline
   (`--bundle rpi-sdinfo.sigstore.jsonl`). Dev/CI-only, no runtime dependency. See
   [ADR 0006](docs/decisions/0006-artifact-signing-build-provenance.md).

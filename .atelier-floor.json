@@ -1,7 +1,9 @@
 {
-  "advisory": [
-    "wrapscan",
-    "spellscan"
-  ],
+  "advisory": {
+    "wrapscan": {
+      "why": "716 over-width lines in docs/ measured 2026-07-30, 259 of them in the append-only session log and ~291 more in ADRs. Rewrapping frozen records churns history for no reader benefit, so the debt is carried deliberately rather than cleared; new prose is written at the house width. Enforce once the historical files are exempted or rewrapped.",
+      "review-by": "2026-10-31"
+    }
+  },
   "licence": "Apache-2.0"
 }

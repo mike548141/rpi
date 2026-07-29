@@ -25,7 +25,7 @@ Three decisions to settle: format, generation, and delivery.
   licence, repository) come from `pyproject.toml` (via `tomllib` on 3.11+, with a small regex fallback below
   that). `serial_number`/`timestamp` are injectable so the output is deterministic under test.
 - **Delivery: attach to the GitHub release, and bundle in the sdist/wheel.** Regenerated on tag (a release CI
-  job, to be wired up with the tag-and-publish work); the generated JSON is a build artifact and is **not**
+  job, to be wired up with the tag-and-publish work); the generated JSON is a build artefact and is **not**
   committed to the repo.
 
 ## Rejected
