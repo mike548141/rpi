@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# Author:       Mike Clements, Competitive Edge
+# Author:       Mike Clements, Competitive Edge  # leakscan:allow: author byline — deliberate public attribution
 # Version:      0.2-20260705
 # File:         src/rpi_sdinfo/verify.py
 # License:      Apache-2.0

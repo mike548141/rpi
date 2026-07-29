@@ -131,7 +131,10 @@ percentiles, the test suite) plus the post-0.9 macOS/CSD work lives in `docs/ROA
   and the CHANGELOG `[0.9.1]` section is ready. **Remaining (your call):** actually push the first tag
   (`git tag v0.9.1 && git push origin v0.9.1`), and decide whether to also publish to PyPI (would make
   `pipx install rpi-sdinfo` work without the git URL) — the PyPI push is deliberately *not* automated, gated on
-  the "safe to share" review.
+  the "safe to share" review. ✅ **That review is now done and the gate is clear**
+  ([ADR 0009](docs/decisions/0009-publish-safety-review.md), 2026-07-29): verdict SAFE TO PUBLISH — leakscan
+  11 → 0, secretscan 0 with proven cover, all 63 commits of history scanned clean, licence and attribution
+  sound. So PyPI is unblocked on safety grounds; publishing remains your call.
 - **Publish an SBOM.** ◑ Generator shipped: `tools/gen_sbom.py` emits a **CycloneDX 1.5** JSON SBOM, stdlib-only
   (no `cyclonedx-py` — for a zero-dep package the generator itself stays dependency-free), with an empty
   `components` list and a no-dependency root — the "provably tiny supply-chain surface" made machine-readable.

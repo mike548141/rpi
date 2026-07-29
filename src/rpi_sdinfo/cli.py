@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# Author:       Mike Clements, Competitive Edge
+# Author:       Mike Clements, Competitive Edge  # leakscan:allow: author byline — deliberate public attribution
 # Version:      0.8-20260705
 # File:         src/rpi_sdinfo/cli.py
 # License:      Apache-2.0
@@ -222,7 +222,7 @@ speed_class = {
         'seq_write' : 985
       },
       '8.00' : {
-        'seq_write' : 1970          # Can also be up to 3,940 MBps using PCIe Gen.4 x 2 Lane
+        'seq_write' : 1970          # Can also be up to 3,940 MBps using PCIe Gen.4 x 2 Lane  # leakscan:allow: "2 Lane" is a PCIe lane count, not an NZ street address
       },
       '9.10' : {
         'seq_write' : 1970

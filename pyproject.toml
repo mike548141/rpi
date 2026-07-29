@@ -8,7 +8,7 @@ description = "Native, dependency-free SD/MMC card identity, benchmark and count
 readme = "README.md"
 requires-python = ">=3.6"
 license = { text = "Apache-2.0" }
-authors = [{ name = "Mike Clements" }]
+authors = [{ name = "Mike Clements" }]  # leakscan:allow: author byline — deliberate public attribution (ships in PyPI metadata)
 keywords = ["sd-card", "mmc", "raspberry-pi", "benchmark", "counterfeit", "fake-detection", "storage", "f3", "h2testw"]
 classifiers = [
   "Development Status :: 4 - Beta",

@@ -6,6 +6,22 @@ All notable changes to rpi-sdinfo are recorded here. The format loosely follows
 
 ## [Unreleased]
 
+### Security
+- **Publish-safety review — verdict SAFE TO PUBLISH** ([ADR 0009](docs/decisions/0009-publish-safety-review.md)).
+  The six-gate check this repo must pass before its visibility can be flipped, run as the pilot for the wider
+  three-repo push. Evidence, not assurances: **leakscan 11 → 0** (all 11 triaged as false positives — the author
+  byline, a `2 Lane` PCIe comment, a `12:00:00` clock time — each exempted with a narrow, reasoned marker rather  <!-- leakscan:allow: quotes this review's own triaged findings (author byline / "2 Lane" PCIe comment / "12:00:00" fixture clock) — evidence, not data. See ADR 0009. -->
+  than a blanket ignore); **secretscan 0** with cover *proved* by a planted canary that fired and then cleared;
+  **all 63 commits / 233 unique blobs of history** scanned, secretscan clean, no credential, personal datum or
+  unlicensed third-party code anywhere, so **no history rewrite is needed**; licence and attribution sound (zero
+  third-party imports, nothing vendored, so no copyleft inherited); no estate topology, hostnames or card serials
+  committed. This also discharges the "safe to share" review that gated the PyPI publish. **Visibility is
+  deliberately unchanged** — that flip is Mike's call alone.
+
+### Fixed
+- **The `floor` CI workflow is green again.** It had been failing on every run since adoption, `BLOCKED by:
+  leakscan` on the three structural findings above; clearing them fixes the scanner backstop.
+
 ### Added
 - **Brand↔MID as a learned brand-set signal (first slice: neutral context, no score).** The free-text make/OEM
   brand lists in the CID table are now folded into a countable **set of brands observed shipping under each MID**

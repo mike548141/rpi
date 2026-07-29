@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Author:       Mike Clements, Competitive Edge
+# Author:       Mike Clements, Competitive Edge  # leakscan:allow: author byline — deliberate public attribution
 # Version:      0.1-20231017
 # License:      GNU GPL v2
 #

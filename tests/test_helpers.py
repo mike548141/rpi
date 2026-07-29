@@ -19,8 +19,8 @@ class ParseKv(unittest.TestCase):
     self.assertNotIn('garbage line', kv)
 
   def test_only_first_separator_splits(self):
-    kv = sdinfo.parse_kv(['Last mount time: Wed 12:00:00 2024'])
-    self.assertEqual(kv['Last mount time'], 'Wed 12:00:00 2024')
+    kv = sdinfo.parse_kv(['Last mount time: Wed 12:00:00 2024'])  # leakscan:allow: '12:00:00' is a clock time in a dumpe2fs fixture, not an IPv6 address
+    self.assertEqual(kv['Last mount time'], 'Wed 12:00:00 2024')  # leakscan:allow: '12:00:00' is a clock time in a dumpe2fs fixture, not an IPv6 address
 
   def test_custom_separator(self):
     self.assertEqual(sdinfo.parse_kv(['a=1', 'b=2'], separator='=')['b'], '2')
