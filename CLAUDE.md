@@ -19,8 +19,13 @@ in atelier and is read on demand — never wholesale.
   session start run `git -C "../atelier" log --oneline 9e7e031..HEAD`; any
   output means the house doctrine moved — read it, then bump the pin above
   deliberately.
-- **This repo's visibility:** PRIVATE (a push is not publication; making it public is a floor action). Verify:
-  `gh repo view mike548141/rpi --json visibility`.
+- **This repo's visibility:** **PUBLIC** since 2026-07-29 (owner's explicit instruction, after the
+  [ADR 0009](docs/decisions/0009-publish-safety-review.md) publish-safety review). Verify:
+  `gh repo view mike548141/rpi --json visibility`. **This changes the stakes of every push: a push to any
+  branch IS publication, immediately and irreversibly** — assume anything committed is world-readable and
+  archived the moment it lands. The scanner floor is no longer a backstop before a future flip; it is the last
+  gate before publication. Never commit a secret, personal datum or estate detail here on the assumption it can
+  be scrubbed later — it cannot.
 
 ---
 
@@ -80,8 +85,9 @@ detection** (capacity fraud + CID/CSD metadata contradictions); everything else 
 ## Working conventions in this repo
 
 - **Commit as work completes; don't wait to be asked.** History commits directly to `main`; commit/push
-  autonomy is the doctrine floor above (grant history: atelier AUTONOMY's table), and this repo is PRIVATE, so
-  a push is not publication. Use the repo's message style + the `Co-Authored-By` trailer.
+  autonomy is the doctrine floor above (grant history: atelier AUTONOMY's table). ⚠️ Since 2026-07-29 this repo
+  is **PUBLIC**, so a push *is* publication — the autonomy stands, but the scan floor is now the only thing
+  between a commit and the world. Use the repo's message style + the `Co-Authored-By` trailer.
 - **Tests:** `python3 -m unittest discover -s tests` (stdlib `unittest`, no deps, ~3 s). Add/adjust tests with
   behaviour changes and keep the suite green. The package must stay importable via `src/` on the path (tests do
   this through `tests/_loader.py`).

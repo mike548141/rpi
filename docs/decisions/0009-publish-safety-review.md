@@ -1,6 +1,6 @@
 # 0009 — Publish-safety review: this repo is safe to make public
 
-**Status**: accepted • **Date**: 2026-07-29
+**Status**: accepted • **Date**: 2026-07-29 • **Outcome**: repo made PUBLIC 2026-07-29
 
 ## Context
 
@@ -96,3 +96,20 @@ Free Software Foundation's own Boston address inside the GPL text.
     suite calls `os.geteuid` and `os.pwrite`, neither of which exists on Windows. Lint is
     also red on two `E402`s that a newer `ruff` began enforcing. Publishing does not *create*
     a defect, but it does put a red badge on the front page. Fixing it is a separate track.
+
+## Outcome (2026-07-29)
+
+The owner read this review and ruled on both open questions: fix the red CI first, then flip.
+
+- The CI reds were fixed — one of them a **genuine product bug** the tier policy in
+  [ADR 0010](0010-platform-support-tiers.md) then made explicit. All 11 jobs green across
+  Linux, macOS and Windows.
+- **`rpi` was made public on the owner's explicit instruction.** Under the CLAUDE.md floor
+  this is an always-stop-and-confirm action; the decision was his, recorded here, not
+  originated by the review.
+- Re-verified on the exact tree that was published (`2fadf52`, three commits after the review
+  above): leakscan, secretscan and licenscan all clean. The gate was checked against what
+  actually shipped, not only against the tree the review first read.
+
+**A push to this repo is now publication.** The scanner floor stopped being a backstop before
+a future flip and became the last gate before the world sees a commit.
