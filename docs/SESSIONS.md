@@ -355,3 +355,17 @@ Convention adopted 2026-07-08 from the sibling `ros`/`tiki` repo (lean roadmap +
   for new prose and glob the frozen records, or exempt this repo's prose from the house width and say so. What
   I got wrong was not the measurement but the *diagnosis* — I read a corpus-wide convention as a backlog, which
   is the same shape as the ~40-vs-716 error it sat next to.
+
+- **2026-07-30 (cont.)** — **The cold review written up as a REVIEW.md-compliant record.** Mike asked for the
+  session's review to be recorded per atelier doctrine. Read `REVIEW.md` cold and wrote the one-file
+  brief-plus-verdict to `docs/reviews/2026-07-29-1251-post-flip-cold-review.md` (UTC-stamped): spawn provenance
+  (principal-spawned, cold context, author-uninvolved), four lenses, 11 findings with stable IDs and decision
+  tags, proofs re-run listed (with the one not-re-run claim and its grounds — ADR 0009's secretscan canary),
+  the `/security-review` reach line discharged with grounds, and the close call: **0 MAJOR, cycle closed**.
+  Writing it honestly required a reconcile: the pin-bump session's commits (`e527d06`…`0237ac9`) had already
+  resolved F7/F8 and fixed a gap this review *missed* (the inlined floor three bullets short of canon — now
+  F11, credited to that session), and reconciliation surfaced two measurement errors in this review's own
+  published figures (spellscan/wrapscan counts read from a truncated output tail — 8/~40 vs the true 15/716);
+  both owned in the record's Reconcile section. ROADMAP now carries a ticked pointer to the record. **Next**:
+  unchanged — the hardening backlog (F2/F3/F9/F10), Mike's F5 ruling, wrapscan before 2026-10-31, the v1.0
+  Pi-hardware blocker.

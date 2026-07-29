@@ -157,7 +157,10 @@ percentiles, the test suite) plus the post-0.9 macOS/CSD work lives in `docs/ROA
 The flip to PUBLIC created new surfaces. History and tree re-verified clean cold (independent sweep on top of
 [ADR 0009](docs/decisions/0009-publish-safety-review.md)); these are the residual hardening items, none blocking.
 Done already: private vulnerability reporting enabled + [SECURITY.md](SECURITY.md) (2026-07-30);
-`.claude/settings.json` untracked (session policy is not for publication).
+`.claude/settings.json` untracked (session policy is not for publication). The review is recorded per
+REVIEW.md — cycle closed, 0 MAJOR — in
+[docs/reviews/2026-07-29-1251-post-flip-cold-review.md](docs/reviews/2026-07-29-1251-post-flip-cold-review.md);
+the items below are its [backlog] findings, and F5 (estate context in public docs) is the one awaiting a ruling.
 
 - **Supply-chain: SHA-pin the workflow actions.** `release.yml` runs a third-party action by mutable tag inside
   the job holding `contents: write` + `id-token: write` — the credentials that sign the provenance attestations.
