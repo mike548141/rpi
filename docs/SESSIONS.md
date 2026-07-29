@@ -260,7 +260,12 @@ Convention adopted 2026-07-08 from the sibling `ros`/`tiki` repo (lean roadmap +
   limit. **(2) a test-harness defect** — `os.geteuid()` evaluated inside a `@skipIf` decorator, i.e. at import
   time, taking the whole `test_helpers` module down. Both fixed. The regression test pins the **routing**
   (`sdbench._pwrite` is called) rather than the platform, so it fails on macOS/Linux if the shim is ever bypassed
-  again — a Windows-only test would never have run where the bug was actually introduced. Also cleared the two
+  again — a Windows-only test would never have run where the bug was actually introduced. Fixing the import
+  crash then surfaced a third failure it had been *masking*: `test_unreadable_returns_empty_not_traceback`
+  chmods a file to 0o000 and expects `read_file` to degrade to `''`, but Windows `chmod` only toggles the
+  read-only flag, so the file stayed readable. Not a product bug — a precondition the platform cannot establish.
+  Fixed by making the test **verify its own precondition** (try the read, skip if it succeeds) rather than
+  hardcoding a `sys.platform` skip: it stays live wherever the condition holds, including as root. Also cleared the two
   `E402`s a newer `ruff` began enforcing (`# noqa: E402` — both imports sit deliberately beside the comment that
   explains them). 182 tests green, ruff clean, CI green on all three OSes. Tier policy recorded in ADR 0010 +
   README + CLAUDE.md so it constrains future platform work instead of being rediscovered from a red run.

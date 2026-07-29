@@ -102,9 +102,6 @@ class ReadFile(unittest.TestCase):
   def test_missing_returns_empty_string(self):
     self.assertEqual(sdinfo.read_file('/no/such/path/at/all'), '')
 
-  # geteuid is POSIX-only and this decorator runs at import time, so calling it bare took the whole module down
-  # on Windows (tier 2). Absent the call, assume non-root and let the test run.
-  @unittest.skipIf(getattr(os, 'geteuid', lambda: 1)() == 0, 'root bypasses file permissions')
   def test_unreadable_returns_empty_not_traceback(self):
     # A node that exists but is permission-gated (like the root-only Bluetooth identity) must degrade
     # to '' rather than raising - the tool should never traceback on an unreadable sysfs node
@@ -113,6 +110,15 @@ class ReadFile(unittest.TestCase):
       path = fh.name
     os.chmod(path, 0o000)
     try:
+      # Verify the precondition rather than assuming a platform can establish it. chmod 0o000 does not deny
+      # reads for root, nor on Windows (tier 2), where it only toggles the read-only flag. Skipping on the
+      # observed fact beats guessing from sys.platform - and keeps the assertion honest wherever it does run.
+      try:
+        with open(path) as fh:
+          fh.read()
+        self.skipTest('cannot make a file unreadable here (root, or Windows chmod semantics)')
+      except PermissionError:
+        pass
       self.assertEqual(sdinfo.read_file(path), '')
     finally:
       os.chmod(path, 0o600)
