@@ -152,6 +152,43 @@ percentiles, the test suite) plus the post-0.9 macOS/CSD work lives in `docs/ROA
   [ADR 0006](docs/decisions/0006-artifact-signing-build-provenance.md). Dev/CI-only — no runtime dependency
   (ADR 0001). Signs only on a real tag push, so the `workflow_dispatch` dry run never mints a cert.
 
+## Public-repo hardening (from the 2026-07-30 cold review)
+
+The flip to PUBLIC created new surfaces. History and tree re-verified clean cold (independent sweep on top of
+[ADR 0009](docs/decisions/0009-publish-safety-review.md)); these are the residual hardening items, none blocking.
+Done already: private vulnerability reporting enabled + [SECURITY.md](SECURITY.md) (2026-07-30);
+`.claude/settings.json` untracked (session policy is not for publication).
+
+- **Supply-chain: SHA-pin the workflow actions.** `release.yml` runs a third-party action by mutable tag inside
+  the job holding `contents: write` + `id-token: write` — the credentials that sign the provenance attestations.
+  Pin every `uses:` to a full commit SHA and enable Dependabot (`github-actions` ecosystem) to keep pins fresh;
+  consider tightening the allowed-actions policy from "all" at the same time.
+- **Disable the wiki.** A wiki is a separate git repo the scanner floor never sees (no hook, no CI floor) — an
+  unscanned publication channel. It is unused; turn it off.
+- **Trim the local Claude allow-list.** Public issues/PRs are untrusted input to AI sessions, and the auto-allow
+  list includes destructive verbs (`rm`, `chmod`, …). The list is no longer published (untracked 2026-07-30) but
+  the risk is what runs unprompted, not who can read the list.
+- **Ruleset on `main`.** Block force-push and branch deletion — zero cost, prevents accidental history rewrite.
+- **Minor GitHub settings.** Fork-PR workflow approval sits at the default (first-time contributors only) —
+  consider "all outside collaborators". The repo description ("Raspberry Pi tools") undersells the tool: name the
+  counterfeit-SD detection, add topics.
+- **Ruling owed (ADR it): estate context in public docs.** The session log and model-economics doc reference
+  sibling repos and internal workflow. Decide deliberately whether that transparency is accepted here or whether
+  public-repo session entries stop naming estate internals — the same ruling applies to the other repos heading
+  public.
+
+## Floor & doctrine hygiene (to do)
+
+- **Bump the atelier pin.** 341 commits of doctrine drift since `9e7e031` (measured 2026-07-29), including
+  rulings that already bind children (C1 advisory schema, E6 floor posture). Read the drift, then bump the pin
+  in CLAUDE.md deliberately. A session of its own.
+- **Migrate `.atelier-floor.json` to the post-C1 spelling.** The advisory entries are the legacy bare list; C1
+  requires `{why, review-by}` per entry, and the legacy form becomes a hard error at C1 phase 2. Owner call on
+  the review date — or clear the debt instead (8 US spellings, ~40 over-width lines) and drop the advisory
+  state.
+- **Raise in atelier.** The floor's ci plane invokes leakscan without `--require-terms`, so every child run
+  reports "cover not guaranteed"; the fix belongs in atelier's registry, not here.
+
 ## Smaller cleanups
 
 - `sdbench`: optional true O_DIRECT path on Linux (aligned buffers) for the most accurate device-level numbers.
