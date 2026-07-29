@@ -54,6 +54,12 @@ identifiers, performance, and failure rates.
 
 ### Platforms
 
+**Support tiers.** **Linux and macOS are tier 1** — the primary targets, where a platform bug is a release
+blocker. **Windows is tier 2** — supported and CI-tested on every push, but it is expected to *degrade*
+gracefully rather than match tier 1 feature-for-feature, and a Windows-only limitation is a known gap rather
+than a blocker. All three run the full test suite in CI. See
+[ADR 0010](docs/decisions/0010-platform-support-tiers.md).
+
 - **Raspberry Pi Linux** — full detail (reads the SD CID/CSD registers from sysfs). Run with `sudo` so it can
   read every register. No packages to install.
 - **macOS** — plug the card into a reader and just run `rpi-sdinfo`: with no `--device`/`--dir` it auto-detects

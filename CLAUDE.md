@@ -64,8 +64,11 @@ detection** (capacity fraud + CID/CSD metadata contradictions); everything else 
   (and its worked example, [ADR 0003](docs/decisions/0003-tran-speed-is-not-proof-of-fake.md)).
 - **Standard library only — zero runtime dependencies.** Must run on stock Pi OS / macOS / Windows Python with
   nothing to `pip install`. Reach for the stdlib before shelling out or adding a dep.
-- **Cross-platform, degrade gracefully.** Platform code sits behind `sys.platform`. macOS/Windows can't read the
-  SD CID/CSD registers — limited identity there is expected, not a bug.
+- **Cross-platform, degrade gracefully — Linux/macOS tier 1, Windows tier 2** ([ADR 0010](docs/decisions/0010-platform-support-tiers.md)).
+  Platform code sits behind `sys.platform`, and a POSIX-only syscall goes behind a `hasattr` shim (`bench.py`'s
+  `_pread`/`_pwrite` are the pattern) — never called bare, or Windows dies with `AttributeError`. macOS/Windows
+  can't read the SD CID/CSD registers — limited identity there is expected, not a bug. Tier 2 means Windows may
+  degrade, **not** that it may crash; all three OSes stay in the CI matrix.
 - **Python 3.6+ floor.** Avoid newer features (e.g. the percentile helper is hand-rolled, not
   `statistics.quantiles`).
 - **Keep docs in sync in the same change** — README, ROADMAP, `docs/rpi-sdinfo.1`, CHANGELOG.

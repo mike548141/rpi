@@ -128,7 +128,7 @@ locale.setlocale(locale.LC_ALL, '')
 
 # The crowd-sourced CID identity table (make/brand/product per MID/OID/PNM) and its structural validator live
 # in cid_db.py so the database grows as a data diff, not a code change. _lookup() below walks it.
-from .cid_db import manufacturer, validate_cid_db, leaf_capacity_bytes, brands_observed  # noqa: F401  (validate_cid_db: test suite)
+from .cid_db import manufacturer, validate_cid_db, leaf_capacity_bytes, brands_observed  # noqa: F401,E402  (validate_cid_db: test suite; E402: import sits with the comment that explains it, deliberately)
 
 # Expected performance classes defined by SD-3C
 # https://www.sdcard.org/developers/sd-standard-overview/application-performance-class/

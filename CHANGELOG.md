@@ -19,8 +19,22 @@ All notable changes to rpi-sdinfo are recorded here. The format loosely follows
   deliberately unchanged** — that flip is Mike's call alone.
 
 ### Fixed
+- **The raw-device sweep crashed on Windows.** `_device_io()` in `verify.py` called `os.pwrite` directly, which
+  is POSIX-only, so `rpi-sdverify --device` died with an `AttributeError` on Windows — while the sibling `pread`
+  in the same function already routed through `bench.py`'s portable shim. Now routed through `sdbench._pwrite`,
+  which falls back to seek-then-write off POSIX. Covered by a regression test that pins the *routing* rather
+  than the platform, so it fails on Linux/macOS if the shim is ever bypassed again.
+- **The `test_helpers` suite failed to import on Windows.** `os.geteuid()` was evaluated inside a `@skipIf`
+  decorator (so, at import time) and is POSIX-only, taking the whole module down. Guarded.
 - **The `floor` CI workflow is green again.** It had been failing on every run since adoption, `BLOCKED by:
   leakscan` on the three structural findings above; clearing them fixes the scanner backstop.
+
+### Changed
+- **Platform support tiers are now explicit: Linux and macOS tier 1, Windows tier 2**
+  ([ADR 0010](docs/decisions/0010-platform-support-tiers.md)). Tier 2 means Windows is expected to *degrade*
+  gracefully, never to crash — an unguarded POSIX-only syscall is a bug at any tier. All three OSes stay in the
+  CI matrix; tiering is about the feature bar, not test coverage, since an unexercised tier rots silently (which
+  is how both bugs above survived).
 
 ### Added
 - **Brand↔MID as a learned brand-set signal (first slice: neutral context, no score).** The free-text make/OEM

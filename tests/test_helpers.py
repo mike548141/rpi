@@ -102,7 +102,9 @@ class ReadFile(unittest.TestCase):
   def test_missing_returns_empty_string(self):
     self.assertEqual(sdinfo.read_file('/no/such/path/at/all'), '')
 
-  @unittest.skipIf(os.geteuid() == 0, 'root bypasses file permissions')
+  # geteuid is POSIX-only and this decorator runs at import time, so calling it bare took the whole module down
+  # on Windows (tier 2). Absent the call, assume non-root and let the test run.
+  @unittest.skipIf(getattr(os, 'geteuid', lambda: 1)() == 0, 'root bypasses file permissions')
   def test_unreadable_returns_empty_not_traceback(self):
     # A node that exists but is permission-gated (like the root-only Bluetooth identity) must degrade
     # to '' rather than raising - the tool should never traceback on an unreadable sysfs node

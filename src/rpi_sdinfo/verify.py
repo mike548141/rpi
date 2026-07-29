@@ -306,7 +306,9 @@ def _device_io(file_descriptor):
   def pwrite(offset, data):
     view = memoryview(data)
     while view:
-      view = view[os.pwrite(file_descriptor, view, offset + (len(data) - len(view))):]
+      # sdbench._pwrite, not os.pwrite: the latter is POSIX-only and hard-fails on Windows (tier 2), where the
+      # shim degrades to seek-then-write. The pread below already went through the shim; this line did not.
+      view = view[sdbench._pwrite(file_descriptor, view, offset + (len(data) - len(view))):]
 
   def pread(offset, length):
     sdbench._evict_read_cache(file_descriptor, offset, length)

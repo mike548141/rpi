@@ -155,6 +155,18 @@ class RunDeviceFull(unittest.TestCase):
     self.addCleanup(lambda: os.path.exists(path) and os.remove(path))
     return path
 
+  def test_device_io_writes_through_the_portable_shim(self):
+    # Regression: _device_io's pwrite called os.pwrite directly while its pread already used the shim. os.pwrite
+    # is POSIX-only, so the whole raw-device sweep died with AttributeError on Windows (tier 2). Pin the routing
+    # rather than the platform - this asserts on macOS/Linux exactly what it would assert on Windows.
+    path = self._tmpfile(4096)
+    fd = os.open(path, os.O_RDWR)
+    self.addCleanup(lambda: os.close(fd))
+    with mock.patch.object(sdverify.sdbench, '_pwrite', wraps=sdverify.sdbench._pwrite) as shim:
+      pwrite, _ = sdverify._device_io(fd)
+      pwrite(0, b'x' * 512)
+    self.assertTrue(shim.called, 'pwrite must route through sdbench._pwrite, not os.pwrite')
+
   def test_honest_file_passes(self):
     path = self._tmpfile(64 * 1024)
     result = sdverify.run_device_full(path, block_bytes=4096)

@@ -275,7 +275,7 @@ manufacturer = {
 
 # Structural token shapes. The CID fields are fixed-width hex the kernel formats predictably (see gather_linux),
 # so a key that does not match is a data-entry slip, not a card we have never seen.
-import re as _re
+import re as _re  # noqa: E402  (kept beside the validator it serves, not hoisted away from its explanation)
 
 _MID_RE = _re.compile(r'^0x[0-9a-f]{6}$')      # manfid: 8-bit id, but sysfs zero-pads to 6 hex digits
 _OID_RE = _re.compile(r'^0x[0-9a-f]{4}$')      # oemid: 2 ASCII chars rendered as 4 hex digits
