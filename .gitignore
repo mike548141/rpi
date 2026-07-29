@@ -13,5 +13,8 @@ sbom.cdx.json
 # macOS litter
 .DS_Store
 
-# Claude Code personal settings (shared allowlist IS committed)
+# Claude Code session policy — local only, never published. The allowlist used to be
+# committed; on a PUBLIC repo it maps out exactly which commands run unprompted, which
+# turns prompt-injection via issues/PRs from a guess into a plan (2026-07-30 review).
+.claude/settings.json
 .claude/settings.local.json
