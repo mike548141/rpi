@@ -376,7 +376,7 @@ Convention adopted 2026-07-08 from the sibling `ros`/`tiki` repo (lean roadmap +
   reaching this repo through the registry — passing only because it found no `docs/roadmap/` to check. Read the
   parent's ADR, `RECORD.md` § *The roadmap*, `CONCURRENCY.md` § *On a split board*, and the cold-pass verdict
   on the parent's own migration before touching anything. **What landed**: the 245-line root `ROADMAP.md` →
-  `docs/roadmap/` (7 sections, 28 item files), `docs/ROADMAP.md` as the generated index, `docs/ROADMAP-DONE.md`
+  `docs/roadmap/` (7 sections, 29 item files (27 migrated, plus this item and its review pointer)), `docs/ROADMAP.md` as the generated index, `docs/ROADMAP-DONE.md`
   frozen, references updated across CLAUDE/README/CONTRIBUTING/ARCHITECTURE/MODEL-ECONOMICS and two source
   comments, pin bumped `e45549a` → `2428fdf`.
   🔎 **The finding that shaped the migration**: a purely mechanical split would have produced a board of *zero*
