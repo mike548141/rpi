@@ -39,7 +39,7 @@
 # Outputs:
 #
 
-# Known limitations / planned work: see ROADMAP.md
+# Known limitations / planned work: see docs/ROADMAP.md
 # Remaining assumptions worth calling out inline:
 ## fio had a faux pas sometime ago where it confused Base-10 and Base-2 (e.g. MB and MiB). So I'm not sure what units we are getting from fio here but I'm assuming Base-10
 ## Uses the Linux kernel erase_size as the addressable block size; erase_size 0 (a card that is not block-addressed) falls back to 512 and is flagged via cross_check (resolve_block_size)

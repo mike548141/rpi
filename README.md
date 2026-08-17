@@ -216,13 +216,13 @@ cd tests && python3 -m unittest test_csd          # one module
 ```
 
 What the suite can't cover is the Linux sysfs/`dumpe2fs`/`diskstats` reads in `gather_linux()` — those need
-real Pi hardware (see [ROADMAP.md](ROADMAP.md)).
+real Pi hardware (see the [board](docs/ROADMAP.md)).
 
 ### More
 
 - [SD_CARDS.md](SD_CARDS.md) — how SD cards identify themselves (CID), how to read the label's class symbols,
   what performance each class promises, and how to spot fakes.
-- [ROADMAP.md](ROADMAP.md) — what's done and what's planned before v1.0, including Pi hardware testing and a
+- [docs/ROADMAP.md](docs/ROADMAP.md) — the board: what's done and what's planned before v1.0, including Pi hardware testing and a
   counterfeit-capacity (write/verify) test.
 
 ### Scope & expectations
@@ -257,4 +257,4 @@ suspect card, still confirm with a full `f3` sweep.
 - The **crowd-sourced upload / shared database is unsolved** — it needs a stronger anonymisation scheme than a
   fixed-salt hash over a low-entropy serial before any result leaves your machine.
 
-See [ROADMAP.md](ROADMAP.md) for the full status and the path to v1.0.
+See the [board](docs/ROADMAP.md) for the full status and the path to v1.0.

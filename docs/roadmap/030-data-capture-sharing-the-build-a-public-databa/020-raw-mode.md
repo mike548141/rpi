@@ -1,0 +1,1 @@
+- [x] **Raw mode.** ✅ Shipped in 0.8 (`--raw`): dumps the full `dumpe2fs` / register / benchmark detail for debugging.

@@ -1,7 +1,11 @@
 # rpi-sdinfo roadmap — completed-work detail (archive)
 
-Verbatim per-version detail moved out of [`ROADMAP.md`](../ROADMAP.md) on 2026-07-08 to keep the roadmap lean
-(it is read at every session start). Grep this file when a roadmap line or a `CHANGELOG.md` entry isn't enough;
+**FROZEN 2026-08-17.** Nothing is harvested into this file any more: the board became one file per item
+(`docs/roadmap/`, index at [`ROADMAP.md`](ROADMAP.md)) and a completed item now simply stays in its own
+file as `[x]`. What follows is the pre-split archive, unchanged.
+
+Verbatim per-version detail moved out of the then-monolithic `ROADMAP.md` on 2026-07-08 to keep the roadmap
+lean (it is read at every session start). Grep this file when a roadmap line or a `CHANGELOG.md` entry isn't enough;
 do **not** load it whole into context. Sections are in version order. This is a public repo with no secrets, so
 unlike tiki's equivalent it simply lives in the tree — the split is for token economy, not privacy.
 

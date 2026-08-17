@@ -1,0 +1,1 @@
+- [x] **Structured output.** ✅ `--format json` ships in 0.5, ✅ local SQLite persistence (`--save-db`) in 0.8.

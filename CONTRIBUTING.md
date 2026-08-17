@@ -16,7 +16,8 @@ low barrier to hacking on it.
 - **Target Python 3.6+.** Avoid features newer than 3.6 (for instance, the benchmark's
   percentile helper is hand-rolled rather than using `statistics.quantiles`).
 - **Keep the docs in sync.** A change that alters behaviour should update `README.md`,
-  `ROADMAP.md`, the man page (`docs/rpi-sdinfo.1`) and `CHANGELOG.md` in the same commit.
+  the matching board item under `docs/roadmap/` (rebuild `docs/ROADMAP.md` with
+  `python3 ../atelier/tools/board.py rebuild --root .`), the man page (`docs/rpi-sdinfo.1`) and `CHANGELOG.md` in the same commit.
   If you change the CLI surface, the man-page update is not optional.
 - **Comments say _why_, not _what_.** Platform quirks, SD-spec reasoning and non-obvious
   constraints earn a comment; restating the code does not. `#!#` marks a TODO (more `#`
@@ -48,7 +49,7 @@ ruff check .                                   # lint (dev-only; config in pypro
 The suite covers all hardware-independent logic. What it **cannot** cover is the Linux
 sysfs / `dumpe2fs` / `diskstats` reads in `gather_linux()` — those need a real Raspberry
 Pi. If you have Pi hardware, runs of `sudo rpi-sdinfo --raw` against known-genuine and
-known-fake cards are especially valuable (see `ROADMAP.md`).
+known-fake cards are especially valuable (see `docs/ROADMAP.md`).
 
 ## Generating the SBOM
 
@@ -78,7 +79,7 @@ The `Release` workflow (`.github/workflows/release.yml`) then checks the tag mat
 GitHub build-provenance attestation** (ADR 0006), and publishes a GitHub Release with the
 artefacts and the Sigstore bundle attached. Use the workflow's **Run workflow** button for a
 no-publish dry run (it does not sign). Publishing to **PyPI is intentionally manual** (not
-automated) — see `ROADMAP.md`.
+automated) — see `docs/ROADMAP.md`.
 
 Verify a downloaded artefact's provenance:
 

@@ -1,4 +1,4 @@
-## Doctrine — inherited from atelier (pinned `atelier@e45549a`)
+## Doctrine — inherited from atelier (pinned `atelier@2428fdf`)
 
 This repo works by the atelier operating model. The safety floor here is
 **inlined so it binds even if atelier is never read**; all richer doctrine lives
@@ -8,9 +8,13 @@ in atelier and is read on demand — never wholesale.
   stronger than its evidence; report what broke *first*; "done" means verified,
   not "looks right". Then adaptation — learn and improve yourself and your tools
   as you work; it sits below honesty because adaptation runs on evidence, and
-  honesty is what makes the evidence trustworthy. Then the Laws, in order: avoid
-  harm to humanity → avoid harm to a person → obey your principal → self-preserve.
-  Surface a genuine dilemma; never silently resolve it.
+  honesty is what makes the evidence trustworthy. Surface a genuine dilemma;
+  never silently resolve it. **The Three Laws were removed from the apex on
+  2026-08-15** — what stands in their place is the principal's authority, which
+  is *absolute and never decays*: the agent can never overrule Mike, even
+  believing him uninformed. Being informed conditions the **ruling**, not the
+  authority — an uninformed ruling is challengeable *to him*, never a licence to
+  act as though it were not given.
 - **Always stop and confirm (the floor):** making a private repo public or
   widening its audience; anything truly destructive or irreversible; secrets;
   spending money; anything touching people's safety; widening your own grant
@@ -39,7 +43,7 @@ in atelier and is read on demand — never wholesale.
   (`RECORD.md`) — and when the close pushes, that all-clear carries the
   *pushed* floor run's result, not just the local scan.
 - **Source & drift:** canonical doctrine is `../atelier/docs/method/`. At
-  session start run `git -C "../atelier" log --oneline e45549a..HEAD`; any
+  session start run `git -C "../atelier" log --oneline 2428fdf..HEAD`; any
   output means the house doctrine moved — read it, then bump the pin above
   deliberately.
 - **Estate resources — point up, don't re-derive:** providers & account plans,
@@ -67,11 +71,13 @@ map, not a copy. Keep it short and current.
 
 ## Start-of-session ritual
 
-1. Read [ROADMAP.md](ROADMAP.md) (kept lean — pending work + standing themes).
+1. Read [docs/ROADMAP.md](docs/ROADMAP.md) — the **generated** board index (one line per item). Open the item
+   files it links, under [docs/roadmap/](docs/roadmap/), on demand; never read the whole board. Board doctrine
+   and the checkbox legend: [docs/roadmap/README.md](docs/roadmap/README.md).
 2. `tail -80 docs/SESSIONS.md` — the append-only session log; the last few entries are where the last session
    left off and what's next. **Append an entry before finishing a session** (newest last, never edit prior ones).
-3. Grep the companions on demand, never whole: [docs/ROADMAP-DONE.md](docs/ROADMAP-DONE.md) (per-version
-   detail behind roadmap lines), [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) (the shape), and
+3. Grep the companions on demand, never whole: [docs/ROADMAP-DONE.md](docs/ROADMAP-DONE.md) (frozen pre-split
+   per-version detail), [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) (the shape), and
    [docs/decisions/](docs/decisions/) (ADRs — read before re-opening a settled call).
 
 ## What this repo is
@@ -84,7 +90,8 @@ detection** (capacity fraud + CID/CSD metadata contradictions); everything else 
 - **Scope & expectations** (what it is / is not / honest limitations): see the "Scope & expectations" section
   of [README.md](README.md). Short version: a portable *sanity check*, not a certified benchmark or a
   replacement for `f3`/h2testw/`smartctl` — its edge is breadth in one command plus CSD liar-detection.
-- **Status, pending work, standing themes:** [ROADMAP.md](ROADMAP.md) (lean); completed-work detail in
+- **Status, pending work, standing themes:** the board — [docs/ROADMAP.md](docs/ROADMAP.md) (generated index)
+  over [docs/roadmap/](docs/roadmap/) (one file per item); frozen pre-split detail in
   [docs/ROADMAP-DONE.md](docs/ROADMAP-DONE.md).
 - **Design shape & decisions:** [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) + [docs/decisions/](docs/decisions/).
 - **Model choice & token/session hygiene:** [docs/MODEL-ECONOMICS.md](docs/MODEL-ECONOMICS.md).
@@ -107,7 +114,11 @@ detection** (capacity fraud + CID/CSD metadata contradictions); everything else 
   degrade, **not** that it may crash; all three OSes stay in the CI matrix.
 - **Python 3.6+ floor.** Avoid newer features (e.g. the percentile helper is hand-rolled, not
   `statistics.quantiles`).
-- **Keep docs in sync in the same change** — README, ROADMAP, `docs/rpi-sdinfo.1`, CHANGELOG.
+- **Keep docs in sync in the same change** — README, the board item, `docs/rpi-sdinfo.1`, CHANGELOG. A state
+  change flips the checkbox **in the item's own file, in the commit that finishes the work**, and rebuilds the
+  index in that same commit: `python3 ../atelier/tools/board.py rebuild --root .` — then stage the item **and**
+  the index together. (The `board` floor check catches a stale index on CI regardless; at the hook plane it
+  compares worktree to worktree, so staging one without the other slips past it — atelier's open BS1.)
 - **Comments say _why_, not _what_** — platform quirks, SD-spec reasons, non-obvious constraints earn a comment;
   restating the code does not. `#!#` marks a TODO (more `#` = higher priority).
 - **Record real decisions as ADRs.** If you reject a plausible alternative or rest a design on evidence, add a
@@ -134,5 +145,5 @@ detection** (capacity fraud + CID/CSD metadata contradictions); everything else 
 - **No Pi hardware in the dev environment.** Development is on macOS, so `gather_linux()` and `sdbench`'s
   Linux IO path **cannot be hardware-tested here** — this is the #1 v1.0 blocker. Flag it; don't claim the Linux
   path is verified.
-- **Open threads (in ROADMAP):** tagging `v0.9.0` and whether to publish to PyPI; publishing an SBOM on release.
+- **Open threads (on the board):** tagging `v0.9.0` and whether to publish to PyPI; publishing an SBOM on release.
   (Licence is settled — Apache-2.0, ADR 0002. Function docstrings are done.)

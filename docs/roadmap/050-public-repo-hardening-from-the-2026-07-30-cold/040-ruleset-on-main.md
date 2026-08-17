@@ -1,0 +1,1 @@
+- [ ] **Ruleset on `main`.** Block force-push and branch deletion — zero cost, prevents accidental history rewrite.

@@ -78,7 +78,7 @@ CLI smoke test driving the real write/verify paths against a scratch file.
 
 What tests **cannot** cover is the Linux sysfs / `dumpe2fs` / `diskstats` reads in `gather_linux()` and whether
 the cache-bypassing benchmark reports realistic numbers on a real Pi — that needs hardware and is the standing
-v1.0 blocker (see [`../ROADMAP.md`](../ROADMAP.md)). Don't claim the Linux path is verified.
+v1.0 blocker (see the board, [`ROADMAP.md`](ROADMAP.md)). Don't claim the Linux path is verified.
 
 ## Conventions
 

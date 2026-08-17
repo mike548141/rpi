@@ -50,13 +50,15 @@ Cache reads ≈ 0.1× input price; cache writes ≈ 1.25× (5-minute TTL).
 ## Fixed per-session overhead (measured 2026-07-08)
 
 A session starts by loading: system prompt + tools (~15–20k tokens), the global + project `CLAUDE.md` (~2.5k
-combined), the memory index (small), and — on demand — `ROADMAP.md` (~1.9k), the `docs/SESSIONS.md` tail
+combined), the memory index (small), and — on demand — the board index `docs/ROADMAP.md` (~0.7k since the
+2026-08-17 split; ~1.9k before it as a monolithic `ROADMAP.md`), the `docs/SESSIONS.md` tail
 (~0.7k) and `docs/ARCHITECTURE.md` (~1.5k). Roughly **~22–27k tokens before any work happens**, of which only
 ~6k is repo docs we control; the rest is the fixed harness.
 
 `ROADMAP.md` was split on 2026-07-08 (it had accumulated the full 0.3→0.9 version history, ~5k+ tokens) into
 the lean roadmap + `docs/ROADMAP-DONE.md` (completed detail) + `docs/SESSIONS.md` (append-only log, tail-read
-only). Keep it that way: **bulk that isn't needed every session — session-log entries, completed-work detail —
+only), and split again on 2026-08-17 into one file per item under `docs/roadmap/` with `docs/ROADMAP.md` as a
+generated index — so the every-session read is now the index alone, and item detail loads only when opened. Keep it that way: **bulk that isn't needed every session — session-log entries, completed-work detail —
 does not accumulate in the every-session read path.** The lean-roadmap rule is about *where* information lives,
 not deleting it; never sacrifice clarity to hit a number (the cost is linear, not a cliff).
 

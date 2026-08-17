@@ -369,3 +369,36 @@ Convention adopted 2026-07-08 from the sibling `ros`/`tiki` repo (lean roadmap +
   both owned in the record's Reconcile section. ROADMAP now carries a ticked pointer to the record. **Next**:
   unchanged — the hardening backlog (F2/F3/F9/F10), Mike's F5 ruling, wrapscan before 2026-10-31, the v1.0
   Pi-hardware blocker.
+
+- **2026-08-17** — **The board split: the roadmap became one file per item, with a generated index.** Mike's
+  instruction, and the drift check that opened the session showed why now: atelier had moved 60+ commits past
+  the `e45549a` pin, and among them was the board-store ADR (2026-08-15) plus the `board` floor check already
+  reaching this repo through the registry — passing only because it found no `docs/roadmap/` to check. Read the
+  parent's ADR, `RECORD.md` § *The roadmap*, `CONCURRENCY.md` § *On a split board*, and the cold-pass verdict
+  on the parent's own migration before touching anything. **What landed**: the 245-line root `ROADMAP.md` →
+  `docs/roadmap/` (7 sections, 28 item files), `docs/ROADMAP.md` as the generated index, `docs/ROADMAP-DONE.md`
+  frozen, references updated across CLAUDE/README/CONTRIBUTING/ARCHITECTURE/MODEL-ECONOMICS and two source
+  comments, pin bumped `e45549a` → `2428fdf`.
+  🔎 **The finding that shaped the migration**: a purely mechanical split would have produced a board of *zero*
+  items. The parent's migration keys on the checkbox grammar, and **not one** of this repo's 27 top-level
+  bullets used it — status lived in prose glyphs (✅ / ◑ / 🎯) that no scanner can read. That is the same class
+  the parent's cold pass logged as BS3, where it silently swallowed 58 bullets; here it would have been total.
+  So each bullet was given a checkbox read off its own text — `[x]` only where nothing is outstanding, `[ ]`
+  wherever a ◑ or an open sub-bullet remained — from an explicit per-item table, never inferred silently.
+  Second, smaller: continuations were re-indented 2 → 6 columns (words untouched), because the house parser
+  ends an item at any line indented under 4, so at 2 columns every body was invisible to `harvestscan`'s
+  survivor search. Four items got a bold title or a reflowed first line so the title closes on the state line —
+  the index projects the first *physical* line only (the parent's BS2).
+  ⚠️ **Two residuals stated rather than hidden.** (a) The parent's board-store review cycle is **open** on BS1:
+  at the hook plane `board check` compares worktree to worktree, so a commit staging an item edit without the
+  rebuilt index still lands, and only CI catches it. Rollout here was Mike's explicit call ahead of that
+  closing; the gate was named before the work, not after. (b) The re-indent adds ~4 columns to board prose
+  already over the house width — that is the standing wrapscan item, not a new debt, and it is one more reason
+  the 2026-10-31 review should pick "exempt this repo's prose" over "rewrap".
+  **Verified, not assumed**: floor green on the hook plane (`board` now genuinely in scope and enforced,
+  `harvestscan` and `pointerscan` both clean over the split store); 182 tests pass; pathscan back to its
+  pre-split baseline of 5 findings after a `.pathscanignore` entry for the generated index (which cannot carry
+  an inline allow-marker — a rebuild strips it). ruff was **not** run: it is not installed in this environment,
+  and the only source edits were two comment lines. A ⏳ cold-pass pointer is queued for this delta.
+  **Next**: unchanged by this work — Mike's 🎯 rulings (crowd upload, the tag/PyPI push, estate context in
+  public docs), the hardening backlog, wrapscan before 2026-10-31, and the standing v1.0 Pi-hardware blocker.
