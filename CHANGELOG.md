@@ -40,8 +40,11 @@ All notable changes to rpi-sdinfo are recorded here. The format loosely follows
   checkbox read off its own text (`[x]` only where nothing is outstanding); item bodies are carried verbatim
   apart from a uniform 2 → 6 column re-indent, which the house item parser requires to see a body at all.
   `docs/ROADMAP-DONE.md` is **frozen** — a done item now stays in its own file rather than being harvested.
-  Doctrine pin bumped `e45549a` → `2428fdf`; the inlined apex updated, since the Three Laws were removed from
-  the house apex on 2026-08-15 and the principal's absolute authority stands in their place.
+  Doctrine pin bumped `e45549a` → `2428fdf` → `0af3006` (atelier landed 28 more commits mid-session), and the
+  inlined safety floor retrofitted to canon: the Three Laws were removed from the house apex on 2026-08-15,
+  with the principal's absolute authority and a re-brief-*before*-an-irreversible-action rule in their place,
+  and the concurrency bullet gained the message-channel rules. The inlined block is now byte-identical to
+  atelier's canonical one apart from the pin SHA and one local addition.
 - **Platform support tiers are now explicit: Linux and macOS tier 1, Windows tier 2**
   ([ADR 0010](docs/decisions/0010-platform-support-tiers.md)). Tier 2 means Windows is expected to *degrade*
   gracefully, never to crash — an unguarded POSIX-only syscall is a bug at any tier. All three OSes stay in the
