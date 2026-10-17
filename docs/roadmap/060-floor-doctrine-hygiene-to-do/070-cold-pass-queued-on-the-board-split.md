@@ -1,5 +1,7 @@
-- [~] **Cold pass queued — the board split (structural change to this repo's record store).** (claimed 2026-10-17-2050, wt: rpi-board-split-cold) For a non-author
-      to take. **Brief written 2026-10-03 1151 UTC**, by a non-author session on Opus 5.5 at Mike's instruction (off-tier,
+- [x] **Cold pass run — the board split (structural change to this repo's record store).** ✅ Verdict landed
+      2026-10-17 2113 UTC: **PASS-WITH-FINDINGS, 0 MAJOR, 12 MINOR** — cycle closed under the no-MAJOR rule; the
+      findings, Mike's five rulings and the two hand-ups are consolidated on
+      [`060/090`](090-board-split-cold-pass-follow-ups.md). Taken by a non-author. **Brief written 2026-10-03 1151 UTC**, by a non-author session on Opus 5.5 at Mike's instruction (off-tier,
       disclosed in its provenance), for a fresh Fable session to run:
       [`docs/reviews/2026-10-03-1151-board-split-cold.md`](../../reviews/2026-10-03-1151-board-split-cold.md). Its
       delta also takes in `38016b6`, the same session's pin bump.
@@ -35,3 +37,10 @@
       above.
     - **Governing decision:** atelier's board-store ADR
       (`../atelier/docs/decisions/2026-08-15-0610-board-store-per-item-files.md`), whose own review cycle was open on BS1 when this landed.
+    - **Verdict landed 2026-10-17 2113 UTC, by the shape disclosed above.** Phase 1 (findings, provenance, the
+      driven checks and re-runs) committed at `3b97b6a` with the sibling absent from the reviewer's working copy
+      and, by the reviewer's own statement, never opened from history; the sibling was restored only after that
+      commit, and phase 2 (Reconcile, one added finding RB12, the fold, the deletion) landed at `2cf3188`. Record:
+      [`docs/reviews/2026-10-03-1151-board-split-cold.md`](../../reviews/2026-10-03-1151-board-split-cold.md).
+      The reviewer ran ruff for the first time in this repo's history (clean) and re-drove every recorded proof;
+      two did not reproduce (RB2, RB3). Nothing was applied by the pass.

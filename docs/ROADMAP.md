@@ -60,8 +60,9 @@ then `python3 "${ATELIER_TOOLS:-$(git config hooks.atelierTools)}"/board.py rebu
 - [ ] [Raise in atelier.](roadmap/060-floor-doctrine-hygiene-to-do/040-raise-in-atelier.md)
 - [ ] [docs/MODEL-ECONOMICS.md repeats and CONTRADICTS house doctrine.](roadmap/060-floor-doctrine-hygiene-to-do/050-docs-model-economics-md-repeats-and-contradict.md)
 - ✅ [Adopt the split board — one file per item, a generated index.](roadmap/060-floor-doctrine-hygiene-to-do/060-adopt-the-split-board-one-file-per-item.md)
-- [~] (claimed 2026-10-17-2050, wt: rpi-board-split-cold) [Cold pass queued — the board split (structural change to this repo's…](roadmap/060-floor-doctrine-hygiene-to-do/070-cold-pass-queued-on-the-board-split.md)
+- ✅ [Cold pass run — the board split (structural change to this repo's…](roadmap/060-floor-doctrine-hygiene-to-do/070-cold-pass-queued-on-the-board-split.md)
 - [ ] [Declare this repo's pathscan source root once atelier ships the](roadmap/060-floor-doctrine-hygiene-to-do/080-declare-the-pathscan-source-root.md)
+- [ ] 🎯 [Board-split cold-pass follow-ups — RB1–RB12, five of them Mike's…](roadmap/060-floor-doctrine-hygiene-to-do/090-board-split-cold-pass-follow-ups.md)
 
 ## Smaller cleanups
 
