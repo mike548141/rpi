@@ -1,8 +1,13 @@
-- ⏳ **Cold pass queued — the board split (structural change to this repo's record store).** For a non-author
+- [~] **Cold pass queued — the board split (structural change to this repo's record store).** (claimed 2026-10-17-1211, wt: rpi-board-split-cold) For a non-author
       to take. **Brief written 2026-10-03 1151 UTC**, by a non-author session on Opus 5.5 at Mike's instruction (off-tier,
       disclosed in its provenance), for a fresh Fable session to run:
       [`docs/reviews/2026-10-03-1151-board-split-cold.md`](../../reviews/2026-10-03-1151-board-split-cold.md). Its
       delta also takes in `38016b6`, the same session's pin bump.
+    - **Claim shape (rule-4 disclosure, 2026-10-17 UTC):** taken by a principal-opened cold session on Fable
+      (`claude-fable-5-1`), running reviewer-plus-orchestrator. A Fable reviewer subagent forms every finding and
+      severity with the brief as its only framing; this session orchestrates — holds the `.deferred.md` sibling
+      until the findings are committed, releases it for the reconcile, and commits the records. Neither seat
+      authored the delta or was started or instructed by its author.
     - **Delta:** the commits landing `docs/roadmap/` + `docs/ROADMAP.md`, the deletion of the root `ROADMAP.md`,
       the reference updates in [`CLAUDE.md`](../../../CLAUDE.md), [`README.md`](../../../README.md),
       [`CONTRIBUTING.md`](../../../CONTRIBUTING.md), [`docs/ARCHITECTURE.md`](../../ARCHITECTURE.md) and
