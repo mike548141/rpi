@@ -584,3 +584,134 @@ Phase 2 (reconcile against the sibling and the prior verdict; fold; delete)
 follows below once the sibling is restored to this working copy.
 
 *Reviewer timestamp: 2026-10-17 2108 UTC.*
+
+## Reconcile — 2026-10-17 2113 UTC
+
+**Sequence, stated.** The sibling `.deferred.md` and the prior verdict
+(`2026-07-29-1251-post-flip-cold-review.md`) were opened only after the
+phase-1 findings above were committed at `3b97b6a`; `docs/SESSIONS.md` and
+`docs/ROADMAP-DONE.md` beyond the lines phase 1 read were not needed and were
+not opened. Nothing below re-opens a phase-1 finding. One finding is added,
+numbered on from RB11 and marked as formed after the sibling was opened.
+
+### The sibling's four observations, mapped
+
+| # | Sibling observation | Disposition |
+|---|---|---|
+| 1 | Atelier records this repo as "born split"; its method counted `docs/ROADMAP.md`; "your call" whether it is a finding here or atelier's alone | **= RB7**, found independently in phase 1 from the same file by the same diagnosis. The call made there stands: MINOR to this delta, material upstream, routed as a hand-up with a one-line item on this board so the routing is on the record. |
+| 2 | `38016b6` rewrote the inlined doctrine floor with no review line of its own and no pointer naming it; the brief folded it in rather than leave it unpointed | **New → RB12** below. Phase 1 reviewed `38016b6` on the brief's widening and did not ask why the widening was needed. |
+| 3 | The pin is stale (505 commits at brief time) and the tooling does not follow the pin, so a regenerated index comes from moved tooling | **= RB11** (the stale pin as an un-modelled recurring duty; 729 commits at review time, ~16 a day between the two readings) and the re-run method: phase 1 regenerated the index with the tool extracted at each commit's *declared* pin (`2428fdf`, `0af3006`) precisely because the live tool has moved — both indexes current under their own tool. Partly **RB1**: that the tool follows `main`, not the pin, is why the BS1 text aged out. No new finding. |
+| 4 | The BS1 residual `060/060` states may have moved upstream (`b2a54f1`, "wire the staged plane at the hook") | **= RB1**, and the "may" is now a "has": `b2a54f1` landed 2026-09-20; the registry runs `board --check --staged` at the hook; the ADR's third amendment records BS1's fund as spent. `060/060`'s residual paragraph is a dated record and may stand as history; `CLAUDE.md`'s rule may not (RB1). |
+
+### Against the prior verdict (2026-07-29), where it touches this delta
+
+- **Its `[backlog]` findings were carried by the split, correctly.** F3 →
+  `050/010`, F2 → `050/020`, F1's remaining half (the allow-list trim) →
+  `050/030`, the settings tail of F10 → `050/040` and `050/050`, F5 →
+  `050/060`, F9 → `060/040`. All `[ ]`, all work still owed. F10 itself is
+  not on this board and should not be: it routes to where the publish-safety
+  checklist lives, and atelier's board carries it (`260/070`, "rpi F10,
+  routed upward"), as it carries F9's upstream half (`260/060`). One point
+  worth recording in the split's favour: F5 is "⏳ principal" in the prior
+  verdict's vocabulary, and the split rendered it `[ ]` + 🎯, **not** `⏳` —
+  right, because on this board `⏳` means *review queued for a non-author*,
+  and a ruling owed is not that.
+- **F11's fix is where RB2's third divergence comes from.** The prior verdict
+  tags F11 (inlined floor three bullets short of canon) `[fixed — follow-on
+  session]` at `e527d06`, verified "by the pulled commits". That fix restored
+  the canonical *bullets*, and in the *Estate resources* bullet rewrote the
+  canonical conditional into an assertion — the exact line RB2 finds. So the
+  prior verdict's `[fixed]` was earned on bullet count, not on a diff against
+  canon; and this delta's retrofit, a commit later in the same lineage,
+  claimed byte-identity over a divergence that fix had introduced. Two
+  retrofits, neither diffed, both declared clean: that is RB12's point made
+  twice.
+- **F7 recurs as RB11.** 341 commits of drift then; 729 now. The prior
+  verdict closed F7 as `[fixed]` by a bump; the bump is a recurring duty and
+  the board models it as done. Same finding, one cycle on.
+- **Its own Reconcile's measurement error** ("~40 over-width lines", true
+  count 716) is carried verbatim by `060/020`'s 🚩 — the split preserved the
+  correction, as it should. RB8 now adds the next turn of that screw: the
+  716 was counted before the split, and the board's share of it is no longer
+  visible to the scanner that counted it.
+
+### Corrections to phase-1 figures, owned here rather than edited above
+
+- **RB3's "seven" is the count for `4bd429c` alone.** The delta under review
+  runs to `38016b6`, whose `060/010` sub-bullet added two more unmarked
+  `missing-path` spans (`docs/method/` and `../atelier/docs/method/
+  PROPAGATION.md`, lines 6 and 11 at HEAD). The delta added **nine**; the
+  split commit added seven; `070` and `080` later added one each, which is
+  how HEAD reaches 11 under today's tool. The finding and its fix are
+  unchanged; the figure was under-scoped.
+- No other phase-1 figure is contradicted by the sibling or the prior
+  verdict. The sibling's 505-commit drift reading (2026-10-03) and phase 1's
+  729 (2026-10-17) are both correct at their timestamps.
+
+### Finding added after the sibling was opened
+
+**RB12 — MINOR — [backlog] — formed after the sibling was opened, from its
+observation 2.** `38016b6` rewrote this repo's inlined doctrine floor —
+doctrine by function — and landed with neither a queued pointer nor an
+explicit `review: not warranted — <grounds>` line. Rule 4's *landing =
+queuing* leaves no window in which landed doctrine sits unpointed; here the
+window ran from 2026-08-17 (`38016b6`) to 2026-10-03 (`0daefff`, when the
+brief-writer widened `070` to name it) — 47 days — and was closed by a
+non-author noticing, not by the author's handoff. The content was a retrofit
+toward canon, the lowest-risk class of doctrine edit, which is why this is
+MINOR; but a review line of the honest shape ("not warranted — stamped copy
+brought to canon at `0af3006`, diff verified byte-identical") would have
+required the diff that RB2 shows was never made. The omission and the
+overclaim are one defect. *Counselled fix:* add the review line to
+`060/010`'s 2026-08-17 sub-bullet, pointing at `070` as the pointer that
+covered it; and, for the fleet, treat a retrofit of a stamped copy as a
+doctrine edit that lands with its own line, every time.
+
+### Verdict after reconcile
+
+**PASS-WITH-FINDINGS — 0 MAJOR, 12 MINOR** (RB1–RB11 from phase 1, RB12
+from the reconcile). The verdict word is unchanged. Under the close rule a
+pass with no MAJOR closes on application; 🎯 Mike: RB1, RB2, RB6, RB7,
+RB11. The sibling is folded below and deleted in the same commit, so the
+record is one file at rest.
+
+*Reconciled 2026-10-17 2113 UTC.*
+
+## Deferred observations (folded from the sibling)
+
+*Folded verbatim from `2026-10-03-1151-board-split-cold.deferred.md` at the
+close of the reconcile; the sibling file is deleted in the same commit.*
+
+# Deferred — the brief-writer's observations (board-split cold pass)
+
+**Open this only after your own findings are committed.** It goes with
+[`2026-10-03-1151-board-split-cold.md`](2026-10-03-1151-board-split-cold.md)
+(REVIEW.md rule 1). These are observations the brief-writer formed while it
+was finding the work. They are framing, not findings: each one is a claim for
+you to test, and none of them limits what you look at. When the verdict lands,
+fold this file into the brief below the verdict and delete it.
+
+1. **Atelier records this repo as "born split".** The fleet-rollout item
+   (`../atelier/docs/roadmap/010-board-store-migration-per-item-files-mik/030-fleet-rollout-of-the-split-board.md`)
+   lists this repo's index as "— → 69, born split, no prior `ROADMAP.md`". It
+   argues from that that the store form was adopted "without a monolith to
+   convert". Commit `4bd429c` deletes a 245-line *root* `ROADMAP.md`. The
+   item's method counted `docs/ROADMAP.md`. Whether this is a harvest finding
+   against this delta, or atelier's alone, is your call. Correcting atelier's
+   board is atelier's work, and nobody has asked for it from this repo.
+2. **`38016b6` has no review line of its own.** It rewrote the inlined doctrine
+   floor, so under REVIEW.md § *Review the design* it owes a queued pointer or an
+   explicit `review: not warranted — grounds`. Item `060/010` carries neither.
+   The `070` pointer names only the split's commits. The brief folds `38016b6`
+   in rather than leaving it unpointed.
+3. **The pin is stale, and the tooling does not follow the pin.** At brief time
+   atelier was 505 commits past `0af3006` (`git -C ../atelier log --oneline
+   0af3006..HEAD | wc -l`, 2026-10-03 1151 UTC). The board generator and the floor
+   run from atelier's working tree, so the index this pass regenerates comes
+   from tooling that has moved since the split. The brief-writer did not bump
+   the pin, because that would have edited `CLAUDE.md` under review mid-pass.
+4. **The BS1 residual that `060/060` names may have moved upstream.** At
+   landing, atelier's board-store cycle was open on BS1: the hook-plane `board`
+   check compared worktree to worktree. Atelier's commit subjects since then
+   include `b2a54f1` "floor: wire the staged plane at the hook". So the
+   residual the item states may no longer hold as written.
