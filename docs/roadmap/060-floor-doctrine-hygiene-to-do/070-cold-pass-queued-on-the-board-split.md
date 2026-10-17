@@ -1,4 +1,4 @@
-- [~] **Cold pass queued — the board split (structural change to this repo's record store).** (claimed 2026-10-17-2005, wt: rpi-board-split-cold) For a non-author
+- [~] **Cold pass queued — the board split (structural change to this repo's record store).** (claimed 2026-10-17-2050, wt: rpi-board-split-cold) For a non-author
       to take. **Brief written 2026-10-03 1151 UTC**, by a non-author session on Opus 5.5 at Mike's instruction (off-tier,
       disclosed in its provenance), for a fresh Fable session to run:
       [`docs/reviews/2026-10-03-1151-board-split-cold.md`](../../reviews/2026-10-03-1151-board-split-cold.md). Its
@@ -8,6 +8,13 @@
       commits past `main`, no stash, no branch pushed. Taken over on Mike's explicit instruction (2026-10-18 NZ),
       which is a *current* re-assignment from the principal and overrides a live `[~]` (`CONCURRENCY.md`
       § *Claiming work*); the orphan test — commits stopped — is met as well. The same worktree is reused.
+    - **Claim taken over again, 2026-10-17 2050 UTC — the third run.** The 2005 takeover was itself a headless
+      Fable run; it died on a credit-balance stop before any verdict landed. The worktree held one uncommitted
+      change, the deletion of the `.deferred.md` sibling from the working copy (the phase-1 partition, never
+      committed), and nothing else: no commits past `8693a43`, no stash, no verdict text. The sibling was
+      restored from git before any reviewer was spawned, so the fresh reviewer starts from a clean tree. Taken
+      over on Mike's explicit instruction (2026-10-18 NZ), the same current re-assignment as the 2005 takeover.
+      Same worktree, same claim shape as below.
     - **Claim shape (rule-4 disclosure):** taken by a principal-opened, **headless** (`claude -p`, nobody
       watching) cold session on Fable (`claude-fable-5-1`), running reviewer-plus-orchestrator. A fresh Fable
       reviewer subagent, spawned headless by this session, forms every finding and severity with the brief as
