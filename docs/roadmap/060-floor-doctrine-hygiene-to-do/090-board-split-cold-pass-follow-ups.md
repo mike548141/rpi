@@ -12,6 +12,9 @@
       - **RB2** — "the inlined floor differs from canon at `0af3006` in exactly two places" is false by one: the
         *Estate resources* bullet reads as an assertion where canon reads as a conditional (since `e527d06`,
         2026-07-30). Counsel: restore the canonical conditional, or correct the four records to "three places".
+        **Settled 2026-10-26 by the `0a2b7a7` pin bump** (see `060/010`). The principal's 2026-09-19 ruling
+        (*"Floor copy verbatim"*) leaves only one answer: the copy is canonical, so the conditional is back.
+        The four records stay as written. They were true of their own day except for this miscount.
       - **RB6** — the legend omits the first-physical-line projection rule (a bold title must close on line 1);
         `060/080` already trips it. Counsel: one sentence in `docs/roadmap/README.md`, then reflow `080`'s line 1.
       - **RB7** — atelier's rollout record has this repo's migration backwards ("born split, no prior roadmap";
@@ -43,6 +46,7 @@
       - **RB12** — `38016b6` rewrote the inlined doctrine floor and landed with neither a queued pointer nor a
         `review:` line; the window ran 47 days until the brief-writer widened `070`. Counsel: add the review line to
         `060/010`'s 2026-08-17 sub-bullet pointing at `070`; fleet-wide, a retrofit of a stamped copy lands with its own line.
+        The 2026-10-26 bump followed the counsel: it landed with its own pointer, `060/100`.
     - **Hand-ups filed to atelier (RB7, RB8)** under `PROPAGATION.md` § *Pointing up*, by this session, 2026-10-17:
       atelier board item `320/710` on a `report-` branch with its PR open — [PR #117](https://github.com/mike548141/atelier/pull/117). Filed, not merged;
       merging is the parent's call.

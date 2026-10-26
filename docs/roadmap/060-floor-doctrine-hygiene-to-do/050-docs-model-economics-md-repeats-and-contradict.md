@@ -24,3 +24,8 @@
       pin. Delete the billing table and the role mapping outright rather than correcting them: a corrected copy is
       still a copy, and drifts again at the next provider move. Do the `→ docs/ECONOMICS.md` rename in the same
       pass (atelier renamed its own in `b639513`), so the link churn is paid once.
+    - **2026-10-26 (pin bump to `0a2b7a7`)**: the parent moved again and widened the conflict. `ECONOMICS.md` now
+      carries the principal's 2026-09-19 rule, *"the cheapest model that can do a good job is the one that should be
+      used for every job including orchestration"*. A session states its tier and does not ask. Review stays on
+      the tier the principal names. So this file's fixed role mapping now contradicts two parent rulings, not
+      one. The fix above is unchanged: delete it, and point up.
