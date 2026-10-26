@@ -5,3 +5,21 @@
       declaration being written. Two honest resolutions, and the review picks one: **adopt 85** for new prose and
       `.wrapscanignore` the frozen records, or **exempt this repo's prose** from the house width outright and say
       so. An expired `review-by` reds the fleet board and blocks nothing, so this is board pressure, not a gate.
+    - **Measured 2026-10-27, on Mike's word ("measure first, then decide").**
+      Lines over 85 columns, counted two ways. *Raw* counts every line in every
+      tracked `.md` file. *Flagged* is what `wrapscan` reports: it reads only
+      `docs/`, and it skips lines indented 4+ columns as if they were code.
+      - **Frozen records** (`ROADMAP-DONE.md`, 2 reviews, 10 ADRs; 13 files):
+        raw 543, flagged 395.
+      - **Append-only logs** (`docs/SESSIONS.md`, `CHANGELOG.md`): raw 569,
+        flagged 420. Old entries never change; new ones are added at ~110.
+      - **Live prose** (`README.md`, `CLAUDE.md`, `CONTRIBUTING.md`,
+        `SD_CARDS.md`, `SECURITY.md`, `ARCHITECTURE.md`, `MODEL-ECONOMICS.md`):
+        raw 341, flagged 68. Five of the seven sit at the root, outside the scan.
+      - **Board** (40 item and narrative files): raw 326, flagged 40. The 6-column
+        body indent hides almost all of it (RB8 on `060/090`).
+      - **Generated index** (`docs/ROADMAP.md`): raw 31, flagged 0. Link lines a
+        tool writes; not hand-wrapped prose.
+      - **Total: raw 1,810, flagged 923.** Raw includes tables, URLs and code,
+        so not every line is fixable prose. Tool: atelier `tools/wrapscan.py`
+        at `ffabef3`.

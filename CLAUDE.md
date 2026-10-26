@@ -109,6 +109,11 @@ goes up to atelier, never out — `PROPAGATION.md` § *Pointing up*):
   later — it cannot.
 - **The close's all-clear carries the *pushed* floor run's result**, not just
   the local scan (`RECORD.md` § *Finish the sequence*).
+- **Never copy a parent's temporary gap into standing text here** — an open
+  finding, a known residual, a "not yet built". That is a repeat of what the
+  parent owns (`PROPAGATION.md` § *Who is a child*), and it goes false the day
+  the parent closes the gap, silently. Point at the parent's section instead.
+  (Mike's ruling, 2026-10-27, on RB1 of `060/090`.)
 - **Pin bumps re-stamp the floor verbatim** and diff the copy against the
   canonical region at the new SHA by hand, because `stampscan` is not wired for
   children yet. Record each bump on board item `060/010`.
@@ -168,8 +173,8 @@ detection** (capacity fraud + CID/CSD metadata contradictions); everything else 
 - **Keep docs in sync in the same change** — README, the board item, `docs/rpi-sdinfo.1`, CHANGELOG. A state
   change flips the checkbox **in the item's own file, in the commit that finishes the work**, and rebuilds the
   index in that same commit: `python3 ../atelier/tools/board.py rebuild --root .` — then stage the item **and**
-  the index together. (The `board` floor check catches a stale index on CI regardless; at the hook plane it
-  compares worktree to worktree, so staging one without the other slips past it — atelier's open BS1.)
+  the index together. What the `board` floor check catches, and where: atelier `docs/method/CONCURRENCY.md`
+  § *On a split board*.
 - **Comments say _why_, not _what_** — platform quirks, SD-spec reasons, non-obvious constraints earn a comment;
   restating the code does not. `#!#` marks a TODO (more `#` = higher priority).
 - **Record real decisions as ADRs.** If you reject a plausible alternative or rest a design on evidence, add a

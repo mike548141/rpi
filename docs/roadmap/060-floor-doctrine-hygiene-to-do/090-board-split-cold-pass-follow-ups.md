@@ -9,6 +9,10 @@
         to worktree"); false since 2026-09-20 (the hook runs `board --check --staged` from atelier `main`), and it
         contradicts this repo's own legend. Counsel: delete the parenthetical, point up to `CONCURRENCY.md` § *On a
         split board*; general rule — a child never inlines a parent's *residual* into standing text.
+        ✅ **Ruled and applied 2026-10-27.** Mike chose *"(a) Delete it, point to atelier (Recommended)"*. The
+        parenthetical is gone, and `CLAUDE.md` now points at atelier `CONCURRENCY.md` § *On a split board*.
+        The general rule is adopted *Beneath the floor* in `CLAUDE.md`: a child never copies a parent's
+        temporary gap into its standing instructions.
       - **RB2** — "the inlined floor differs from canon at `0af3006` in exactly two places" is false by one: the
         *Estate resources* bullet reads as an assertion where canon reads as a conditional (since `e527d06`,
         2026-07-30). Counsel: restore the canonical conditional, or correct the four records to "three places".
@@ -17,6 +21,9 @@
         The four records stay as written. They were true of their own day except for this miscount.
         That reading of his ruling is the bump session's, not his: it is put to him for confirmation
         (2026-10-26), and RB2 stays open here until he gives it.
+        ✅ **Ruled 2026-10-27, closed.** Put to him as: *"rpi's copy of the safety rules had one reworded
+        line; today's update made it match atelier exactly. Close that finding?"* He chose *"Close it,
+        nothing more (Recommended)"*. The copy is exact, and the older notes stay as history.
       - **RB6** — the legend omits the first-physical-line projection rule (a bold title must close on line 1);
         `060/080` already trips it. Counsel: one sentence in `docs/roadmap/README.md`, then reflow `080`'s line 1.
       - **RB7** — atelier's rollout record has this repo's migration backwards ("born split, no prior roadmap";
