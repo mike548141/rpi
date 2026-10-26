@@ -15,6 +15,8 @@
         **Settled 2026-10-26 by the `0a2b7a7` pin bump** (see `060/010`). The principal's 2026-09-19 ruling
         (*"Floor copy verbatim"*) leaves only one answer: the copy is canonical, so the conditional is back.
         The four records stay as written. They were true of their own day except for this miscount.
+        That reading of his ruling is the bump session's, not his: it is put to him for confirmation
+        (2026-10-26), and RB2 stays open here until he gives it.
       - **RB6** — the legend omits the first-physical-line projection rule (a bold title must close on line 1);
         `060/080` already trips it. Counsel: one sentence in `docs/roadmap/README.md`, then reflow `080`'s line 1.
       - **RB7** — atelier's rollout record has this repo's migration backwards ("born split, no prior roadmap";
