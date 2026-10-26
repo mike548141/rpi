@@ -1,8 +1,8 @@
 {
   "advisory": {
     "wrapscan": {
-      "why": "This repo's whole prose corpus is written at ~110 columns, not the 85-column house width — 716 findings in docs/ measured 2026-07-30, across every file rather than concentrated in a few. So this is a style mismatch spanning the corpus, not a backlog of sloppy lines, and it grows with every entry appended at the local style. Advisory until the review decides which way it resolves: adopt 85 for new prose and glob the frozen records, or exempt this repo's prose from the house width outright.",
-      "review-by": "2026-10-31"
+      "why": "Mike ruled 2026-10-27: 85 columns for new writing, history exempt (\"(a) 85 for new, exempt history\"). History is now in .wrapscanignore. What is left is 108 lines in live docs and board items, written before the ruling at this repo's old ~110 style. They are rewrapped as a cheap tidy item (board 060/110), not in one mass rewrap. Advisory until that backlog is clear; then it goes back to enforced.",
+      "review-by": "2026-12-31"
     }
   },
   "licence": "Apache-2.0"

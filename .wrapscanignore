@@ -1,0 +1,17 @@
+# wrapscan globs for this repo.
+#
+# History is exempt from the 85-column house width; new writing is not. Mike's
+# ruling, 2026-10-27, put to him as "rpi: line width. 85 for new writing with
+# history exempt, or exempt rpi entirely?": he chose "(a) 85 for new, exempt
+# history". These files are history written at this repo's old ~110-column
+# style. Rewrapping them would rewrite records, not fix prose. Board item
+# 060/030 holds the measurement.
+docs/ROADMAP-DONE.md
+docs/reviews/
+docs/decisions/
+
+# The two running logs are exempt as whole files under the same ruling. Their
+# old entries never change, and the ignore file cannot split old entries from
+# new ones, so new entries are wrapped at 85 by habit, not by this check.
+docs/SESSIONS.md
+CHANGELOG.md

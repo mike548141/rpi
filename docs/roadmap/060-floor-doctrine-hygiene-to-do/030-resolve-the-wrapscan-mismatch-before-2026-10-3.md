@@ -1,4 +1,4 @@
-- [ ] **Resolve the wrapscan mismatch before 2026-10-31.** 716 over-width lines in `docs/` — but spread across
+- [x] **Resolve the wrapscan mismatch before 2026-10-31.** 716 over-width lines in `docs/` — but spread across
       *every* file, because this repo's prose is simply written at ~110 columns rather than the 85-column house
       width. That makes it a style mismatch spanning the corpus, not a backlog: it grows with every entry appended
       at the local style, and the 2026-07-30 session entry proved it by adding 35 more within minutes of the
@@ -23,3 +23,16 @@
       - **Total: raw 1,810, flagged 923.** Raw includes tables, URLs and code,
         so not every line is fixable prose. Tool: atelier `tools/wrapscan.py`
         at `ffabef3`.
+    - ✅ **Ruled 2026-10-27, closed.** Put to Mike as: *"rpi: line width. 85
+      for new writing with history exempt, or exempt rpi entirely?"* He chose
+      *"(a) 85 for new, exempt history (Recommended)"*. Applied:
+      `.wrapscanignore` exempts the frozen records and the two running logs as
+      whole files, with his answer as the reason. Live docs and board items
+      stay checked.
+      - **Tested, not assumed:** flagged fell 923 → **108**, which is
+        923 − 395 − 420, and none of the 108 is in an exempted file.
+        `CHANGELOG.md` is at the root, outside wrapscan's default `docs/`
+        scan, so its glob is future-proofing.
+      - The 108 left are the backlog on [`060/110`](110-rewrap-the-wrapscan-backlog.md).
+        wrapscan stays advisory until that clears (`.atelier-floor.json`,
+        `review-by` 2026-12-31).

@@ -537,3 +537,19 @@ Convention adopted 2026-07-08 from the sibling `ros`/`tiki` repo (lean roadmap +
   - Worktrees and branches: `~/worktrees/rpi-rulings`, branch
     `doctrine/rb1-rb2-wrapscan-measure`, merged and removed at close.
   - Other repos: none written.
+
+- **2026-10-27 (cont.)** — **Line width ruled and applied.** Same session
+  (`b5fafd75-83f2-46d3-9a16-bf299fa05fd6`), resumed with Mike's answer: *"(a)
+  85 for new, exempt history"*.
+  - ✅ `.wrapscanignore` exempts the frozen records and both running logs, with
+    his answer as the reason. `060/030` is closed.
+  - 🔎 Flagged went from 923 to **108**, as predicted. None of the 108 are in
+    exempted files, so the assumption is now tested.
+  - The 108 are queued as a cheap tidy on `060/110`, not mass-rewrapped.
+    wrapscan stays advisory until they clear (`review-by` 2026-12-31).
+  - 🚩 wrapscan does not see the root docs or board-item bodies. That is
+    recorded on `060/110` as a scope question for Mike.
+  **Identifiers**: commit is this entry's landing commit; board `060/030`
+  closed, `060/110` created; worktree `~/worktrees/rpi-wrap`, branch
+  `doctrine/wrapscan-ruling`, merged and removed at close; no PRs, no agents,
+  no other repos.

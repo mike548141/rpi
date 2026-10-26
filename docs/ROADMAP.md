@@ -56,7 +56,7 @@ then `python3 "${ATELIER_TOOLS:-$(git config hooks.atelierTools)}"/board.py rebu
 
 - ✅ [Bump the atelier pin.](roadmap/060-floor-doctrine-hygiene-to-do/010-bump-the-atelier-pin.md)
 - ✅ [Migrate .atelier-floor.json to the post-C1 spelling.](roadmap/060-floor-doctrine-hygiene-to-do/020-migrate-atelier-floor-json-to-the-post-c1-spel.md)
-- [ ] [Resolve the wrapscan mismatch before 2026-10-31.](roadmap/060-floor-doctrine-hygiene-to-do/030-resolve-the-wrapscan-mismatch-before-2026-10-3.md)
+- ✅ [Resolve the wrapscan mismatch before 2026-10-31.](roadmap/060-floor-doctrine-hygiene-to-do/030-resolve-the-wrapscan-mismatch-before-2026-10-3.md)
 - [ ] [Raise in atelier.](roadmap/060-floor-doctrine-hygiene-to-do/040-raise-in-atelier.md)
 - [ ] [docs/MODEL-ECONOMICS.md repeats and CONTRADICTS house doctrine.](roadmap/060-floor-doctrine-hygiene-to-do/050-docs-model-economics-md-repeats-and-contradict.md)
 - ✅ [Adopt the split board — one file per item, a generated index.](roadmap/060-floor-doctrine-hygiene-to-do/060-adopt-the-split-board-one-file-per-item.md)
@@ -64,6 +64,7 @@ then `python3 "${ATELIER_TOOLS:-$(git config hooks.atelierTools)}"/board.py rebu
 - [ ] [Declare this repo's pathscan source root once atelier ships the…](roadmap/060-floor-doctrine-hygiene-to-do/080-declare-the-pathscan-source-root.md)
 - [ ] 🎯 [Board-split cold-pass follow-ups — RB1–RB12, five of them Mike's…](roadmap/060-floor-doctrine-hygiene-to-do/090-board-split-cold-pass-follow-ups.md)
 - ⏳ [Cold pass owed — the 0a2b7a7 pin bump's re-stamped floor.](roadmap/060-floor-doctrine-hygiene-to-do/100-cold-pass-owed-the-0a2b7a7-floor-restamp.md)
+- [ ] [Rewrap the wrapscan backlog to 85 columns — a cheap tidy, a few files…](roadmap/060-floor-doctrine-hygiene-to-do/110-rewrap-the-wrapscan-backlog.md)
 
 ## Smaller cleanups
 
