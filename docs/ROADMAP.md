@@ -63,7 +63,7 @@ then `python3 "${ATELIER_TOOLS:-$(git config hooks.atelierTools)}"/board.py rebu
 - ✅ [Cold pass run — the board split (structural change to this repo's…](roadmap/060-floor-doctrine-hygiene-to-do/070-cold-pass-queued-on-the-board-split.md)
 - [ ] [Declare this repo's pathscan source root once atelier ships the…](roadmap/060-floor-doctrine-hygiene-to-do/080-declare-the-pathscan-source-root.md)
 - [ ] 🎯 [Board-split cold-pass follow-ups — RB1–RB12, five of them Mike's…](roadmap/060-floor-doctrine-hygiene-to-do/090-board-split-cold-pass-follow-ups.md)
-- ⏳ [Cold pass owed — the 0a2b7a7 pin bump's re-stamped floor.](roadmap/060-floor-doctrine-hygiene-to-do/100-cold-pass-owed-the-0a2b7a7-floor-restamp.md)
+- [~] ⏳ [Cold pass owed — the 0a2b7a7 pin bump's re-stamped floor.](roadmap/060-floor-doctrine-hygiene-to-do/100-cold-pass-owed-the-0a2b7a7-floor-restamp.md)
 - [ ] [Rewrap the wrapscan backlog to 85 columns — a cheap tidy, a few files…](roadmap/060-floor-doctrine-hygiene-to-do/110-rewrap-the-wrapscan-backlog.md)
 
 ## Smaller cleanups
