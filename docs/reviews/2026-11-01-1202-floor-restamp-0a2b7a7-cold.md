@@ -12,8 +12,10 @@ running on a lesser tier. This pass runs **only on his explicit approval**.
 **Status:** BRIEF WRITTEN 2026-11-01 1202 UTC. Claimed 2026-11-01 1349 UTC for the
 Fable drain. **ACT 1 RUN 2026-11-01 UTC** on Fable 5.1 under an off-tier
 orchestrator holding the partition: verdict below, PASS-WITH-FINDINGS (1 MAJOR,
-6 MINOR). Act 2 (reconcile with the held sibling, the intent record and the
-prior verdicts) follows once the orchestrator releases the sibling.
+6 MINOR), committed as `b99f868`. **ACT 2 RUN 2026-11-01 UTC** after the sibling
+was released: reconcile below the verdict, one finding added (FS8), final verdict
+PASS-WITH-FINDINGS (1 MAJOR, 7 MINOR). The sibling is folded in by the
+orchestrator.
 **Queue pointer:**
 `docs/roadmap/060-floor-doctrine-hygiene-to-do/100-cold-pass-owed-the-0a2b7a7-floor-restamp.md`.
 **Why it earns a review:** the floor is the block that binds even if atelier is never
@@ -48,7 +50,8 @@ downstream complains. The repo is public, so each push of the delta was publicat
   verdict beyond its file name. It ran each re-run line once; its results, and its
   own questions, are in the sibling
   `2026-11-01-1202-floor-restamp-0a2b7a7-cold.deferred.md` (2 sections: re-run
-  results, 9 questions), never here.
+  results, 9 questions), never here. (Orchestrator, 2026-11-01: the sibling is now
+  folded in at the end of this file, below the reconcile, and deleted.)
 - **Who takes the review:** a fresh session Mike opens on the Fable tier, which
   repeats its own provenance in the verdict. Barred: the authoring sessions; session
   `2be3482c` and its subagents, this brief-writer included.
@@ -490,3 +493,195 @@ floor's own default layout (FS2), and the records and tooling around the delta
 (FS3, FS4, FS7). Nothing in the delta names a private repo, an estate detail or
 personal data. The pushed floor is green on `main`; the local whole-tree floor is
 red on this machine for a reason the delta did not cause and did not catch.
+
+## Reconcile — act 2, run 2026-11-01 UTC after act 1 was committed (`b99f868`)
+
+Opened in this order, only after act 1 was pushed: the held sibling (released by
+the orchestrator), then the intent record (`docs/SESSIONS.md`, the 2026-10-26 entry
+and the two 2026-10-27 entries), then the prior verdicts
+`2026-07-29-1251-post-flip-cold-review.md` and `2026-10-03-1151-board-split-cold.md`.
+Nothing above this heading was changed by what they said; where a finding moves, it
+is said here.
+
+### The sibling's re-run results against this pass's
+
+All six agree. (1) 95-line region with two fence lines, four placeholders in seven
+occurrences: same. (2) three hunks at HEAD, `f56c5d5` block identical to HEAD: same;
+the sibling's 22 diff lines were not counted here, the hunks match. (3) three-line
+visibility fill: same. (4) `cd41c64` the only `CLAUDE.md` commit since: same.
+(5) CI-plane floor on this machine blocked by `leakscan`, 11 `local-term`,
+`secretscan` 30 advisories: same, run from a different worktree and a later atelier
+tools revision. The sibling left the pushed run unchecked; this pass checked it:
+`success` on every `main` tip from `f56c5d5` through `b99f868`. (6) board exit 0:
+same. No proof failed to reproduce.
+
+### The sibling's nine questions, answered
+
+1. **Three or four fills?** Both counts are in the record, including both in the
+   2026-10-26 session entry itself. Three is hunks, four is placeholder kinds,
+   seven is tokens. **FS7** stands; the counsel there is the one-sentence fix.
+2. **Is a link a fact?** The fill is the fact (PUBLIC) plus its provenance (date,
+   grounds, a repo-local ADR link that `linkscan` resolves). A reader of the floor
+   alone gets the fact without following the link; the link adds nothing a rule
+   would. Accepted in lens 2, no finding.
+3. **Worktree drift check: copy, canon or hand-up?** The copy: canon's placeholder
+   is neutral and the fill chose `../atelier`. **FS2** stands as the principal's.
+   The same fill will fail the same way in every child that uses it, so a one-line
+   note in `PROPAGATION.md`'s fill guidance is a reasonable hand-up; that is
+   unevidenced beyond this repo and is offered, not filed.
+4. **Is adopting a general rule a record or doctrine?** Doctrine by function; rule 4
+   binds it, and this pass is the review it owed (the brief widened to it). **FS5**
+   stands, and the prior verdict sharpens it (below).
+5. **Does § *On a split board* say what the removed note said?** No, and that is
+   the point: at `0a2b7a7` it says the hook runs `board --check --staged` since
+   2026-09-20, the opposite of the note it replaced. The pointer is right; the
+   target is a bold paragraph lead at line 296, not a heading (lens 2).
+6. **Does a block-only reader learn that a push is publication?** Not from the
+   block: canon's visibility bullet carries the fact and canon's estate bullet the
+   reconnaissance warning, and a child may add nothing in-block. The warning sits
+   in the same file, directly beneath the stamp, which every session reads first.
+   Whether the house wants a push-is-publication sentence *inside* the floor for
+   public children is atelier's call and a possible hand-up; unevidenced here.
+7. **Does the wrapscan exemption match the ruling for new entries?** `102e909` is
+   outside the pointer's delta (non-goal 3). The exemption does cover new entries
+   in both logs; `060/030` says so plainly ("wrapped at 85 by habit, not by this
+   check") and `060/110` carries the scope question. Honest, recorded, not a
+   finding here.
+8. **Did the landing pass the hook, and does the record carry the pushed run?**
+   The record does not say whether the hook ran, and nothing in the tree can.
+   The one `docs/SESSIONS.md` term hit predates the delta (`5b3d753`). The pushed
+   runs for `f56c5d5`, `cd41c64` and `102e909` are all `success`. The 2026-10-26
+   close, which moved the pushed-floor rule beneath the floor, does not carry a
+   floor result in its all-clear or identifiers. **FS8, below.**
+9. **Was `060/050`'s widened conflict carried as a finding or a note?** A note; the
+   item's fix was already on record from 2026-08-09 and is unchanged. Right call,
+   and this pass leaves it boarded (lens 3).
+
+### The intent record against this pass
+
+- The 2026-10-26 entry's list of what the 921 commits asked of a child matches the
+  independent list in lens 3 item for item; nothing it took in without action
+  needed one. It names the `stampscan` limit as "known upstream, so it is not
+  handed up again", which is right for a record and does not reach **FS1**: the
+  defect is the same limit written as standing doctrine in `CLAUDE.md`.
+- The 2026-10-27 entry says *"His general rule went in Beneath the floor"*. The
+  prior verdict (RB1, below) shows the general rule was the reviewer's counsel and
+  his pick was the specific fix. **FS5** stands; only he can say whether his pick
+  carried the rule.
+- The entry also notes atelier's "a child may not repeat" rule already covers the
+  RB1 rule. That is **FS6**'s ground applied to the neighbouring bullet.
+- The record carries no claim that this pass's findings contradict; FS2, FS3 and
+  FS4 are about what it did not measure or did not say.
+
+### The prior verdicts against this pass
+
+- **2026-10-03, RB1.** Its counsel ends: *"The general rule worth writing once: a
+  child never inlines a parent's residual into its own standing text — a residual
+  is dated by nature and nothing here watches it (stampscan is unwired)."* Two
+  consequences. It confirms **FS5**'s reading of where the rule came from. And it
+  makes **FS1** the same class recurring inside the commit series that applied RB1:
+  the residual it names in passing is the one `f56c5d5` promoted to standing text.
+- **2026-10-03, RB2.** Counselled restoring the canonical conditional so the block
+  "becomes verifiable byte-for-byte when stampscan is wired"; the bump did that,
+  and this pass's diff is the byte check it anticipated, by hand.
+- **2026-10-03, RB11** and its reconcile observation 3 (tooling does not follow the
+  pin). Both open; this pass's 20-commit drift figure and assumption A5 are the
+  same facts a month on.
+- **2026-10-03, RB12.** Counselled that a retrofit of a stamped copy lands with its
+  own pointer; `f56c5d5` did, which is why this pass exists.
+- **2026-07-29, F7 and F11.** The pin was 341 commits stale and the block three
+  bullets short; `stampscan` "deliberately unwired" was first recorded there. Both
+  were fixed by `e527d06`; this pass finds the block whole and the pin 20 behind.
+- No finding of this pass is withdrawn or re-graded by the prior verdicts.
+
+### Finding added in reconcile
+
+- **FS8 — MINOR (records route) — formed after the sibling was opened, from its
+  question 8.** The 2026-10-26 close moved the rule *the close's all-clear carries
+  the pushed floor run's result* beneath the floor and did not meet it: the entry's
+  all-clear and identifiers block name commits, board items, worktrees and agents,
+  and no floor result, pending or final. The run was green (`f56c5d5`, `success`,
+  2026-10-26 10:13 UTC), so the gap is in the record, not the tree. **Counsel:**
+  a dated note on `060/010`'s 2026-10-26 sub-bullet naming the pushed run's
+  result; going forward, the identifiers block carries "floor at head: <result>".
+
+### Verdict after reconcile
+
+**PASS-WITH-FINDINGS — 1 MAJOR, 7 MINOR** (FS1–FS7 from act 1 unchanged; FS8
+added here and marked as formed after the sibling was opened). The sibling's six
+re-runs reproduce; its nine questions are answered above, three of them by findings
+already recorded (FS2, FS5, FS7), one by a new one (FS8), the rest by grounds.
+Decisions: FS1, FS2, FS5 and FS6 are the principal's; FS3, FS4, FS7 and FS8 take
+the ordinary records route. The sibling is to be folded in below this section by the
+orchestrator and deleted in the same commit.
+
+---
+
+## Deferred sibling, folded below the verdict (orchestrator, 2026-11-01)
+
+Folded by the off-tier Opus 5.5 orchestrator, which forms no finding, after act 2
+was saved. Below is the brief-writer's `.deferred.md` sibling, verbatim: it was
+held out of the worktree from before the reviewer started until act 1 was
+committed (`b99f868`), then released to the reviewer for the reconcile above.
+Its heading levels are demoted one step so that they nest under this section; no
+other character is changed. The sibling file itself is deleted in the same commit.
+Two of its lines run past 85 columns; they are left as written.
+
+## Sibling to the floor-restamp-0a2b7a7 cold pass — held under rule 1's split
+
+Sibling of `docs/reviews/2026-11-01-1202-floor-restamp-0a2b7a7-cold.md`, held under
+atelier `docs/method/REVIEW.md` rule 1's split. **Open only after the phase-1
+findings in the brief are committed.** Written 2026-11-01 UTC by the Opus 5.5
+brief-writer named in the brief's provenance; it forms no finding and writes no
+severity. Fold this file in below the reconcile and delete it.
+
+### Re-run results held back from the brief
+
+Run once by the brief-writer, 2026-11-01 UTC, from a worktree at `102e909` outside
+the sibling layout, atelier tools at `7bd98ce`, machine load near 13.
+
+1. Canonical region at `0a2b7a7`: 95 lines, including an opening and a closing
+   code-fence line. Placeholder tokens: `<SHA>` ×2, `<atelier-path>` ×3, `<visibility
+   fact>` ×1, `<owner/repo>` ×1 (four distinct placeholders, seven occurrences).
+2. `diff canon copy` at HEAD: exit 1, three hunks (22 diff lines): the fence lines
+   plus the heading's `<SHA>`; the three *Source & drift* lines; the visibility
+   bullet. The stamped block at `f56c5d5` and at HEAD are identical.
+3. The visibility fill is three lines: the status with a date, a reason that links an
+   ADR, then the verify line.
+4. `git log f56c5d5..HEAD -- CLAUDE.md`: one commit, `cd41c64`.
+5. CI-plane floor on this machine: **exit 1, blocked by `leakscan`** (11 `local-term`
+   findings, from the machine-local term list, across `archive/`, `docs/SESSIONS.md`,
+   ADR 0009 and the man page, among others); `secretscan` clean with 30 advisories.
+   The machine-local term list does not exist on a GitHub runner, so the pushed CI
+   run is a different measurement; not checked.
+6. Board check: exit 0.
+
+### Brief-writer's questions, for reconcile
+
+1. R2 says "three placeholder fills"; the *Beneath the floor* preamble and
+   `CHANGELOG.md` say "the four placeholders". Which count is the record's, and does
+   either match the seven occurrences?
+2. The visibility fill carries a markdown link to an ADR. Is a link a fact, and does
+   a reader of the floor alone (atelier unread) need the target to exist?
+3. The drift check as stamped fails from a worktree outside the sibling layout
+   (`../atelier` does not resolve), while the floor tells sessions to take worktrees.
+   A finding on the copy, the canonical, or a hand-up?
+4. `cd41c64` adds a standing rule beneath the floor and calls the change "recording
+   two principal rulings". Is adopting a general rule into standing text a record or
+   doctrine, and does rule 4 bind it?
+5. `cd41c64` also replaces a board-check note with a pointer to atelier's
+   `CONCURRENCY.md` § *On a split board*. Does that section say what the removed note
+   said, at the pin?
+6. R3's "publication" warning moved beneath the block. The floor's own visibility
+   bullet now carries less than the repo's local rule says. Does a session that reads
+   only the block still learn that a push here is publication?
+7. `102e909` exempts `docs/SESSIONS.md` and `CHANGELOG.md` whole from wrapscan,
+   though new entries are appended to both; the ruling it applies was "85 for new,
+   exempt history". Does the exemption match the ruling for new entries? (Out of the
+   pointer's delta; raised because it is the same session-close surface.)
+8. The CI-plane floor on this machine blocks on `leakscan` local-term findings at
+   HEAD. Did the delta's own landing pass the hook plane, and is the close's "pushed
+   floor run" rule (beneath the floor) met by the record?
+9. R6 notes the cheapest-model ruling widens `060/050`'s conflict. Was that conflict,
+   a contradiction between this repo's docs and house doctrine, carried as a finding
+   to be fixed or as a note?
