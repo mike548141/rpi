@@ -9,7 +9,11 @@ takes nothing (rule 4, stop clause).
 **Fable-gated:** the principal's standing ruling of 2026-10-26 is that no Fable work
 runs without his explicit approval, and that such work waits for it rather than
 running on a lesser tier. This pass runs **only on his explicit approval**.
-**Status:** BRIEF WRITTEN 2026-11-01 1202 UTC. Not yet claimed, not yet run.
+**Status:** BRIEF WRITTEN 2026-11-01 1202 UTC. Claimed 2026-11-01 1349 UTC for the
+Fable drain. **ACT 1 RUN 2026-11-01 UTC** on Fable 5.1 under an off-tier
+orchestrator holding the partition: verdict below, PASS-WITH-FINDINGS (1 MAJOR,
+6 MINOR). Act 2 (reconcile with the held sibling, the intent record and the
+prior verdicts) follows once the orchestrator releases the sibling.
 **Queue pointer:**
 `docs/roadmap/060-floor-doctrine-hygiene-to-do/100-cold-pass-owed-the-0a2b7a7-floor-restamp.md`.
 **Why it earns a review:** the floor is the block that binds even if atelier is never
@@ -192,3 +196,297 @@ python3 "$A/tools/board.py" --check --root .
   is public: the verdict is published the moment it is pushed. Keep it public-grade.
 
 ---
+
+## Verdict — act 1, cold pass run 2026-11-01 UTC
+
+**Reviewer:** Fable 5.1 (`claude-fable-5-1`), the principal-named review tier,
+checked at selection. **Shape that ran:** reviewer plus orchestrator, partition
+held. The reviewer was spawned by a headless Opus 5.5 orchestrating session, itself
+started by drain session `c87c4ee0` (Opus 5.5); both are off-tier orchestrators
+that hold the context partition, form no finding and write no severity. Neither is
+a barred session: the brief bars the authoring sessions (`b5fafd75-…` and the
+2026-10-27 session that made `cd41c64`) and session `2be3482c` with its subagents,
+the brief-writer included. The reviewer was started and instructed by none of
+them. It ran under the principal's weekly Fable-drain approval of 2026-11-02 NZDT.
+**Partition:** the `.deferred.md` sibling was removed from the worktree before the
+reviewer opened; it was not sought in history, other checkouts or scratch, and this
+act was written without it. `docs/SESSIONS.md` and the two prior verdicts were not
+opened. The sweep ran `coldsweep.py` with its default bar (4 barred paths, 5
+files); no `--include-barred` run. **Disclosed exposure beyond the brief:** the
+queue pointer `060/100` (read after the brief, as the brief's `Queue pointer`
+line directs) carries three questions; they are the brief's own drives restated,
+and FS4 below is about that door.
+
+**Widenings taken, as the brief invites.** (1) `cd41c64`'s `CLAUDE.md` hunk is
+reviewed as part of the delta: it adds a rule beneath the floor, which is doctrine
+by function, so its `review: not warranted` line does not hold for that hunk; this
+pass is the review it owed (FS5). (2) The floor's live behaviour was taken wider
+than the drift check: the hook and CI planes were run at HEAD on this machine, and
+`stampscan` was aimed at the block directly.
+
+### Lens 1 — approach and assumptions, named before the intent record was read
+
+- **A1. "Verbatim" is judged by `diff`, and the stamp markers are the unit.**
+  Holds: the `floor:begin`…`floor:end` region at `0a2b7a7` is wrapped in a
+  Markdown fence inside `PROPAGATION.md`, so the only non-placeholder lines the
+  diff shows are the two fence lines, which are extraction artefacts, not text.
+- **A2. The four placeholders are the whole licence to differ.** Holds. Canon
+  carries four kinds (`<SHA>` twice, `<atelier-path>` three times,
+  `<visibility fact>`, `<owner/repo>`), in three diff hunks. Both figures appear
+  in the records as "placeholder fills" (FS7).
+- **A3. A repo sentence that leaves the block keeps its meaning beneath it.**
+  Holds for the two that moved (below). The assumption the delta did not test is
+  whether a sentence beneath the floor may *repeat* what the parent owns (FS6).
+- **A4. `../atelier` is where atelier is.** Holds only in the sibling layout. The
+  floor's own concurrency bullet makes a worktree the default, and from a worktree
+  laid out without an atelier sibling the fill resolves to nothing (FS2).
+- **A5. The tools the floor runs are the pin's.** False, and worth saying: the
+  hook and CI both run atelier's tools at `main`, through `hooks.atelierTools` and
+  the reusable workflow's `atelier-ref`. The pin governs doctrine text only. A
+  tool ruling landed inside the pin range therefore already binds here whether or
+  not the bump noticed it (FS3).
+- **A6. A rule added beneath the floor on a principal's pick is his ruling.** Not
+  as written: the record shows the general rule was the reviewer's counsel and his
+  pick was the specific fix (FS5).
+
+### Lens 2 — correctness: R1–R7 re-counted against the tree
+
+- **R1** (921 commits; 18 files; +1,580/−132): **reproduced exactly** by
+  `git rev-list --count` and `git diff --stat 0af3006 0a2b7a7 -- docs/method/`.
+  "All read in full" is unverifiable from the tree; not contested.
+- **R2** (0 drift lines, three fills, no residual placeholders): **reproduced**.
+  Canon at `0a2b7a7` against the HEAD block differs only in the three placeholder
+  hunks, and no `<…>` placeholder survives in the copy. "Three fills" counts hunks;
+  "four" elsewhere counts kinds (FS7).
+- **R3** (three in-block differences left the block): **reproduced** by diffing
+  the `e6bd0a3` block against canon: the *pushed*-floor sentence (session-rhythm
+  bullet), the publication warning (visibility bullet), and the estate bullet's
+  assertion form. Each is accounted for below.
+- **R4** (seven → nine bullets; `git status` first and the whole index; drift
+  against `origin/main`): **reproduced** in the canon diff.
+- **R5** (`stampscan` cannot pass a child; `source=` resolution; ST3):
+  **reproduced, and incomplete.** Aimed at `CLAUDE.md`, `stampscan` exits with a
+  config error, `canonical source does not resolve: docs/method/PROPAGATION.md
+  (resolved against --root …)`. Its *default* walk never reaches the block at all:
+  it scans `<root>/docs`, and the stamp is in root `CLAUDE.md`, so the default run
+  prints a clean pass over nothing and `--require-stamps` exits 2. Two reasons; the
+  record names one.
+- **R6** (a note added on `060/050`): **reproduced**, the 2026-10-26 sub-bullet.
+- **R7** (docs only): **reproduced**; `f56c5d5` touches eight `.md` files and
+  nothing else.
+
+**Fills, judged against the placeholder's meaning.** `<SHA>` → `0a2b7a7`, both
+sites, correct. `<owner/repo>` → `mike548141/rpi`, the public slug, correct.
+`<visibility fact>` → a three-line fill: the fact (PUBLIC), its date
+(2026-07-29), its grounds (the owner's instruction after ADR 0009) and a repo-local
+link that resolves. More than a bare fact, but all of it is provenance *of* the
+fact and none of it is a rule; accepted, not a finding. `<atelier-path>` →
+`../atelier`: see FS2.
+
+**What left the block, line by line.** (a) The *pushed*-floor sentence: now the
+second beneath-the-floor bullet, meaning preserved; it drops the old conditional
+"when the close pushes", which the parent's text carries, so the local line is now
+slightly broader than its source (see FS6 for the repeat). (b) The publication
+warning: now the first beneath-the-floor bullet, meaning preserved sentence for
+sentence; it still binds where a session reads it, because `CLAUDE.md` is the first
+file every session reads and the in-block visibility bullet sits twenty lines
+above it. (c) The estate bullet's assertion ("**This repo is public**, so …")
+reverted to canon's conditional, grounds recorded (RB2, ruled closed 2026-10-27);
+the conditional's antecedent is true by the in-block visibility bullet, so nothing
+narrows. (d) "shared estate tooling" left the estate list: a canon change, not a
+repo sentence; `TOOLBOX.md` now owns it and the block points there. (e) The drift
+command moved from `0af3006..HEAD` to a fetch and `..origin/main`: canon change,
+applied.
+
+**Pointers beneath the floor, checked at the pin.** `RECORD.md § Finish the
+sequence` and `CONCURRENCY.md § On a split board` both resolve, but to bold
+paragraph leads (lines 124 and 296 at `0a2b7a7`), not headings; a grep finds them,
+a table of contents does not. `PROPAGATION.md § Who is a child` and § *Pointing
+up* are headings. Noted, not a finding.
+
+### Lens 2 — the floor's own instructions, live
+
+- **Drift check from the primary checkout** (`../atelier` resolves to the sibling
+  atelier checkout): fetch succeeds; `log --oneline 0a2b7a7..origin/main` prints
+  **20 commits**. The pin is behind the parent's mainline today. That is the next
+  bump's question (non-goal 2) and RB11's modelling question on `060/090`, said
+  here so the record carries the figure.
+- **Drift check from a `git worktree` of this repo** (the reviewer's own, laid out
+  as `<dir>/rpi` with no `<dir>/atelier`): both commands fail,
+  `fatal: cannot change to '…/../atelier': No such file or directory`. The
+  reviewer did not `cd`; it passed the same relative path through `git -C`, which
+  resolves identically. **FS2.**
+- **`floor.py --plane hook`** at HEAD, nothing staged: clean apart from the
+  declared advisory `wrapscan` (108) and the warn-only `pointerscan` (1) and
+  `pathscan` (15). The hook plane scans the index, so it says nothing about the
+  tree.
+- **`floor.py --plane ci`** at HEAD on this machine: **BLOCKED by `leakscan`, 11
+  findings**, all `local-term`, all on lines that already carry a generic
+  `leakscan:allow:` marker (the author byline in `pyproject.toml`, five source
+  headers, the man page, the archived script, ADR 0009 and one session-log line).
+  The term is a machine-local one and is not named here. CI does not carry the
+  term list (`cover not guaranteed — the ci plane does not pass --require-terms`),
+  so the pushed floor is green on `main` through `2819a0c` (four runs, all
+  `success`). **FS3.**
+- **`board.py --check`**: index current, both planes.
+- **`pointerscan`** flags `060/100` itself: `carries a question — a pointer names
+  refs, it does not seed the pass's questions`. **FS4.**
+- **`pathscan`**'s 15 are the known class (relative `../atelier/…` references,
+  RB3), two of them in `060/010` and `060/100`; pre-existing, warn-only, no new
+  finding.
+
+### Lens 3 — what the bump owed, decided from the parent before the records
+
+Read from the 18 changed files at `0af3006..0a2b7a7`, what each asks of a child:
+
+- `PROPAGATION.md`: verbatim floor in stamp markers (**done**); `narrow=` reds on
+  the floor (n/a, nothing narrowed); § *Pointing up* — a child's pending-upstream
+  line is "dated, addressed, and removable at the next pin bump", and one that
+  survives a bump past its parent item is drift (**FS1**).
+- `CONCURRENCY.md`: the floor's two concurrency changes (**done** via canon); the
+  `board` check now runs `--staged` at the hook, and `rebuild --from-index` is the
+  dirty-checkout form (**pointed at** from `CLAUDE.md` since `cd41c64`; the inline
+  command there still shows only the clean-checkout form, which the pointer
+  covers); orchestration doctrine (scratch dirs, terminal markers, tier at open)
+  is read on demand and asks nothing of the block.
+- `ECONOMICS.md`: cheapest-model ruling of 2026-09-19 (**noted on `060/050`**,
+  whose contradiction it widens; the file it indicts, `docs/MODEL-ECONOMICS.md`,
+  is still open there since 2026-08-09 — boarded, not a new finding).
+- `AUTONOMY.md`: the pin must be current at a visibility flip — this repo flipped
+  2026-07-29, before the rule; nothing owed now.
+- `GUARDS.md`: a fleet `review-by` names its kind (mandate or default); the only
+  `review-by` here (`wrapscan`, 2026-12-31) is the repo's own; nothing owed.
+- `RECORD.md`: identifiers block at close; a pending-review entry names deferred
+  material by file and count only — session duties, not block text; the pointer
+  names the sibling by file without a count, which is under the ceiling.
+- `REVIEW.md`: side doors, the standing checklist V1–V7, the orchestrator shape
+  — this pass's own duties; V3/V4 drive the sweep below.
+- `00-APEX.md`, `COMMUNICATION.md`: the asking bullet (**done** via canon).
+- `TOOLBOX.md`: the expected toolbox is atelier's; the floor points at it
+  (**done**). `session-open/`, `DATA-PROTECTION.md`, `SECRETS.md`, `EVIDENCE.md`,
+  `PRINCIPLES.md`, `README.md`: nothing a child's block or records must carry.
+
+**Harvest (V3/V4): surfaces that describe the floor, the pin or the drift
+check.** `coldsweep` over the tree for the stamp, pin, drift and `stampscan`
+vocabulary: no surface outside `CLAUDE.md` and the board still describes the old
+block or the old drift command. `CONTRIBUTING.md`, `README.md`,
+`docs/ARCHITECTURE.md` and `docs/MODEL-ECONOMICS.md` do not describe the floor at
+all. `CONTRIBUTING.md:20` and `docs/roadmap/README.md:9` carry the
+`../atelier/tools/board.py` path (RB9's surface, open). The one duplication found
+is FS6.
+
+### Lens 4 — security and privacy
+
+- **`/security-review` discharged by grounds:** the delta is landed and
+  Markdown-only, a file class the scanner's exclusions bar, so its clean pass
+  would weigh as nothing; it was not run, and never over this brief.
+- **Design-altitude read, by hand.** Threats for this class (doctrine text in a
+  public repo): a silent narrowing of the floor — none, 0 drift lines; a fill
+  carrying private detail — none: the fills name a public slug, a date, a
+  repo-local ADR and `../atelier` (atelier is public and already named in
+  `.github/workflows/floor.yml`); a beneath-the-floor line naming a private repo,
+  an estate fact or personal data — none; a pointer to nowhere — `linkscan`
+  clean. The in-block visibility bullet and the publication warning directly
+  beneath it are both on the first surface a session reads.
+- **The publication warning still binds** where it moved to (lens 2 (b) above).
+- **One class routed, not found:** the claim text on `060/100` (not in the
+  pointer's delta; written 2026-11-01) says the pass runs "for Mike's weekly Fable
+  drain, under his approval". `060/090` already routes publication of
+  account-limit events to `050/060` for the principal's ruling; this is the same
+  class and goes with it.
+- **Machine-local term hits** (FS3) are all on lines already published by design
+  (the author byline ships in PyPI metadata); no new exposure, and the term itself
+  is not written here.
+
+### Findings
+
+Findings on the floor and the beneath-the-floor list are the principal's to
+decide (rule 3); they are recorded with a counselled fix and nothing is applied.
+Findings on the records take the ordinary route.
+
+- **FS1 — MAJOR (principal's).** `CLAUDE.md:117–119`, the fourth
+  beneath-the-floor bullet, reads *"diff the copy against the canonical region
+  at the new SHA by hand, because `stampscan` is not wired for children yet"*.
+  That is a parent's temporary gap ("not yet built", atelier's open ST3) written
+  into this repo's standing text — exactly what the third bullet, added in
+  `cd41c64` on the RB1 ruling of 2026-10-27, forbids five lines above it. The
+  rule also fails
+  `PROPAGATION.md` § *Pointing up* step 3's form for a pending-upstream line: it
+  is undated and names no parent item. It goes false the day atelier wires
+  `stampscan` for children, and nothing here will notice; `stampscan`'s default
+  walk does not even reach the block (R5 above), so the hand diff is the only
+  check and the line that mandates it is the one that will rot. Severity rests on
+  the self-contradiction in a doctrine surface, not on the harm, which is bounded:
+  the worst case is a session hand-diffing when a tool could. **Counsel:** keep
+  the instruction and drop the reason — *"Pin bumps re-stamp the floor verbatim
+  and diff the copy against the canonical region at the new SHA; use `stampscan`
+  where it passes a child (atelier ST3), by hand until then. Record each bump on
+  `060/010`."* — or point at `060/010`, which already holds the ST3 note as dated
+  history.
+- **FS2 — MINOR (principal's).** The `<atelier-path>` fill `../atelier` fails in
+  the layout the floor itself prescribes: the concurrency bullet makes a worktree
+  the default, and from a worktree with no atelier sibling the drift check's two
+  commands exit `fatal`. The failure is loud, so the cost is a session that knows
+  it could not run the check, not one that believes it did. The hook already
+  solves the same problem: `hooks.atelierTools` is repo config, shared by every
+  worktree, and resolved to the sibling atelier checkout here. **Counsel:** one
+  beneath-the-floor sentence, *"From a worktree without an atelier sibling,
+  `../atelier` is the parent of `git config --get hooks.atelierTools`"*; or lay
+  worktrees out beside an atelier worktree, if the house's worktree tool can.
+  Either is the principal's, because it touches how the floor's own command is
+  read.
+- **FS3 — MINOR (records route).** Eleven lines carry a generic `leakscan:allow:`
+  marker that no longer covers them: atelier's D1 ruling (2026-08-04, inside the
+  pin range) made the machine-local term layer immune to generic markers, and the
+  2026-08-09 hatch requires the scope to name `local-term`. On this machine the
+  whole-tree floor is red, and a commit that stages any of the eleven files will
+  block at the hook until the marker is widened. CI stays green only because it
+  carries no term list. The bump was the catch-up occasion and did not run the
+  tree-wide floor. **Counsel:** `leakscan:allow:local-term: <reason>` (composed
+  with the existing scope where one is needed) on the eleven lines; re-run
+  `floor.py --plane ci` on a machine with the term list and record the figure.
+- **FS4 — MINOR (records route).** The queue pointer `060/100`, written in the
+  landing commit `f56c5d5`, carries three questions under **The questions**.
+  `REVIEW.md` rule 4 makes the pointer refs only — "a ceiling as well as a floor"
+  — and `pointerscan` flags it. A reviewer's onramp reads the pointer before the
+  brief, so the questions are a side door the deferral cannot close; here they
+  restated the brief's drives and steered nothing, which is disclosed above.
+  **Counsel:** strip the three sentences from the pointer; the brief holds them.
+- **FS5 — MINOR (principal's).** `cd41c64`'s `CLAUDE.md` hunk adds a general rule
+  beneath the floor and attributes it to *"Mike's ruling, 2026-10-27, on RB1"*.
+  The record on `060/090` shows the general rule was the cold reviewer's counsel;
+  his pick was *"(a) Delete it, point to atelier"*, the specific fix. Citing an
+  agent's generalisation as his ruling is the attribution error the house guards
+  against, and the commit's `review: not warranted — recording two principal
+  rulings` does not hold for a hunk that encodes a rule the session worded; this
+  pass is the review it owed. The rule itself is sound and the parent half-owns it
+  (§ *Who is a child*; § *Pointing up* step 3). **Counsel:** either he confirms the
+  general rule as his, and the bullet keeps its citation, or the bullet reads
+  *"adopted 2026-10-27 on his pick of RB1's counsel"*.
+- **FS6 — MINOR (principal's).** The second beneath-the-floor bullet restates
+  `RECORD.md`'s rule that a close which pushes carries the pushed floor run's
+  result. The parent owns that rule (its *Finish the sequence* bullet, grounded
+  2026-07-23), and `PROPAGATION.md` § *Who is a child* says a child may add but
+  never repeat. It was a defensible local addition while the block compressed
+  session rhythm; moved out of the block it is a repeat with a pointer, and it has
+  already drifted by a conditional (lens 2 (a)). **Counsel:** reduce it to the
+  pointer, or delete it, since the floor's session-rhythm bullet already names
+  `RECORD.md`.
+- **FS7 — MINOR (records route).** The records disagree on the fill count: the
+  commit message and `060/010`'s hand-check line say three placeholder fills; the
+  beneath-the-floor preamble, `CHANGELOG.md` and `060/010`'s opening say four.
+  Both are true of different things (three hunks, four placeholder kinds, seven
+  tokens), and a later reader cannot tell which. **Counsel:** one sentence on
+  `060/010`: "four placeholders in three hunks".
+
+### Verdict
+
+**PASS-WITH-FINDINGS — 1 MAJOR, 6 MINOR.** The copy is the canonical floor at
+`0a2b7a7` word for word apart from the placeholder fills; every sentence that left
+the block is accounted for and kept its meaning; the bump applied what the 921
+commits asked of a child's block and boarded what it widened. The defects are in
+the list beneath the floor (FS1, FS5, FS6), the one fill that does not survive the
+floor's own default layout (FS2), and the records and tooling around the delta
+(FS3, FS4, FS7). Nothing in the delta names a private repo, an estate detail or
+personal data. The pushed floor is green on `main`; the local whole-tree floor is
+red on this machine for a reason the delta did not cause and did not catch.
