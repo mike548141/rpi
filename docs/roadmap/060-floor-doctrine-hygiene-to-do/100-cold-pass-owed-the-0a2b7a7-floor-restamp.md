@@ -7,3 +7,9 @@
       block lose meaning on the way out? Is anything the delta asks of a child left undone, unqueued or
       mis-recorded on `060/010`? 🛑 **Fable-tier work (rule 4)**: it waits for the principal's explicit approval
       to run Fable. It is never run on a lesser tier instead.
+
+      **Brief written 2026-11-01 UTC:**
+      [`docs/reviews/2026-11-01-1202-floor-restamp-0a2b7a7-cold.md`](../../reviews/2026-11-01-1202-floor-restamp-0a2b7a7-cold.md),
+      with its `.deferred.md` sibling, by a non-author Opus 5.5 subagent of
+      Mike-opened session `2be3482c`. Off-tier: it forms no finding. Review
+      NOT run; it waits for Mike's explicit approval of Fable work.
