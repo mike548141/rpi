@@ -73,3 +73,4 @@ then `python3 "${ATELIER_TOOLS:-$(git config hooks.atelierTools)}"/board.py rebu
 - [ ] [sdbench: a true O_DIRECT path on Linux.](roadmap/070-smaller-cleanups/010-sdbench-a-true-o-direct-path-on-linux.md)
 - ✅ [macOS: removable-card auto-detect and real card identity.](roadmap/070-smaller-cleanups/020-macos-removable-card-auto-detect-and-real-card.md)
 - ✅ [read_file(return_scope='lines') takes a range, not just an index.](roadmap/070-smaller-cleanups/030-read-file-return-scope-lines-takes-a-range-not.md)
+- [ ] [CI is red: ubuntu-latest no longer provides Python 3.8 or 3.9.](roadmap/070-smaller-cleanups/040-ci-is-red-ubuntu-latest-has-no-python-3-8-or-3-9.md)
