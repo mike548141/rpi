@@ -28,9 +28,9 @@
       review: queued — `060/100` (a retrofit of a stamped copy lands with its own pointer; RB12's counsel)
     - **2026-11-13**: `0a2b7a7` → `2a6d7a4` — 340 atelier commits. Done by a headless
       Opus 5.5 session dispatched by an estate health sweep (orchestrator session
-      `e820bff5`). **Read in full:** the `docs/method/PROPAGATION.md` diff
+      `e820bff5`). **Read in full:** the `docs/method/PROPAGATION.md` diff <!-- pathscan:allow:missing-path: atelier-relative path, a sibling repo -->
       `0a2b7a7..2a6d7a4` (820 lines), which holds the `floor` region. **Taken from a
-      digest, not read line by line:** the rest of the `docs/method` and template
+      digest, not read line by line:** the rest of the `docs/method` and template <!-- pathscan:allow:missing-path: atelier-relative path, a sibling repo -->
       delta, summarised by a read-only research session that read every hunk of it.
       The floor is re-stamped word for word from the region at `2a6d7a4`, with the
       same four fills. What moved in it: bulk deletion from a record store is now a
