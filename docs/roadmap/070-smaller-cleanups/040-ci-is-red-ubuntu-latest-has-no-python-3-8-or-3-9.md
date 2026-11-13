@@ -1,4 +1,4 @@
-- [ ] **CI is red: `ubuntu-latest` no longer provides Python 3.8 or 3.9.**
+- [x] **CI is red: `ubuntu-latest` no longer provides Python 3.8 or 3.9.**
       Found 2026-11-12 by a parent-repo session probing the fleet; queued here,
       not fixed from there. The `CI` workflow has failed on every push since at
       least 2026-11-01. `ubuntu-latest` now resolves to Ubuntu 26.04, and
@@ -16,3 +16,6 @@
       and 3.13. The README and `pyproject.toml` still say 3.6+ with CI flooring at
       3.8, which the matrix still matches. Flips to `[x]` once `CI` is green at the
       pushed head.
+      **Done 2026-11-13:** `CI` green at `013f41b`, all eleven jobs, including
+      `ubuntu-22.04` py3.8 and py3.9
+      ([run 43378313548](https://github.com/mike548141/rpi/actions/runs/43378313548)).

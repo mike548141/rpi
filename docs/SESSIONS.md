@@ -570,3 +570,10 @@ Convention adopted 2026-07-08 from the sibling `ros`/`tiki` repo (lean roadmap +
   this entry's landing commit; board `060/100` claimed then flipped to `[ ] 🎯`;
   worktree `~/worktrees/fable/rpi-060-100-1349`, detached, removed by the
   launcher; no PRs; no other repos written.
+
+- **2026-11-13** — **Pin bump `0a2b7a7` → `2a6d7a4`; CI green again.** An estate
+  health sweep (orchestrator session `e820bff5`) dispatched a headless Opus 5.5
+  session. Floor re-stamped word for word (`pins.py`: current, identical); the
+  `CI` matrix's 3.8/3.9 Linux entries moved to `ubuntu-22.04` (`070/040` closed);
+  FS3 of `060/100` applied. Detail:
+  [`docs/sessions/2026-11-13-0608-estate-health-pin-bump.md`](sessions/2026-11-13-0608-estate-health-pin-bump.md).
