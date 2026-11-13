@@ -31,9 +31,16 @@ jobs:
         # it does NOT exercise the Raspberry Pi sysfs reads in gather_linux() (no SD card in CI).
         os: [ubuntu-latest, macos-latest, windows-latest]
         python-version: ["3.9", "3.11", "3.13"]
-        include:
-          # An extra low-floor check for the oldest Python GitHub still provides.
+        # ubuntu-latest moved to 26.04, which setup-python has no 3.8 or 3.9 build for, so the
+        # low-floor Linux entries run on the older image that still carries them (board 070/040).
+        exclude:
           - os: ubuntu-latest
+            python-version: "3.9"
+        include:
+          - os: ubuntu-22.04
+            python-version: "3.9"
+          # An extra low-floor check for the oldest Python GitHub still provides.
+          - os: ubuntu-22.04
             python-version: "3.8"
 
     steps:

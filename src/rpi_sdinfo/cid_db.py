@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# Author:       Mike Clements, Competitive Edge  # leakscan:allow: standard per-file author header, matches cli.py
+# Author:       Mike Clements, Competitive Edge  # leakscan:allow:local-term: standard per-file author header, matches cli.py
 # File:         src/rpi_sdinfo/cid_db.py
 # License:      Apache-2.0
 # Language:     Python 3.6 or later

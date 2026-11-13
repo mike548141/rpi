@@ -224,7 +224,7 @@ Convention adopted 2026-07-08 from the sibling `ros`/`tiki` repo (lean roadmap +
   take the repo to a *verified* safe-to-public state, produce the evidence and the ask, do **not** touch
   visibility). Verdict recorded in [ADR 0009](decisions/0009-publish-safety-review.md): **SAFE TO PUBLISH** with
   the fixes in this change. Six gates, each with evidence rather than an assurance. **(1) leakscan 11 → 0** —
-  every red triaged, all false positives: 8 × the `Mike Clements, Competitive Edge` author byline (deliberate  <!-- leakscan:allow: quotes this review's own triaged findings (author byline / "2 Lane" PCIe comment / "12:00:00" fixture clock) — evidence, not data. See ADR 0009. -->
+  every red triaged, all false positives: 8 × the `Mike Clements, Competitive Edge` author byline (deliberate  <!-- leakscan:allow:local-term,nz-address: quotes this review's own triaged findings (author byline / "2 Lane" PCIe comment / "12:00:00" fixture clock) — evidence, not data. See ADR 0009. -->
   attribution; it already ships in the PyPI metadata), 1 × `nz-address` that matched `2 Lane` in a *"PCIe Gen.4  <!-- leakscan:allow: quotes this review's own triaged findings (author byline / "2 Lane" PCIe comment / "12:00:00" fixture clock) — evidence, not data. See ADR 0009. -->
   x 2 Lane"* comment, 2 × `ipv6` that matched `12:00:00` in a `dumpe2fs` fixture. Each got a narrow inline  <!-- leakscan:allow: quotes this review's own triaged findings (author byline / "2 Lane" PCIe comment / "12:00:00" fixture clock) — evidence, not data. See ADR 0009. -->
   `leakscan:allow:` marker with a stated reason — never a blanket ignore; the man page uses a troff `\"` comment

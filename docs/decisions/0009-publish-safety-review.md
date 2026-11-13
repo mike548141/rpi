@@ -40,7 +40,7 @@ Each gate, with the evidence rather than an assurance:
 
 Every one a false positive. None removed as data; each exempted narrowly:
 
-- **8 × author byline** (`Mike Clements, Competitive Edge`) in the per-file headers,  <!-- leakscan:allow: quotes this review's own triaged findings (author byline / "2 Lane" PCIe comment / "12:00:00" fixture clock) — evidence, not data. See ADR 0009. -->
+- **8 × author byline** (`Mike Clements, Competitive Edge`) in the per-file headers,  <!-- leakscan:allow:local-term,nz-address: quotes this review's own triaged findings (author byline / "2 Lane" PCIe comment / "12:00:00" fixture clock) — evidence, not data. See ADR 0009. -->
   `pyproject.toml`, the man page and a build artefact. This is deliberate attribution — the
   one place a name belongs in an open-source project, and it already ships in the PyPI
   metadata by design. Inline `leakscan:allow:` marker on each line; the man page uses a
@@ -58,7 +58,7 @@ byline from `pyproject.toml`.
 
 The only finding of substance is that `LICENSE` held **GPL-2.0** before commit `2e4ed88`
 relicensed to Apache-2.0. That is sound: `git log` shows a **single human author**
-(`Mike Clements`), with the only co-author trailers being Claude models. Sole copyright  <!-- leakscan:allow: quotes this review's own triaged findings (author byline / "2 Lane" PCIe comment / "12:00:00" fixture clock) — evidence, not data. See ADR 0009. -->
+(`Mike Clements`), with the only co-author trailers being Claude models. Sole copyright  <!-- leakscan:allow:local-term,nz-address: quotes this review's own triaged findings (author byline / "2 Lane" PCIe comment / "12:00:00" fixture clock) — evidence, not data. See ADR 0009. -->
 holder, so the relicence was his to make. The two `nz-address` hits in that blob are the
 Free Software Foundation's own Boston address inside the GPL text.
 

@@ -44,3 +44,10 @@
         CI green), FS4 (this pointer carries questions), FS7 (three vs four fill counts), FS8 (the 2026-10-26
         close did not record the pushed floor result).
       - Stays open `[ ] 🎯` until Mike rules FS1, FS2, FS5 and FS6, and the records findings are applied.
+      - **FS3 applied 2026-11-13** (records route, `[fixed]`): the eleven
+        author-byline markers now read `leakscan:allow:local-term:` (three composed
+        with `nz-address`, the scope they had been covering). `leakscan --root` reads
+        clean (structural + local) and `floor.py --plane ci` no longer blocks on this
+        machine. FS1, FS2, FS5, FS6 (Mike's) and FS4, FS7, FS8 stay open. Note for
+        FS1: since the `2a6d7a4` bump, `pins.py` compares a child's floor copy with
+        the canonical region, so the "by hand" instruction has a tool.

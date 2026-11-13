@@ -11,3 +11,8 @@
       users, so it needs the principal's word.
       **Done means** the `CI` workflow is green on `main`, and the README's
       supported versions match the matrix.
+      **Fix landed 2026-11-13** (shape one, no change to what the package promises):
+      the 3.8 and 3.9 Linux entries run on `ubuntu-22.04`; `ubuntu-latest` keeps 3.11
+      and 3.13. The README and `pyproject.toml` still say 3.6+ with CI flooring at
+      3.8, which the matrix still matches. Flips to `[x]` once `CI` is green at the
+      pushed head.
