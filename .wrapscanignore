@@ -15,3 +15,12 @@ docs/decisions/
 # new ones, so new entries are wrapped at 85 by habit, not by this check.
 docs/SESSIONS.md
 CHANGELOG.md
+
+# The entries that left docs/SESSIONS.md on 2026-11-13, one detail file each.
+# They are the same exempt history, moved word for word, so the exemption
+# moves with them. Every one is dated 2026-11-01 or earlier; detail files
+# written from 2026-11-13 on are new writing and are checked.
+docs/sessions/2026-07-*
+docs/sessions/2026-08-*
+docs/sessions/2026-10-*
+docs/sessions/2026-11-01-*

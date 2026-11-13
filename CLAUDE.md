@@ -142,8 +142,11 @@ map, not a copy. Keep it short and current.
 1. Read [docs/ROADMAP.md](docs/ROADMAP.md) — the **generated** board index (one line per item). Open the item
    files it links, under [docs/roadmap/](docs/roadmap/), on demand; never read the whole board. Board doctrine
    and the checkbox legend: [docs/roadmap/README.md](docs/roadmap/README.md).
-2. `tail -80 docs/SESSIONS.md` — the append-only session log; the last few entries are where the last session
-   left off and what's next. **Append an entry before finishing a session** (newest last, never edit prior ones).
+2. `tail -80 docs/SESSIONS.md` — the append-only session index, one line per
+   session, each pointing at its detail file under `docs/sessions/` (open one only
+   when a line needs unpacking); the last few are where the last session left off.
+   **Before finishing, write the detail file and append its line** (newest last,
+   never edit prior ones).
    A cold reviewer skips this step: the log is on the review rules' barred list
    (`../atelier/docs/method/REVIEW.md` rule 2).
 3. Grep the companions on demand, never whole: [docs/ROADMAP-DONE.md](docs/ROADMAP-DONE.md) (frozen pre-split
