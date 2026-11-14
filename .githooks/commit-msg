@@ -1,0 +1,54 @@
+#!/bin/sh
+# atelier commit-msg hook — runs the commit-message plane over the message git
+# has just written.
+#
+# WHY THIS FILE EXISTS (roadmap 320/810). A commit message is a surface the
+# pre-commit gate never reads: git runs `pre-commit` before the message exists,
+# so a check on a commit's title has to run here, one hook later. It names no
+# scanner and carries no policy: tools/floor.py decides what reads the message.
+# A check declares a `msg` template in the registry, and only those run.
+#
+# Install it beside pre-commit, the same way:
+#     cp tools/commit-msg.sample .githooks/commit-msg
+#     chmod +x .githooks/commit-msg
+# (legacy, per-clone: the same file into .git/hooks/commit-msg).
+#
+# WHAT IT CANNOT COVER. A hook is one file per clone, and git carries it to no
+# other clone. An older clone finds out through a line the floor's hook plane
+# prints on its next commit (`commit_msg_hook_note` in tools/floor.py). This
+# file does not reach out to install itself, and neither does anything else.
+# `git commit --no-verify` skips this hook too.
+
+msg_file="$1"
+if [ -z "$msg_file" ] || [ ! -f "$msg_file" ]; then
+    echo >&2 "commit-msg: no message file passed — BLOCKING (fail closed)."
+    exit 1
+fi
+
+repo_root=$(git rev-parse --show-toplevel)
+tools_dir="${ATELIER_TOOLS:-$(git config --get hooks.atelierTools 2>/dev/null)}"
+tools_dir="${tools_dir:-$repo_root/tools}"
+
+if [ ! -f "$tools_dir/floor.py" ]; then
+    echo >&2 "commit-msg: floor.py not found under $tools_dir — BLOCKING (fail closed)."
+    echo >&2 "  The scanners live in atelier's tools/. Point them out with:"
+    echo >&2 "    git config hooks.atelierTools <atelier-path>/tools"
+    echo >&2 "  or set ATELIER_TOOLS in the environment."
+    exit 1
+fi
+
+if ! command -v python3 >/dev/null 2>&1; then
+    echo >&2 "commit-msg: python3 not found on PATH — BLOCKING (fail closed)."
+    exit 1
+fi
+
+status=0
+python3 "$tools_dir/floor.py" --plane msg --root "$repo_root" \
+    --tools "$tools_dir" --message-file "$msg_file" || status=1
+
+if [ "$status" -ne 0 ]; then
+    echo >&2
+    echo "To bypass in a genuine emergency (discouraged): git commit --no-verify" >&2
+fi
+
+exit "$status"

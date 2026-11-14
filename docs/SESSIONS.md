@@ -55,3 +55,4 @@ the detail in `docs/sessions/YYYY-MM-DD-HHMM-slug.md` (`HHMM` in UTC).
   FS3 of `060/100` applied. Detail:
   [`docs/sessions/2026-11-13-0608-estate-health-pin-bump.md`](sessions/2026-11-13-0608-estate-health-pin-bump.md).
 - [2026-11-13 · 0750 UTC · The session log split into an index and detail files (Opus 5.5, headless, estate health sweep)](sessions/2026-11-13-0750-sessions-log-split.md) — 28 entries moved word for word, proven byte for byte; two relative links rebased.
+- [2026-11-14 · 0038 UTC · The commit-message hook added; no record store left to split (Opus 5.5, headless, estate health sweep)](sessions/2026-11-14-0038-commit-msg-hook.md)
