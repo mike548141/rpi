@@ -36,6 +36,14 @@ delta was publication.
   them, and should say so in the verdict when it does. Whether an off-tier
   brief-writer is acceptable is Mike's call. It was put to him when this brief
   was handed over.
+- 🔀 Tidied 2026-11-16 (C0308, verified high; Mike approved 2026-11-16): the
+  question just above, whether an off-tier brief-writer is acceptable, is
+  closed. 💬 Mike answered it on 2026-10-16, an answer to a question, not a
+  ruling: atelier board item 160/670, lines 16-18, records it as "on Mike's
+  2026-10-16 answer that a fresh Opus session writes these briefs". The pass
+  then ran on this brief (*Verdict — 2026-10-17 2108 UTC*, below). Nothing
+  above was changed; the original text is as it was. To revert: delete this
+  line (its commit is listed in docs/sessions/2026-11-16-0602-asks-tidy-applied.md).
 - **Brief-writer's exposure, disclosed** (material it read before writing): the
   queue pointer; item `060/060` (the work's own account of itself); the tail of
   `docs/SESSIONS.md`, including both 2026-08-17 entries, which are the intent
