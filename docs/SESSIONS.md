@@ -57,3 +57,4 @@ the detail in `docs/sessions/YYYY-MM-DD-HHMM-slug.md` (`HHMM` in UTC).
 - [2026-11-13 · 0750 UTC · The session log split into an index and detail files (Opus 5.5, headless, estate health sweep)](sessions/2026-11-13-0750-sessions-log-split.md) — 28 entries moved word for word, proven byte for byte; two relative links rebased.
 - [2026-11-14 · 0038 UTC · The commit-message hook added; no record store left to split (Opus 5.5, headless, estate health sweep)](sessions/2026-11-14-0038-commit-msg-hook.md)
 - [2026-11-16 · 0602 UTC · Asks de-dupe tidy-ups applied (Opus 5.5, headless, estate health sweep)](sessions/2026-11-16-0602-asks-tidy-applied.md) — C0308 applied (`a77a8f9`); C0311 held, a past session log is not edited.
+- [2026-11-16 · 0647 UTC · 🎯 marker removal after the asks tidy-up: nothing to remove (Opus 5.5, headless, estate health sweep)](sessions/2026-11-16-0647-asks-marker-removal.md) — C0308 held: its ask carries ⚠️, not 🎯; no marker commit.
