@@ -6,7 +6,7 @@
 # history". These files are history written at this repo's old ~110-column
 # style. Rewrapping them would rewrite records, not fix prose. Board item
 # 060/030 holds the measurement.
-docs/ROADMAP-DONE.md
+docs/roadmap/990-done-before-the-split/frozen/
 docs/reviews/
 docs/decisions/
 

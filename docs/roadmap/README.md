@@ -25,7 +25,7 @@ that catches an item deleted without its work being done.
 
 Companion docs (grep on demand, never load whole):
 
-- [`docs/ROADMAP-DONE.md`](../ROADMAP-DONE.md) — **frozen** pre-split per-version completed detail (0.3 → post-0.9).
+- [`docs/roadmap/990-done-before-the-split/README.md`](990-done-before-the-split/README.md) — **frozen** pre-split per-version completed detail (0.3 → post-0.9).
   Nothing is harvested into it any more; a done item stays in its own file as `[x]`.
 - [`docs/SESSIONS.md`](../SESSIONS.md) — append-only session index, detail in
   [`docs/sessions/`](../sessions/); read the tail at session start, append a line
@@ -38,5 +38,6 @@ Companion docs (grep on demand, never load whole):
 - [`CHANGELOG.md`](../../CHANGELOG.md) — user-facing change history.
 
 Done through 0.9 (packaging, native benchmark, capacity sweep, CSD decode + cross-checks, SQLite history, latency
-percentiles, the test suite) plus the post-0.9 macOS/CSD work lives in `docs/ROADMAP-DONE.md`. The bash original
+percentiles, the test suite) plus the post-0.9 macOS/CSD work lives in
+[`990-done-before-the-split/`](990-done-before-the-split/README.md). The bash original
 (`archive/rpi-sdinfo.sh`) is reference only, not developed further.

@@ -149,7 +149,7 @@ map, not a copy. Keep it short and current.
    never edit prior ones).
    A cold reviewer skips this step: the log is on the review rules' barred list
    (`../atelier/docs/method/REVIEW.md` rule 2).
-3. Grep the companions on demand, never whole: [docs/ROADMAP-DONE.md](docs/ROADMAP-DONE.md) (frozen pre-split
+3. Grep the companions on demand, never whole: [docs/roadmap/990-done-before-the-split/README.md](docs/roadmap/990-done-before-the-split/README.md) (frozen pre-split
    per-version detail), [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) (the shape), and
    [docs/decisions/](docs/decisions/) (ADRs — read before re-opening a settled call).
 
@@ -165,7 +165,7 @@ detection** (capacity fraud + CID/CSD metadata contradictions); everything else 
   replacement for `f3`/h2testw/`smartctl` — its edge is breadth in one command plus CSD liar-detection.
 - **Status, pending work, standing themes:** the board — [docs/ROADMAP.md](docs/ROADMAP.md) (generated index)
   over [docs/roadmap/](docs/roadmap/) (one file per item); frozen pre-split detail in
-  [docs/ROADMAP-DONE.md](docs/ROADMAP-DONE.md).
+  [docs/roadmap/990-done-before-the-split/README.md](docs/roadmap/990-done-before-the-split/README.md).
 - **Design shape & decisions:** [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) + [docs/decisions/](docs/decisions/).
 - **Model choice & token/session hygiene:** [docs/MODEL-ECONOMICS.md](docs/MODEL-ECONOMICS.md).
 - **History of changes:** [CHANGELOG.md](CHANGELOG.md). **Contributor rules:** [CONTRIBUTING.md](CONTRIBUTING.md).

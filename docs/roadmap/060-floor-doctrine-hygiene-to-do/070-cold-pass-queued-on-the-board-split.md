@@ -32,7 +32,7 @@
       the reference updates in [`CLAUDE.md`](../../../CLAUDE.md), [`README.md`](../../../README.md),
       [`CONTRIBUTING.md`](../../../CONTRIBUTING.md), [`docs/ARCHITECTURE.md`](../../ARCHITECTURE.md) and
       [`docs/MODEL-ECONOMICS.md`](../../MODEL-ECONOMICS.md), and the freeze note on
-      [`docs/ROADMAP-DONE.md`](../../ROADMAP-DONE.md).
+      [`docs/roadmap/990-done-before-the-split/README.md`](../990-done-before-the-split/README.md).
     - **Intent record:** the session entry in [`docs/SESSIONS.md`](../../SESSIONS.md) for 2026-08-17, and the item
       above.
     - **Governing decision:** atelier's board-store ADR

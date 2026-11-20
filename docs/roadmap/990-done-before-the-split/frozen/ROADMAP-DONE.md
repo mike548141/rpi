@@ -1,7 +1,7 @@
 # rpi-sdinfo roadmap — completed-work detail (archive)
 
 **FROZEN 2026-08-17.** Nothing is harvested into this file any more: the board became one file per item
-(`docs/roadmap/`, index at [`ROADMAP.md`](ROADMAP.md)) and a completed item now simply stays in its own
+(`docs/roadmap/`, index at [`ROADMAP.md`](../../../ROADMAP.md)) and a completed item now simply stays in its own
 file as `[x]`. What follows is the pre-split archive, unchanged.
 
 Verbatim per-version detail moved out of the then-monolithic `ROADMAP.md` on 2026-07-08 to keep the roadmap
@@ -152,4 +152,4 @@ unlike tiki's equivalent it simply lives in the tree — the split is for token 
 - **Bus-ceiling explainer (info, not fail).** When a card's rated class needs more sustained write than its CSD's
   advertised bus can carry, an `info` note explains the card is bus-limited on a non-UHS host — so a genuine card
   measuring below its label is understood, not mistaken for a fake. The decision *not* to infer a fake from
-  TRAN_SPEED is recorded in ADR [0003](decisions/0003-tran-speed-is-not-proof-of-fake.md).
+  TRAN_SPEED is recorded in ADR [0003](../../../decisions/0003-tran-speed-is-not-proof-of-fake.md).

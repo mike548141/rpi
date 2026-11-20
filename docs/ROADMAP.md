@@ -6,6 +6,24 @@ Board doctrine and the checkbox legend:
 [roadmap/README.md](roadmap/README.md). One item per file; edit the item,
 then `python3 "${ATELIER_TOOLS:-$(git config hooks.atelierTools)}"/board.py rebuild`.
 
+## Summary
+
+Only unfinished items are listed below; a finished item stays in its own file.
+A ✅ section has nothing owed and no list. 🎯 and ⏳ count items on the state
+line, so they overlap Open and Claimed.
+
+| Section | Open | Claimed | 🎯 Waiting | ⏳ Review |
+| :-- | --: | --: | --: | --: |
+| [Next up (v1.0 blockers)](roadmap/010-next-up-v1-0-blockers/README.md) | 1 | 0 | 0 | 0 |
+| [Fake / counterfeit card detection (the reason the tool exists)](roadmap/020-fake-counterfeit-card-detection-the-reason-the/README.md) | 2 | 0 | 0 | 0 |
+| [Data capture & sharing (the "build a public database" idea)](roadmap/030-data-capture-sharing-the-build-a-public-databa/README.md) | 2 | 0 | 1 | 0 |
+| [Documentation & release polish (post-0.9)](roadmap/040-documentation-release-polish-post-0-9/README.md) | 2 | 0 | 1 | 0 |
+| [Public-repo hardening (from the 2026-07-30 cold review)](roadmap/050-public-repo-hardening-from-the-2026-07-30-cold/README.md) | 6 | 0 | 1 | 0 |
+| [Floor & doctrine hygiene (to do)](roadmap/060-floor-doctrine-hygiene-to-do/README.md) | 6 | 0 | 2 | 0 |
+| [Smaller cleanups](roadmap/070-smaller-cleanups/README.md) | 1 | 0 | 0 | 0 |
+| ✅ [Done before the split](roadmap/990-done-before-the-split/README.md) | 0 | 0 | 0 | 0 |
+| **All sections** | 20 | 0 | 5 | 0 |
+
 ## Next up (v1.0 blockers)
 
 *[Narrative](roadmap/010-next-up-v1-0-blockers/README.md)*
@@ -18,14 +36,11 @@ then `python3 "${ATELIER_TOOLS:-$(git config hooks.atelierTools)}"/board.py rebu
 
 - [ ] [Capacity fraud test.](roadmap/020-fake-counterfeit-card-detection-the-reason-the/010-capacity-fraud-test.md)
 - [ ] [CID/CSD cross-checks.](roadmap/020-fake-counterfeit-card-detection-the-reason-the/020-cid-csd-cross-checks.md)
-- ✅ [Decode the CSD register.](roadmap/020-fake-counterfeit-card-detection-the-reason-the/030-decode-the-csd-register.md)
 
 ## Data capture & sharing (the "build a public database" idea)
 
 *[Narrative](roadmap/030-data-capture-sharing-the-build-a-public-databa/README.md)*
 
-- ✅ [Structured output.](roadmap/030-data-capture-sharing-the-build-a-public-databa/010-structured-output.md)
-- ✅ [Raw mode.](roadmap/030-data-capture-sharing-the-build-a-public-databa/020-raw-mode.md)
 - [ ] 🎯 [Crowd-sourced upload.](roadmap/030-data-capture-sharing-the-build-a-public-databa/030-crowd-sourced-upload.md)
 - [ ] [Grow the CID database.](roadmap/030-data-capture-sharing-the-build-a-public-databa/040-grow-the-cid-database.md)
 
@@ -33,11 +48,8 @@ then `python3 "${ATELIER_TOOLS:-$(git config hooks.atelierTools)}"/board.py rebu
 
 *[Narrative](roadmap/040-documentation-release-polish-post-0-9/README.md)*
 
-- ✅ [Docstrings (documentation-as-code).](roadmap/040-documentation-release-polish-post-0-9/010-docstrings-documentation-as-code.md)
-- ✅ [License.](roadmap/040-documentation-release-polish-post-0-9/020-license.md)
 - [ ] 🎯 [Tag and publish.](roadmap/040-documentation-release-polish-post-0-9/030-tag-and-publish.md)
 - [ ] [Publish an SBOM.](roadmap/040-documentation-release-polish-post-0-9/040-publish-an-sbom.md)
-- ✅ [Sign the release artefacts.](roadmap/040-documentation-release-polish-post-0-9/050-sign-the-release-artefacts.md)
 
 ## Public-repo hardening (from the 2026-07-30 cold review)
 
@@ -54,13 +66,8 @@ then `python3 "${ATELIER_TOOLS:-$(git config hooks.atelierTools)}"/board.py rebu
 
 *[Narrative](roadmap/060-floor-doctrine-hygiene-to-do/README.md)*
 
-- ✅ [Bump the atelier pin.](roadmap/060-floor-doctrine-hygiene-to-do/010-bump-the-atelier-pin.md)
-- ✅ [Migrate .atelier-floor.json to the post-C1 spelling.](roadmap/060-floor-doctrine-hygiene-to-do/020-migrate-atelier-floor-json-to-the-post-c1-spel.md)
-- ✅ [Resolve the wrapscan mismatch before 2026-10-31.](roadmap/060-floor-doctrine-hygiene-to-do/030-resolve-the-wrapscan-mismatch-before-2026-10-3.md)
 - [ ] [Raise in atelier.](roadmap/060-floor-doctrine-hygiene-to-do/040-raise-in-atelier.md)
 - [ ] [🚩 docs/MODEL-ECONOMICS.md repeats and CONTRADICTS house doctrine.](roadmap/060-floor-doctrine-hygiene-to-do/050-docs-model-economics-md-repeats-and-contradict.md)
-- ✅ [Adopt the split board — one file per item, a generated index.](roadmap/060-floor-doctrine-hygiene-to-do/060-adopt-the-split-board-one-file-per-item.md)
-- ✅ [Cold pass run — the board split (structural change to this repo's…](roadmap/060-floor-doctrine-hygiene-to-do/070-cold-pass-queued-on-the-board-split.md)
 - [ ] [Declare this repo's pathscan source root once atelier ships the…](roadmap/060-floor-doctrine-hygiene-to-do/080-declare-the-pathscan-source-root.md)
 - [ ] 🎯 [Board-split cold-pass follow-ups — RB1–RB12, five of them Mike's…](roadmap/060-floor-doctrine-hygiene-to-do/090-board-split-cold-pass-follow-ups.md)
 - [ ] 🎯 [Cold pass owed — the 0a2b7a7 pin bump's re-stamped floor.](roadmap/060-floor-doctrine-hygiene-to-do/100-cold-pass-owed-the-0a2b7a7-floor-restamp.md)
@@ -71,6 +78,3 @@ then `python3 "${ATELIER_TOOLS:-$(git config hooks.atelierTools)}"/board.py rebu
 *[Narrative](roadmap/070-smaller-cleanups/README.md)*
 
 - [ ] [sdbench: a true O_DIRECT path on Linux.](roadmap/070-smaller-cleanups/010-sdbench-a-true-o-direct-path-on-linux.md)
-- ✅ [macOS: removable-card auto-detect and real card identity.](roadmap/070-smaller-cleanups/020-macos-removable-card-auto-detect-and-real-card.md)
-- ✅ [read_file(return_scope='lines') takes a range, not just an index.](roadmap/070-smaller-cleanups/030-read-file-return-scope-lines-takes-a-range-not.md)
-- ✅ [CI is red: ubuntu-latest no longer provides Python 3.8 or 3.9.](roadmap/070-smaller-cleanups/040-ci-is-red-ubuntu-latest-has-no-python-3-8-or-3-9.md)
