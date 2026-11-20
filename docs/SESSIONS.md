@@ -58,3 +58,4 @@ the detail in `docs/sessions/YYYY-MM-DD-HHMM-slug.md` (`HHMM` in UTC).
 - [2026-11-14 · 0038 UTC · The commit-message hook added; no record store left to split (Opus 5.5, headless, estate health sweep)](sessions/2026-11-14-0038-commit-msg-hook.md)
 - [2026-11-16 · 0602 UTC · Asks de-dupe tidy-ups applied (Opus 5.5, headless, estate health sweep)](sessions/2026-11-16-0602-asks-tidy-applied.md) — C0308 applied (`a77a8f9`); C0311 held, a past session log is not edited.
 - [2026-11-16 · 0647 UTC · 🎯 marker removal after the asks tidy-up: nothing to remove (Opus 5.5, headless, estate health sweep)](sessions/2026-11-16-0647-asks-marker-removal.md) — C0308 held: its ask carries ⚠️, not 🎯; no marker commit.
+- [2026-11-20 · 1100 UTC · The frozen pre-split archive moved into the board; index rebuilt (Opus 5.5, headless, estate health sweep)](sessions/2026-11-20-1100-board-archive-move.md) — archivecut route (b), verify PASS; index in the new summary form (`df435d5`).

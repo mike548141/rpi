@@ -56,8 +56,8 @@ combined), the memory index (small), and — on demand — the board index `docs
 ~6k is repo docs we control; the rest is the fixed harness.
 
 `ROADMAP.md` was split on 2026-07-08 (it had accumulated the full 0.3→0.9 version history, ~5k+ tokens) into
-the lean roadmap + `docs/ROADMAP-DONE.md` (completed detail; moved whole on 2026-11-20 to
-`docs/roadmap/990-done-before-the-split/frozen/`) + `docs/SESSIONS.md` (append-only log, tail-read
+the lean roadmap + a completed-detail archive (since 2026-11-20 at
+`docs/roadmap/990-done-before-the-split/frozen/ROADMAP-DONE.md`) + `docs/SESSIONS.md` (append-only log, tail-read
 only), and split again on 2026-08-17 into one file per item under `docs/roadmap/` with `docs/ROADMAP.md` as a
 generated index — so the every-session read is now the index alone, and item detail loads only when opened. Keep it that way: **bulk that isn't needed every session — session-log entries, completed-work detail —
 does not accumulate in the every-session read path.** The lean-roadmap rule is about *where* information lives,
