@@ -1,5 +1,11 @@
 # 2026-10-04 — The board-split cold-pass brief
 
+**From the retired session log**, word for word; only its link paths were re-pointed for this folder:
+
+<!-- archivecut:log-entry docs/SESSIONS.md 44+1 -->
+- [2026-10-04 · The board-split cold-pass brief](2026-10-03-1153-board-split-brief.md)
+
+
 > Moved word for word from `docs/SESSIONS.md` on 2026-11-13, when the log
 > split into an index and one detail file per entry. The file name's date
 > and time are the UTC time of commit `0daefff`, which first landed this entry;

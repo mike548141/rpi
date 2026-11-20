@@ -1,5 +1,11 @@
 # 2026-07-12 — Atelier drift and pin bump, then a CID-database slice
 
+**From the retired session log**, word for word; only its link paths were re-pointed for this folder:
+
+<!-- archivecut:log-entry docs/SESSIONS.md 33+1 -->
+- [2026-07-12 · Atelier drift and pin bump, then a CID-database slice](2026-07-11-1335-pin-bump-cid-database.md)
+
+
 > Moved word for word from `docs/SESSIONS.md` on 2026-11-13, when the log
 > split into an index and one detail file per entry. The file name's date
 > and time are the UTC time of commit `ddfdb1a`, which first landed this entry;

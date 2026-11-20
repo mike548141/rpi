@@ -1,5 +1,11 @@
 # 2026-10-18 — Board-split cold pass ran and closed, with findings (`060/070`)
 
+**From the retired session log**, word for word; only its link paths were re-pointed for this folder:
+
+<!-- archivecut:log-entry docs/SESSIONS.md 45+1 -->
+- [2026-10-18 · Board-split cold pass ran and closed, with findings (`060/070`)](2026-10-17-2121-board-split-cold-pass.md)
+
+
 > Moved word for word from `docs/SESSIONS.md` on 2026-11-13, when the log
 > split into an index and one detail file per entry. The file name's date
 > and time are the UTC time of commit `e6bd0a3`, which first landed this entry;

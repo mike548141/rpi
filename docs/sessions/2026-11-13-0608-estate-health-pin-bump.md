@@ -1,5 +1,16 @@
 # 2026-11-13 0608 UTC — pin bump to `2a6d7a4`, CI back to green
 
+**From the retired session log**, word for word; only its link paths were re-pointed for this folder:
+
+<!-- archivecut:log-entry docs/SESSIONS.md 51+6 -->
+- **2026-11-13** — **Pin bump `0a2b7a7` → `2a6d7a4`; CI green again.** An estate
+  health sweep (orchestrator session `e820bff5`) dispatched a headless Opus 5.5
+  session. Floor re-stamped word for word (`pins.py`: current, identical); the
+  `CI` matrix's 3.8/3.9 Linux entries moved to `ubuntu-22.04` (`070/040` closed);
+  FS3 of `060/100` applied. Detail:
+  [`docs/sessions/2026-11-13-0608-estate-health-pin-bump.md`](2026-11-13-0608-estate-health-pin-bump.md).
+
+
 A headless Opus 5.5 session, dispatched by an estate health sweep (orchestrator
 session `e820bff5`), in a detached worktree at `origin/main`. Its brief: the
 latest atelier pin, CI green, conformance with the house's current expectations,

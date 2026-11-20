@@ -1,5 +1,11 @@
 # 2026-11-20 1100 UTC — The frozen pre-split archive moved into the board; index rebuilt
 
+**From the retired session log**, word for word; only its link paths were re-pointed for this folder:
+
+<!-- archivecut:log-entry docs/SESSIONS.md 61+1 -->
+- [2026-11-20 · 1100 UTC · The frozen pre-split archive moved into the board; index rebuilt (Opus 5.5, headless, estate health sweep)](2026-11-20-1100-board-archive-move.md) — archivecut route (b), verify PASS; index in the new summary form (`df435d5`).
+
+
 A headless Opus 5.5 session, dispatched by an estate health sweep (orchestrator
 session `19378351`), in a detached worktree at `origin/main` (`d8c8ed4`). Its
 brief had two parts: cut the frozen pre-split archives into their stores with

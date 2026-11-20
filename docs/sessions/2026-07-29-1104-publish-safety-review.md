@@ -1,5 +1,11 @@
 # 2026-07-29 — Publish-safety review: cleared as the pilot
 
+**From the retired session log**, word for word; only its link paths were re-pointed for this folder:
+
+<!-- archivecut:log-entry docs/SESSIONS.md 35+1 -->
+- [2026-07-29 · Publish-safety review: cleared as the pilot](2026-07-29-1104-publish-safety-review.md)
+
+
 > Moved word for word from `docs/SESSIONS.md` on 2026-11-13, when the log
 > split into an index and one detail file per entry. The file name's date
 > and time are the UTC time of commit `5b3d753`, which first landed this entry;

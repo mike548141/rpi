@@ -1,5 +1,11 @@
 # 2026-07-08 (cont. 6) — Artefact signing added to the roadmap
 
+**From the retired session log**, word for word; only its link paths were re-pointed for this folder:
+
+<!-- archivecut:log-entry docs/SESSIONS.md 28+1 -->
+- [2026-07-08 (cont. 6) · Artefact signing added to the roadmap](2026-07-07-1742-signing-roadmap-item.md)
+
+
 > Moved word for word from `docs/SESSIONS.md` on 2026-11-13, when the log
 > split into an index and one detail file per entry. The file name's date
 > and time are the UTC time of commit `1640b0b`, which first landed this entry;

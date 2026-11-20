@@ -1,5 +1,11 @@
 # 2026-11-01 — Cold pass on the `0a2b7a7` floor re-stamp (`060/100`)
 
+**From the retired session log**, word for word; only its link paths were re-pointed for this folder:
+
+<!-- archivecut:log-entry docs/SESSIONS.md 49+1 -->
+- [2026-11-01 · Cold pass on the `0a2b7a7` floor re-stamp (`060/100`)](2026-11-01-1413-floor-restamp-cold-pass.md)
+
+
 > Moved word for word from `docs/SESSIONS.md` on 2026-11-13, when the log
 > split into an index and one detail file per entry. The file name's date
 > and time are the UTC time of commit `aa965b9`, which first landed this entry;

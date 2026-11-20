@@ -1,5 +1,11 @@
 # 2026-11-14 0038 UTC — the commit-message hook, and a records health check
 
+**From the retired session log**, word for word; only its link paths were re-pointed for this folder:
+
+<!-- archivecut:log-entry docs/SESSIONS.md 58+1 -->
+- [2026-11-14 · 0038 UTC · The commit-message hook added; no record store left to split (Opus 5.5, headless, estate health sweep)](2026-11-14-0038-commit-msg-hook.md)
+
+
 A headless Opus 5.5 session, dispatched by an estate health sweep (orchestrator
 session `58027096`, part 2), in a detached worktree at `origin/main`. Its
 brief: split any one-file record store that still grows, add the commit-message

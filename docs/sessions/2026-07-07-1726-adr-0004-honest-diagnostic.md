@@ -1,5 +1,11 @@
 # 2026-07-08 (cont. 3) — ADR 0004: an honest diagnostic, not a pass/fail toy
 
+**From the retired session log**, word for word; only its link paths were re-pointed for this folder:
+
+<!-- archivecut:log-entry docs/SESSIONS.md 25+1 -->
+- [2026-07-08 (cont. 3) · ADR 0004: an honest diagnostic, not a pass/fail toy](2026-07-07-1726-adr-0004-honest-diagnostic.md)
+
+
 > Moved word for word from `docs/SESSIONS.md` on 2026-11-13, when the log
 > split into an index and one detail file per entry. The file name's date
 > and time are the UTC time of commit `1b2cbfe`, which first landed this entry;

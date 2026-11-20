@@ -1,5 +1,11 @@
 # 2026-07-08 (cont. 7) — Release-readiness cleanup
 
+**From the retired session log**, word for word; only its link paths were re-pointed for this folder:
+
+<!-- archivecut:log-entry docs/SESSIONS.md 29+1 -->
+- [2026-07-08 (cont. 7) · Release-readiness cleanup](2026-07-07-1815-release-readiness-cleanup.md)
+
+
 > Moved word for word from `docs/SESSIONS.md` on 2026-11-13, when the log
 > split into an index and one detail file per entry. The file name's date
 > and time are the UTC time of commit `2400ff7`, which first landed this entry;

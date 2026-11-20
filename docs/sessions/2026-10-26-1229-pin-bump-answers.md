@@ -1,5 +1,11 @@
 # 2026-10-27 — The pin-bump questions answered and applied
 
+**From the retired session log**, word for word; only its link paths were re-pointed for this folder:
+
+<!-- archivecut:log-entry docs/SESSIONS.md 47+1 -->
+- [2026-10-27 · The pin-bump questions answered and applied](2026-10-26-1229-pin-bump-answers.md)
+
+
 > Moved word for word from `docs/SESSIONS.md` on 2026-11-13, when the log
 > split into an index and one detail file per entry. The file name's date
 > and time are the UTC time of commit `cd41c64`, which first landed this entry;

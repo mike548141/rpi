@@ -1,5 +1,11 @@
 # 2026-11-13 0750 UTC — the session log split into an index and detail files
 
+**From the retired session log**, word for word; only its link paths were re-pointed for this folder:
+
+<!-- archivecut:log-entry docs/SESSIONS.md 57+1 -->
+- [2026-11-13 · 0750 UTC · The session log split into an index and detail files (Opus 5.5, headless, estate health sweep)](2026-11-13-0750-sessions-log-split.md) — 28 entries moved word for word, proven byte for byte; two relative links rebased.
+
+
 A headless Opus 5.5 session, dispatched by an estate health sweep (orchestrator
 session `e820bff5`), in a detached worktree at `origin/main`. Its brief: split
 the monolithic `docs/SESSIONS.md` into the form atelier's `RECORD.md` describes

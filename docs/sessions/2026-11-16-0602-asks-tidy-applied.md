@@ -1,5 +1,11 @@
 # 2026-11-16 0602 UTC — asks de-dupe tidy-ups applied
 
+**From the retired session log**, word for word; only its link paths were re-pointed for this folder:
+
+<!-- archivecut:log-entry docs/SESSIONS.md 59+1 -->
+- [2026-11-16 · 0602 UTC · Asks de-dupe tidy-ups applied (Opus 5.5, headless, estate health sweep)](2026-11-16-0602-asks-tidy-applied.md) — C0308 applied (`a77a8f9`); C0311 held, a past session log is not edited.
+
+
 A headless Opus 5.5 session, dispatched by an estate health sweep (orchestrator
 session `58027096`), in a detached worktree at `origin/main`. Its brief: apply
 the approved tidy-ups of the asks in this repo, one commit per row, each one

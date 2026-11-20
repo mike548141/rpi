@@ -1,5 +1,11 @@
 # 2026-07-09 — Queue build: `--block-sweep` shipped
 
+**From the retired session log**, word for word; only its link paths were re-pointed for this folder:
+
+<!-- archivecut:log-entry docs/SESSIONS.md 31+1 -->
+- [2026-07-09 · Queue build: `--block-sweep` shipped](2026-07-08-1334-block-size-sweep.md)
+
+
 > Moved word for word from `docs/SESSIONS.md` on 2026-11-13, when the log
 > split into an index and one detail file per entry. The file name's date
 > and time are the UTC time of commit `c7629fb`, which first landed this entry;

@@ -27,7 +27,7 @@ Companion docs (grep on demand, never load whole):
 
 - [`docs/roadmap/990-done-before-the-split/README.md`](990-done-before-the-split/README.md) — **frozen** pre-split per-version completed detail (0.3 → post-0.9).
   Nothing is harvested into it any more; a done item stays in its own file as `[x]`.
-- [`docs/SESSIONS.md`](../SESSIONS.md) — append-only session index, detail in
+- [`docs/sessions/README.md`](../sessions/README.md) — append-only session index, detail in
   [`docs/sessions/`](../sessions/); read the tail at session start, append a line
   and its detail file before finishing.
 - [`docs/decisions/`](../decisions/) — ADRs: decisions where a plausible alternative was rejected or a design

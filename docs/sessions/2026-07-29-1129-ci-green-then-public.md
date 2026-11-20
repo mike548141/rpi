@@ -1,5 +1,11 @@
 # 2026-07-29 (cont.) — CI red to green, then the flip to public
 
+**From the retired session log**, word for word; only its link paths were re-pointed for this folder:
+
+<!-- archivecut:log-entry docs/SESSIONS.md 36+1 -->
+- [2026-07-29 (cont.) · CI red to green, then the flip to public](2026-07-29-1129-ci-green-then-public.md)
+
+
 > Moved word for word from `docs/SESSIONS.md` on 2026-11-13, when the log
 > split into an index and one detail file per entry. The file name's date
 > and time are the UTC time of commit `e7872d5`, which first landed this entry;

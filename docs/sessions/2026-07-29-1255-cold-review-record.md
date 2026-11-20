@@ -1,5 +1,11 @@
 # 2026-07-30 (cont.) — The cold review written up as a review record
 
+**From the retired session log**, word for word; only its link paths were re-pointed for this folder:
+
+<!-- archivecut:log-entry docs/SESSIONS.md 41+1 -->
+- [2026-07-30 (cont.) · The cold review written up as a review record](2026-07-29-1255-cold-review-record.md)
+
+
 > Moved word for word from `docs/SESSIONS.md` on 2026-11-13, when the log
 > split into an index and one detail file per entry. The file name's date
 > and time are the UTC time of commit `b6f8c97`, which first landed this entry;

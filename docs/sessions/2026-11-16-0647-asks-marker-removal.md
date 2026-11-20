@@ -1,5 +1,11 @@
 # 2026-11-16 0647 UTC — 🎯 marker removal after the asks tidy-up: nothing to remove
 
+**From the retired session log**, word for word; only its link paths were re-pointed for this folder:
+
+<!-- archivecut:log-entry docs/SESSIONS.md 60+1 -->
+- [2026-11-16 · 0647 UTC · 🎯 marker removal after the asks tidy-up: nothing to remove (Opus 5.5, headless, estate health sweep)](2026-11-16-0647-asks-marker-removal.md) — C0308 held: its ask carries ⚠️, not 🎯; no marker commit.
+
+
 A headless Opus 5.5 session, dispatched by an estate health sweep (orchestrator
 session `58027096`), in a detached worktree at `origin/main` (`34092eb`). Its
 brief: remove the 🎯 marker from each ask the 2026-11-16 tidy-up

@@ -1,5 +1,11 @@
 # 2026-07-08 (cont. 8) — Artefact signing shipped
 
+**From the retired session log**, word for word; only its link paths were re-pointed for this folder:
+
+<!-- archivecut:log-entry docs/SESSIONS.md 30+1 -->
+- [2026-07-08 (cont. 8) · Artefact signing shipped](2026-07-07-1825-signing-shipped.md)
+
+
 > Moved word for word from `docs/SESSIONS.md` on 2026-11-13, when the log
 > split into an index and one detail file per entry. The file name's date
 > and time are the UTC time of commit `f32efdc`, which first landed this entry;
