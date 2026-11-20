@@ -33,7 +33,7 @@
       [`CONTRIBUTING.md`](../../../CONTRIBUTING.md), [`docs/ARCHITECTURE.md`](../../ARCHITECTURE.md) and
       [`docs/MODEL-ECONOMICS.md`](../../MODEL-ECONOMICS.md), and the freeze note on
       [`docs/roadmap/990-done-before-the-split/README.md`](../990-done-before-the-split/README.md).
-    - **Intent record:** the session entry in [`docs/sessions/README.md`](../../sessions/README.md) for 2026-08-17, and the item
+    - **Intent record:** the 2026-08-17 session record, [`docs/sessions/2026-08-17-0555-board-split.md`](../../sessions/2026-08-17-0555-board-split.md), and the item
       above.
     - **Governing decision:** atelier's board-store ADR
       (`../atelier/docs/decisions/2026-08-15-0610-board-store-per-item-files.md`), whose own review cycle was open on BS1 when this landed.

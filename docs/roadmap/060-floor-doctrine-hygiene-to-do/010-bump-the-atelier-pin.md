@@ -1,7 +1,7 @@
 - [x] **Bump the atelier pin.** Done 2026-07-30: `9e7e031` → `e45549a`. The drift also exposed that this repo's
       inlined floor was never the canonical seven bullets — concurrency, session rhythm and estate resources were
       all missing, a pre-existing retrofit gap nothing was watching (stampscan, the scanner built to catch exactly
-      this, is deliberately unwired). Detail in `docs/SESSIONS.md`.
+      this, is deliberately unwired). Detail in `docs/sessions/2026-07-29-1238-pin-bump-e45549a.md`.
     - **2026-08-17**: `e45549a` → `2428fdf` → `0af3006`, twice in one session — atelier landed 28 further commits
       while the board split was being built, three of them touching `docs/method/`. Two retrofits followed, both
       of the same class the 2026-07-30 bump found: the **Three Laws were removed from the house apex**

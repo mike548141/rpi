@@ -35,13 +35,13 @@ Cache reads ≈ 0.1× input price; cache writes ≈ 1.25× (5-minute TTL).
 ## Session hygiene (both models)
 
 1. **One task per session.** Context is resent (cached) each turn; a pivoted session drags the old task's
-   tokens along. Wrap up (append to `docs/SESSIONS.md`), start fresh.
+   tokens along. Wrap up (write the session file in `docs/sessions/`), start fresh.
 2. **Never switch model mid-session.** The prompt cache is per-model — a switch re-processes the whole context
    at full input price and loses thinking continuity. Switch at session boundaries.
 3. **Cache TTL is 5 minutes.** During active work, gaps longer than that re-write the cache (full input
    re-read). Matters most on usage-billed sessions; on plan it just wastes quota.
-4. **Watch context growth.** Long sessions get slower and costlier per turn. When a session feels long, append
-   the SESSIONS.md entry and restart.
+4. **Watch context growth.** Long sessions get slower and costlier per turn. When a session feels long, write
+   the session file and restart.
 5. **Heavy skills are episodic costs.** A skill invocation (e.g. the claude-api reference) can inject 50–100k
    tokens. Fine when needed; don't invoke speculatively, especially in Fable sessions.
 6. **Point, don't paste.** Give file paths and line ranges rather than pasting large content the model can read
@@ -49,17 +49,23 @@ Cache reads ≈ 0.1× input price; cache writes ≈ 1.25× (5-minute TTL).
 
 ## Fixed per-session overhead (measured 2026-07-08)
 
-A session starts by loading: system prompt + tools (~15–20k tokens), the global + project `CLAUDE.md` (~2.5k
-combined), the memory index (small), and — on demand — the board index `docs/ROADMAP.md` (~0.7k since the
-2026-08-17 split; ~1.9k before it as a monolithic `ROADMAP.md`), the `docs/SESSIONS.md` tail
-(~0.7k) and `docs/ARCHITECTURE.md` (~1.5k). Roughly **~22–27k tokens before any work happens**, of which only
-~6k is repo docs we control; the rest is the fixed harness.
+A session starts by loading: system prompt + tools (~15–20k tokens), the global +
+project `CLAUDE.md` (~2.5k combined), the memory index (small), and — on demand —
+the board index `docs/ROADMAP.md` (~0.7k since the 2026-08-17 split; ~1.9k before
+it as a monolithic `ROADMAP.md`), the newest few session files in `docs/sessions/`
+(not re-measured; the index tail they replaced on 2026-11-20 was ~0.7k) and
+`docs/ARCHITECTURE.md` (~1.5k). Roughly **~22–27k tokens before any work
+happens**, of which only ~6k is repo docs we control; the rest is the fixed
+harness.
 
-`ROADMAP.md` was split on 2026-07-08 (it had accumulated the full 0.3→0.9 version history, ~5k+ tokens) into
-the lean roadmap + a completed-detail archive (since 2026-11-20 at
-`docs/roadmap/990-done-before-the-split/frozen/ROADMAP-DONE.md`) + `docs/SESSIONS.md` (append-only log, tail-read
-only), and split again on 2026-08-17 into one file per item under `docs/roadmap/` with `docs/ROADMAP.md` as a
-generated index — so the every-session read is now the index alone, and item detail loads only when opened. Keep it that way: **bulk that isn't needed every session — session-log entries, completed-work detail —
+`ROADMAP.md` was split on 2026-07-08 (it had accumulated the full 0.3→0.9 version
+history, ~5k+ tokens) into the lean roadmap + a completed-detail archive (since
+2026-11-20 at `docs/roadmap/990-done-before-the-split/frozen/ROADMAP-DONE.md`) + an
+append-only session log (since 2026-11-20 the folder `docs/sessions/`, one file
+per session, the newest few read), and split again on 2026-08-17 into one file
+per item under `docs/roadmap/` with `docs/ROADMAP.md` as a generated index — so
+the every-session read is now the index alone, and item detail loads only when
+opened. Keep it that way: **bulk that isn't needed every session — session-log entries, completed-work detail —
 does not accumulate in the every-session read path.** The lean-roadmap rule is about *where* information lives,
 not deleting it; never sacrifice clarity to hit a number (the cost is linear, not a cliff).
 

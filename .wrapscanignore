@@ -10,10 +10,11 @@ docs/roadmap/990-done-before-the-split/frozen/
 docs/reviews/
 docs/decisions/
 
-# The two running logs are exempt as whole files under the same ruling. Their
-# old entries never change, and the ignore file cannot split old entries from
-# new ones, so new entries are wrapped at 85 by habit, not by this check.
-docs/SESSIONS.md
+# The running log is exempt as a whole file under the same ruling. Its old
+# entries never change, and the ignore file cannot split old entries from new
+# ones, so new entries are wrapped at 85 by habit, not by this check. The other
+# running log, the one-file session index, was retired into docs/sessions/ on
+# 2026-11-20 by atelier's archivecut.py.
 CHANGELOG.md
 
 # The entries that left docs/SESSIONS.md on 2026-11-13, one detail file each.
@@ -24,3 +25,16 @@ docs/sessions/2026-07-*
 docs/sessions/2026-08-*
 docs/sessions/2026-10-*
 docs/sessions/2026-11-01-*
+
+# On 2026-11-20 archivecut.py placed each retired index line, word for word,
+# under a label it writes, near the top of the session file the line linked.
+# Those lines are history and must stay byte for byte (--verify rebuilds the
+# index from them), so the six files written after 2026-11-01 that received one
+# take the history exemption as whole files. Session files written after the
+# retirement carry no placed line and are checked.
+docs/sessions/2026-11-13-0608-estate-health-pin-bump.md
+docs/sessions/2026-11-13-0750-sessions-log-split.md
+docs/sessions/2026-11-14-0038-commit-msg-hook.md
+docs/sessions/2026-11-16-0602-asks-tidy-applied.md
+docs/sessions/2026-11-16-0647-asks-marker-removal.md
+docs/sessions/2026-11-20-1100-board-archive-move.md

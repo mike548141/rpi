@@ -11,7 +11,7 @@
       `docs/`, and it skips lines indented 4+ columns as if they were code.
       - **Frozen records** (`ROADMAP-DONE.md`, 2 reviews, 10 ADRs; 13 files):
         raw 543, flagged 395.
-      - **Append-only logs** (`docs/SESSIONS.md`, `CHANGELOG.md`): raw 569,
+      - **Append-only logs** (`docs/SESSIONS.md`, `CHANGELOG.md`): raw 569, <!-- pathscan:allow: a measurement of the log before its 2026-11-20 retirement into docs/sessions/ -->
         flagged 420. Old entries never change; new ones are added at ~110.
       - **Live prose** (`README.md`, `CLAUDE.md`, `CONTRIBUTING.md`,
         `SD_CARDS.md`, `SECURITY.md`, `ARCHITECTURE.md`, `MODEL-ECONOMICS.md`):
